@@ -1,0 +1,25 @@
+[remap]
+
+importer="wavefront_obj"
+importer_version=1
+type="Mesh"
+uid="uid://dfhjyy2aym47y"
+path="res://.godot/imported/rail_end.obj-bc381145dc5372081d7cb29aa7762751.mesh"
+
+[deps]
+
+files=["res://.godot/imported/rail_end.obj-bc381145dc5372081d7cb29aa7762751.mesh"]
+
+source_file="res://kenney_space-kit/Models/OBJ format/rail_end.obj"
+dest_files=["res://.godot/imported/rail_end.obj-bc381145dc5372081d7cb29aa7762751.mesh", "res://.godot/imported/rail_end.obj-bc381145dc5372081d7cb29aa7762751.mesh"]
+
+[params]
+
+generate_tangents=true
+generate_lods=true
+generate_shadow_mesh=true
+generate_lightmap_uv2=false
+generate_lightmap_uv2_texel_size=0.2
+scale_mesh=Vector3(1, 1, 1)
+offset_mesh=Vector3(0, 0, 0)
+force_disable_mesh_compression=false

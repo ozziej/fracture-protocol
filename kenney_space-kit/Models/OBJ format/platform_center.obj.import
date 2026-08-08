@@ -1,0 +1,25 @@
+[remap]
+
+importer="wavefront_obj"
+importer_version=1
+type="Mesh"
+uid="uid://dot3ut1bjtcha"
+path="res://.godot/imported/platform_center.obj-d4cb9d0b04a9161f7a86329c3d025cb0.mesh"
+
+[deps]
+
+files=["res://.godot/imported/platform_center.obj-d4cb9d0b04a9161f7a86329c3d025cb0.mesh"]
+
+source_file="res://kenney_space-kit/Models/OBJ format/platform_center.obj"
+dest_files=["res://.godot/imported/platform_center.obj-d4cb9d0b04a9161f7a86329c3d025cb0.mesh", "res://.godot/imported/platform_center.obj-d4cb9d0b04a9161f7a86329c3d025cb0.mesh"]
+
+[params]
+
+generate_tangents=true
+generate_lods=true
+generate_shadow_mesh=true
+generate_lightmap_uv2=false
+generate_lightmap_uv2_texel_size=0.2
+scale_mesh=Vector3(1, 1, 1)
+offset_mesh=Vector3(0, 0, 0)
+force_disable_mesh_compression=false
