@@ -4,12 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://poeuwwb1r28d"
-path="res://.godot/imported/hangar_largeA.glb-59292b34b986ff48929a054f7a1a29e2.scn"
+path="res://.godot/imported/hangar_largeA.glb-79b393cca3e5801c90bd2113d096028d.scn"
 
 [deps]
 
-source_file="res://kenney_space-kit/Models/GLTF format/hangar_largeA.glb"
-dest_files=["res://.godot/imported/hangar_largeA.glb-59292b34b986ff48929a054f7a1a29e2.scn"]
+source_file="res://kenney_space-kit/Models/hangar_largeA.glb"
+dest_files=["res://.godot/imported/hangar_largeA.glb-79b393cca3e5801c90bd2113d096028d.scn"]
 
 [params]
 

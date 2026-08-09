@@ -4,12 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://c54cv4f2tk5xs"
-path="res://.godot/imported/platform_cornerRound.glb-221f8113ef075d4bbb6f2a153461d372.scn"
+path="res://.godot/imported/platform_cornerRound.glb-e64ebb410742b1ad253cf4fc22a46d7a.scn"
 
 [deps]
 
-source_file="res://kenney_space-kit/Models/GLTF format/platform_cornerRound.glb"
-dest_files=["res://.godot/imported/platform_cornerRound.glb-221f8113ef075d4bbb6f2a153461d372.scn"]
+source_file="res://kenney_space-kit/Models/platform_cornerRound.glb"
+dest_files=["res://.godot/imported/platform_cornerRound.glb-e64ebb410742b1ad253cf4fc22a46d7a.scn"]
 
 [params]
 

@@ -4,12 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://cnibt5edcta45"
-path="res://.godot/imported/weapon_rifle.glb-c43ef6fa28c4fa395948c69ad44aa4ee.scn"
+path="res://.godot/imported/weapon_rifle.glb-6d67f6b0a0848a2a8b5ba6f262c4df9e.scn"
 
 [deps]
 
-source_file="res://kenney_space-kit/Models/GLTF format/weapon_rifle.glb"
-dest_files=["res://.godot/imported/weapon_rifle.glb-c43ef6fa28c4fa395948c69ad44aa4ee.scn"]
+source_file="res://kenney_space-kit/Models/weapon_rifle.glb"
+dest_files=["res://.godot/imported/weapon_rifle.glb-6d67f6b0a0848a2a8b5ba6f262c4df9e.scn"]
 
 [params]
 

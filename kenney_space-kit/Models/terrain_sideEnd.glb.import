@@ -4,12 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://choex5wn5bw3b"
-path="res://.godot/imported/terrain_sideEnd.glb-0010de87357657e565333f9cea480e74.scn"
+path="res://.godot/imported/terrain_sideEnd.glb-720aaebb11286e46d8a128fe96373348.scn"
 
 [deps]
 
-source_file="res://kenney_space-kit/Models/GLTF format/terrain_sideEnd.glb"
-dest_files=["res://.godot/imported/terrain_sideEnd.glb-0010de87357657e565333f9cea480e74.scn"]
+source_file="res://kenney_space-kit/Models/terrain_sideEnd.glb"
+dest_files=["res://.godot/imported/terrain_sideEnd.glb-720aaebb11286e46d8a128fe96373348.scn"]
 
 [params]
 

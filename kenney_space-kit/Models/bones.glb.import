@@ -4,12 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://dk6i0ogya0vpp"
-path="res://.godot/imported/bones.glb-120c0f47095023be8f90440132e1f2d3.scn"
+path="res://.godot/imported/bones.glb-376fafb63035c95aed6894a603fbb0af.scn"
 
 [deps]
 
-source_file="res://kenney_space-kit/Models/GLTF format/bones.glb"
-dest_files=["res://.godot/imported/bones.glb-120c0f47095023be8f90440132e1f2d3.scn"]
+source_file="res://kenney_space-kit/Models/bones.glb"
+dest_files=["res://.godot/imported/bones.glb-376fafb63035c95aed6894a603fbb0af.scn"]
 
 [params]
 

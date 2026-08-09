@@ -4,12 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://ckd36ueprncmt"
-path="res://.godot/imported/terrain_roadCross.glb-9274cd6596775a45be8b737bf9dfd036.scn"
+path="res://.godot/imported/terrain_roadCross.glb-45817a179256c3105e68dbb169617537.scn"
 
 [deps]
 
-source_file="res://kenney_space-kit/Models/GLTF format/terrain_roadCross.glb"
-dest_files=["res://.godot/imported/terrain_roadCross.glb-9274cd6596775a45be8b737bf9dfd036.scn"]
+source_file="res://kenney_space-kit/Models/terrain_roadCross.glb"
+dest_files=["res://.godot/imported/terrain_roadCross.glb-45817a179256c3105e68dbb169617537.scn"]
 
 [params]
 

@@ -4,12 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://cxiwlm11y5cn5"
-path="res://.godot/imported/desk_chairStool.glb-1f87dbfa889c6ed8751fba8b8c425677.scn"
+path="res://.godot/imported/desk_chairStool.glb-b5f489eeb9b25f1305c1685cd5e3047c.scn"
 
 [deps]
 
-source_file="res://kenney_space-kit/Models/GLTF format/desk_chairStool.glb"
-dest_files=["res://.godot/imported/desk_chairStool.glb-1f87dbfa889c6ed8751fba8b8c425677.scn"]
+source_file="res://kenney_space-kit/Models/desk_chairStool.glb"
+dest_files=["res://.godot/imported/desk_chairStool.glb-b5f489eeb9b25f1305c1685cd5e3047c.scn"]
 
 [params]
 

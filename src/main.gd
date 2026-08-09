@@ -339,7 +339,7 @@ func _build_ui() -> void:
 	status_label.size = Vector2(980.0, 26.0)
 	root.add_child(status_label)
 
-	var help := _label("WASD pan   H focus   F attack-move   X stop   Ctrl/Cmd+1-9 assign   1-9 recall   C collector   U route   Q raider   V bulwark   T research   Y repair   B relay   N restart   Right-click order   Right-click a selected Assembly Bay to set its rally point.   Credits fund production/research/repair; unsupplied units are slower and weaker.", 12, Color("#8ca9b5"))
+	var help := _label("WASD pan   H focus   F attack-move   X stop   Ctrl/Cmd+1-9 assign   1-9 recall   C collector   U route   Q raider   V bulwark   T research   Y repair   B relay   N restart   Right-click order   Right-click a selected Assembly Bay on an active friendly staging site to set its named rally.   Credits fund production/research/repair; unsupplied units are slower and weaker.", 12, Color("#8ca9b5"))
 	help.position = Vector2(22.0, 149.0)
 	help.size = Vector2(1230.0, 24.0)
 	root.add_child(help)
@@ -463,10 +463,15 @@ func _issue_context_order(screen_position: Vector2) -> void:
 		attack_move_mode = false
 		return
 	var rally_building_id := _selected_rally_building_id()
+	var control_point_id := _control_point_at_screen(screen_position)
 	var destination := _screen_to_ground(screen_position)
 	if not attack_move_mode and not rally_building_id.is_empty() and _is_inside_map(destination):
-		simulation.issue_command("set_rally_point", "player", {"building_id": rally_building_id, "position": destination})
-		status_label.text = "Rally point order queued for the selected Assembly Bay."
+		if not control_point_id.is_empty():
+			simulation.issue_command("set_rally_point", "player", {"building_id": rally_building_id, "control_point_id": control_point_id})
+			status_label.text = "Staging rally order queued for the selected Assembly Bay."
+		else:
+			simulation.issue_command("set_rally_point", "player", {"building_id": rally_building_id, "position": destination})
+			status_label.text = "Ground rally order queued for the selected Assembly Bay."
 		return
 	if _is_inside_map(destination):
 		if attack_move_mode:
@@ -474,7 +479,6 @@ func _issue_context_order(screen_position: Vector2) -> void:
 			attack_move_mode = false
 		else:
 			simulation.issue_command("move", "player", {"entity_ids": selected_ids, "position": destination})
-
 
 func _handle_control_group(group_index: int, assign: bool) -> void:
 	var group_key := str(group_index)
@@ -739,6 +743,19 @@ func _refinery_at_screen(screen_position: Vector2) -> String:
 	return closest_id
 
 
+func _control_point_at_screen(screen_position: Vector2) -> String:
+	var closest_id := ""
+	var closest_distance: float = 50.0
+	for point_id in simulation.control_points:
+		var point: Dictionary = simulation.control_points[point_id]
+		var projected := camera.unproject_position(point["position"] + Vector3.UP * 1.3)
+		var distance := projected.distance_to(screen_position)
+		if distance < closest_distance:
+			closest_distance = distance
+			closest_id = point_id
+	return closest_id
+
+
 func _cancel_collector_assignment(show_status := true) -> void:
 	var was_active := collector_assignment_mode
 	collector_assignment_mode = false
@@ -884,6 +901,25 @@ func _create_control_view(point: Dictionary) -> Node3D:
 	beacon.mesh = beacon_mesh
 	beacon.position.y = 1.4
 	root.add_child(beacon)
+	var staging_ring := MeshInstance3D.new()
+	staging_ring.name = "StagingRing"
+	var staging_mesh := CylinderMesh.new()
+	staging_mesh.top_radius = float(point["radius"]) * 0.92
+	staging_mesh.bottom_radius = float(point["radius"]) * 0.92
+	staging_mesh.height = 0.05
+	staging_mesh.radial_segments = 36
+	staging_ring.mesh = staging_mesh
+	staging_ring.position.y = 0.17
+	staging_ring.visible = false
+	root.add_child(staging_ring)
+	var staging_light := OmniLight3D.new()
+	staging_light.name = "StagingLight"
+	staging_light.position.y = 1.0
+	staging_light.light_energy = 1.1
+	staging_light.omni_range = 8.0
+	staging_light.visible = false
+	root.add_child(staging_light)
+
 	if point["id"] == "central_relay":
 		var halo := MeshInstance3D.new()
 		halo.name = "RelayHalo"
@@ -937,6 +973,16 @@ func _update_control_view(view: Node3D, point: Dictionary) -> void:
 	var beacon: MeshInstance3D = view.get_child(1)
 	pad.material_override = _material(color.darkened(0.28), 0.6, 0.1)
 	beacon.material_override = _material(color.lightened(0.2), 0.45, 0.2)
+	var staging_active := bool(point.get("staging_active", false))
+	var staging_ring := view.get_node_or_null("StagingRing") as MeshInstance3D
+	var staging_light := view.get_node_or_null("StagingLight") as OmniLight3D
+	if staging_ring:
+		staging_ring.visible = staging_active
+		if staging_active:
+			staging_ring.material_override = _emissive_material(color.lightened(0.18), 1.7)
+	if staging_light:
+		staging_light.visible = staging_active
+		staging_light.light_color = color.lightened(0.15)
 	var core := view.get_node_or_null("RelayCore") as MeshInstance3D
 	var halo := view.get_node_or_null("RelayHalo") as MeshInstance3D
 	if core:
@@ -947,6 +993,8 @@ func _update_control_view(view: Node3D, point: Dictionary) -> void:
 		halo.material_override = _emissive_material(color.darkened(0.05), 1.6)
 	var label: Label3D = view.get_node("PointLabel")
 	label.text = "%s %d%%" % [point["display_name"], abs(int(point["capture_progress"]))]
+	if staging_active:
+		label.text += "\nFORWARD STAGING — REPAIR / RALLY"
 	label.modulate = color.lightened(0.35)
 
 
@@ -1042,6 +1090,14 @@ func _has_player_event(event_type: String) -> bool:
 	return false
 
 
+func _has_player_staging_rally(point_id: String) -> bool:
+	for building_id in simulation.buildings:
+		var building: Dictionary = simulation.buildings[building_id]
+		if building["team"] == "player" and building["kind"] == "assembly_bay" and str(building.get("rally_mode", "ground")) == "control_point" and str(building.get("rally_point_id", "")) == point_id:
+			return true
+	return false
+
+
 func _update_objective() -> void:
 	if not objective_label or not simulation:
 		return
@@ -1058,6 +1114,15 @@ func _update_objective() -> void:
 		return
 	if not _has_player_event("ResourceDelivered"):
 		objective_label.text = "OBJECTIVE: Protect the Collector route until energy reaches the Resource Processor."
+		return
+	var objectives: Dictionary = simulation.get_level_objectives()
+	var staging_point_id := str(objectives.get("first_staging_point_id", ""))
+	if not staging_point_id.is_empty() and simulation.control_points.has(staging_point_id) and not _has_player_staging_rally(staging_point_id):
+		var staging_point: Dictionary = simulation.control_points[staging_point_id]
+		if not bool(staging_point.get("staging_active", false)) or staging_point["owner"] != "player":
+			objective_label.text = "OBJECTIVE: Secure and connect %s to establish a forward staging site." % staging_point["display_name"]
+		else:
+			objective_label.text = "OBJECTIVE: Select the Assembly Bay, then right-click %s to set its staging rally. Damaged units repair there [Y]." % staging_point["display_name"]
 		return
 	var research_status: Dictionary = simulation.get_research_status("player")
 	if not simulation.is_technology_unlocked("player", "advanced_targeting"):
@@ -1076,7 +1141,6 @@ func _update_objective() -> void:
 		objective_label.text = "OBJECTIVE: Queue a Bulwark [V], secure the Central Relay, then push the enemy HQ."
 	else:
 		objective_label.text = "OBJECTIVE: Destroy the enemy Command Hub."
-
 
 func _update_hud() -> void:
 	if not simulation:
@@ -1193,7 +1257,15 @@ func _selection_detail(data: Dictionary) -> String:
 			queue_text += " NEXT %s %ds" % [str(next_job.get("unit_type", "")).to_upper(), int(ceil(float(next_job.get("remaining", 0.0))))]
 	var rally_text := ""
 	if bool(data.get("rally_enabled", false)):
-		rally_text = "   RALLY SET"
+		var rally_mode := str(data.get("rally_mode", "ground"))
+		if rally_mode == "control_point":
+			var point_id := str(data.get("rally_point_id", ""))
+			var point_name := str(simulation.control_points[point_id].get("display_name", point_id)) if simulation.control_points.has(point_id) else point_id
+			rally_text = "   RALLY %s" % point_name.to_upper()
+			if bool(data.get("rally_suspended", false)):
+				rally_text += " (SUSPENDED)"
+		else:
+			rally_text = "   RALLY SET"
 	if data.has("order"):
 		return "HP %d/%d   ORDER %s%s%s%s%s%s" % [int(data["health"]), int(data["max_health"]), str(data["order"]).to_upper(), supply_text, collector_text, research_text, queue_text, rally_text]
 	return "HP %d/%d   %s%s%s%s%s%s" % [int(data["health"]), int(data["max_health"]), "ONLINE" if data["complete"] else "BUILDING", supply_text, collector_text, research_text, queue_text, rally_text]

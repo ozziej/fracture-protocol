@@ -4,12 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://cgmcpl06x6iix"
-path="res://.godot/imported/corridor_roof.glb-cee2bbe00458d9694b04b60087915351.scn"
+path="res://.godot/imported/corridor_roof.glb-a2c41600fb944ae45f808a87b4fbccde.scn"
 
 [deps]
 
-source_file="res://kenney_space-kit/Models/GLTF format/corridor_roof.glb"
-dest_files=["res://.godot/imported/corridor_roof.glb-cee2bbe00458d9694b04b60087915351.scn"]
+source_file="res://kenney_space-kit/Models/corridor_roof.glb"
+dest_files=["res://.godot/imported/corridor_roof.glb-a2c41600fb944ae45f808a87b4fbccde.scn"]
 
 [params]
 

@@ -30,7 +30,7 @@ func sync(data: Dictionary, selected: bool) -> void:
 	if rally_marker:
 		var rally_position: Vector3 = data.get("rally_position", data["position"])
 		rally_marker.position = Vector3(rally_position.x - data["position"].x, 0.08, rally_position.z - data["position"].z)
-		rally_marker.visible = selected and bool(data.get("rally_enabled", false))
+		rally_marker.visible = selected and bool(data.get("rally_enabled", false)) and not bool(data.get("rally_suspended", false))
 	var construction_progress: float = clamp(float(data["construction_progress"]), 0.0, 1.0)
 	var body_scale: float = 0.3 + construction_progress * 0.7
 	body_mesh.scale.y = body_scale

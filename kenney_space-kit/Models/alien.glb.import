@@ -4,12 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://dcwccvvdyciho"
-path="res://.godot/imported/alien.glb-c3728f5b33f66e61ddbcb567f4eba414.scn"
+path="res://.godot/imported/alien.glb-060889308f411524bd6cef06eee90a22.scn"
 
 [deps]
 
-source_file="res://kenney_space-kit/Models/GLTF format/alien.glb"
-dest_files=["res://.godot/imported/alien.glb-c3728f5b33f66e61ddbcb567f4eba414.scn"]
+source_file="res://kenney_space-kit/Models/alien.glb"
+dest_files=["res://.godot/imported/alien.glb-060889308f411524bd6cef06eee90a22.scn"]
 
 [params]
 

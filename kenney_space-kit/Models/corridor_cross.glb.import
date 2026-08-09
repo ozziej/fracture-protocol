@@ -4,12 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://b4cpnxb5cvy0t"
-path="res://.godot/imported/corridor_cross.glb-022cc7185dc20ce8e151090d91ef0d22.scn"
+path="res://.godot/imported/corridor_cross.glb-d638f38ae5756b2ca490d9ee7e75b2ab.scn"
 
 [deps]
 
-source_file="res://kenney_space-kit/Models/GLTF format/corridor_cross.glb"
-dest_files=["res://.godot/imported/corridor_cross.glb-022cc7185dc20ce8e151090d91ef0d22.scn"]
+source_file="res://kenney_space-kit/Models/corridor_cross.glb"
+dest_files=["res://.godot/imported/corridor_cross.glb-d638f38ae5756b2ca490d9ee7e75b2ab.scn"]
 
 [params]
 

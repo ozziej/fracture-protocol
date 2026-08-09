@@ -4,12 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://blaop618flw2f"
-path="res://.godot/imported/pipe_ringHigh.glb-cc7dcd929763439ec57b83585f261801.scn"
+path="res://.godot/imported/pipe_ringHigh.glb-9ca8914eec1c3aebee3a7a50be85acf2.scn"
 
 [deps]
 
-source_file="res://kenney_space-kit/Models/GLTF format/pipe_ringHigh.glb"
-dest_files=["res://.godot/imported/pipe_ringHigh.glb-cc7dcd929763439ec57b83585f261801.scn"]
+source_file="res://kenney_space-kit/Models/pipe_ringHigh.glb"
+dest_files=["res://.godot/imported/pipe_ringHigh.glb-9ca8914eec1c3aebee3a7a50be85acf2.scn"]
 
 [params]
 

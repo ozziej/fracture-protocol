@@ -4,12 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://wyxu1deb4ngy"
-path="res://.godot/imported/hangar_roundGlass.glb-a6acae46602195dcbbdd290565012243.scn"
+path="res://.godot/imported/hangar_roundGlass.glb-d776aac5c7682c864cd2d20f27b8032c.scn"
 
 [deps]
 
-source_file="res://kenney_space-kit/Models/GLTF format/hangar_roundGlass.glb"
-dest_files=["res://.godot/imported/hangar_roundGlass.glb-a6acae46602195dcbbdd290565012243.scn"]
+source_file="res://kenney_space-kit/Models/hangar_roundGlass.glb"
+dest_files=["res://.godot/imported/hangar_roundGlass.glb-d776aac5c7682c864cd2d20f27b8032c.scn"]
 
 [params]
 

@@ -4,12 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://cu4ycw7g5xxtc"
-path="res://.godot/imported/craft_cargoB.glb-66ebcf2cc4796c714e38634602ad1b5f.scn"
+path="res://.godot/imported/craft_cargoB.glb-3ae5589d1a2ae643287cac273a89d630.scn"
 
 [deps]
 
-source_file="res://kenney_space-kit/Models/GLTF format/craft_cargoB.glb"
-dest_files=["res://.godot/imported/craft_cargoB.glb-66ebcf2cc4796c714e38634602ad1b5f.scn"]
+source_file="res://kenney_space-kit/Models/craft_cargoB.glb"
+dest_files=["res://.godot/imported/craft_cargoB.glb-3ae5589d1a2ae643287cac273a89d630.scn"]
 
 [params]
 

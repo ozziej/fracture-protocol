@@ -4,12 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://cmb5tl3imser6"
-path="res://.godot/imported/rocket_sidesB.glb-5b0c027e1e3fc55d774f83ec8cf0c04b.scn"
+path="res://.godot/imported/rocket_sidesB.glb-ea83c3ba4947d390687343143f6a6ac3.scn"
 
 [deps]
 
-source_file="res://kenney_space-kit/Models/GLTF format/rocket_sidesB.glb"
-dest_files=["res://.godot/imported/rocket_sidesB.glb-5b0c027e1e3fc55d774f83ec8cf0c04b.scn"]
+source_file="res://kenney_space-kit/Models/rocket_sidesB.glb"
+dest_files=["res://.godot/imported/rocket_sidesB.glb-ea83c3ba4947d390687343143f6a6ac3.scn"]
 
 [params]
 

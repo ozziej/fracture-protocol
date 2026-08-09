@@ -4,12 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://bdlhmit18djm1"
-path="res://.godot/imported/meteor.glb-3f26c8320ad1fef49ee3e5079a3cbc8b.scn"
+path="res://.godot/imported/meteor.glb-ffc468fff90e85c11d7066222887292c.scn"
 
 [deps]
 
-source_file="res://kenney_space-kit/Models/GLTF format/meteor.glb"
-dest_files=["res://.godot/imported/meteor.glb-3f26c8320ad1fef49ee3e5079a3cbc8b.scn"]
+source_file="res://kenney_space-kit/Models/meteor.glb"
+dest_files=["res://.godot/imported/meteor.glb-ffc468fff90e85c11d7066222887292c.scn"]
 
 [params]
 

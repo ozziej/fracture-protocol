@@ -4,12 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://d0e4nl5fbildk"
-path="res://.godot/imported/corridor_corner.glb-ceb89317eb40aedb4d1ed3c47cb9dfab.scn"
+path="res://.godot/imported/corridor_corner.glb-5500b3e18f3ae56975bbaa07b45ef9d2.scn"
 
 [deps]
 
-source_file="res://kenney_space-kit/Models/GLTF format/corridor_corner.glb"
-dest_files=["res://.godot/imported/corridor_corner.glb-ceb89317eb40aedb4d1ed3c47cb9dfab.scn"]
+source_file="res://kenney_space-kit/Models/corridor_corner.glb"
+dest_files=["res://.godot/imported/corridor_corner.glb-5500b3e18f3ae56975bbaa07b45ef9d2.scn"]
 
 [params]
 

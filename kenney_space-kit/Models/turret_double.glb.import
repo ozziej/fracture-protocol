@@ -4,12 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://dnxei7c4ewdhh"
-path="res://.godot/imported/turret_double.glb-f443c20eaffc6b378e612629145a09b4.scn"
+path="res://.godot/imported/turret_double.glb-742ac3bb9277047aa5f9e9e9b8d54641.scn"
 
 [deps]
 
-source_file="res://kenney_space-kit/Models/GLTF format/turret_double.glb"
-dest_files=["res://.godot/imported/turret_double.glb-f443c20eaffc6b378e612629145a09b4.scn"]
+source_file="res://kenney_space-kit/Models/turret_double.glb"
+dest_files=["res://.godot/imported/turret_double.glb-742ac3bb9277047aa5f9e9e9b8d54641.scn"]
 
 [params]
 

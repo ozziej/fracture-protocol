@@ -4,12 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://crvownbe3jvfx"
-path="res://.godot/imported/pipe_cornerRoundLarge.glb-b9e25d975ca71f6c12437c0a6892e78a.scn"
+path="res://.godot/imported/pipe_cornerRoundLarge.glb-ee72006b943fbfd7e09dcfb03249c16e.scn"
 
 [deps]
 
-source_file="res://kenney_space-kit/Models/GLTF format/pipe_cornerRoundLarge.glb"
-dest_files=["res://.godot/imported/pipe_cornerRoundLarge.glb-b9e25d975ca71f6c12437c0a6892e78a.scn"]
+source_file="res://kenney_space-kit/Models/pipe_cornerRoundLarge.glb"
+dest_files=["res://.godot/imported/pipe_cornerRoundLarge.glb-ee72006b943fbfd7e09dcfb03249c16e.scn"]
 
 [params]
 

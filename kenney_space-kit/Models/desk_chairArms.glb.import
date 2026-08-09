@@ -4,12 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://bvwe7vaha5kkd"
-path="res://.godot/imported/desk_chairArms.glb-deacfc5ddced72861d7d16b6da6abf9f.scn"
+path="res://.godot/imported/desk_chairArms.glb-3988f6428bf8268a5e81dc61a1896e2f.scn"
 
 [deps]
 
-source_file="res://kenney_space-kit/Models/GLTF format/desk_chairArms.glb"
-dest_files=["res://.godot/imported/desk_chairArms.glb-deacfc5ddced72861d7d16b6da6abf9f.scn"]
+source_file="res://kenney_space-kit/Models/desk_chairArms.glb"
+dest_files=["res://.godot/imported/desk_chairArms.glb-3988f6428bf8268a5e81dc61a1896e2f.scn"]
 
 [params]
 

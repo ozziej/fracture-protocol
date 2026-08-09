@@ -4,12 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://de8ql8k5817jj"
-path="res://.godot/imported/rail.glb-70684aecf41e6c476226108b0a85a637.scn"
+path="res://.godot/imported/rail.glb-345877c84c1b009b60f1f30532d25746.scn"
 
 [deps]
 
-source_file="res://kenney_space-kit/Models/GLTF format/rail.glb"
-dest_files=["res://.godot/imported/rail.glb-70684aecf41e6c476226108b0a85a637.scn"]
+source_file="res://kenney_space-kit/Models/rail.glb"
+dest_files=["res://.godot/imported/rail.glb-345877c84c1b009b60f1f30532d25746.scn"]
 
 [params]
 

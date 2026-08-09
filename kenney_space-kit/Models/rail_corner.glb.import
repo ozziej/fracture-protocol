@@ -4,12 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://bcrt5ky28ykir"
-path="res://.godot/imported/rail_corner.glb-ccfd248b4019353d5445ac91b218ce02.scn"
+path="res://.godot/imported/rail_corner.glb-80d06e3a950ed36b9f1229aaa4f9809a.scn"
 
 [deps]
 
-source_file="res://kenney_space-kit/Models/GLTF format/rail_corner.glb"
-dest_files=["res://.godot/imported/rail_corner.glb-ccfd248b4019353d5445ac91b218ce02.scn"]
+source_file="res://kenney_space-kit/Models/rail_corner.glb"
+dest_files=["res://.godot/imported/rail_corner.glb-80d06e3a950ed36b9f1229aaa4f9809a.scn"]
 
 [params]
 

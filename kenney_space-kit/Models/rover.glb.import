@@ -4,12 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://debiibng6iisq"
-path="res://.godot/imported/rover.glb-8364f870b66a2b21f55426299acf0eab.scn"
+path="res://.godot/imported/rover.glb-6c48f499a9aebca3e29999209844f949.scn"
 
 [deps]
 
-source_file="res://kenney_space-kit/Models/GLTF format/rover.glb"
-dest_files=["res://.godot/imported/rover.glb-8364f870b66a2b21f55426299acf0eab.scn"]
+source_file="res://kenney_space-kit/Models/rover.glb"
+dest_files=["res://.godot/imported/rover.glb-6c48f499a9aebca3e29999209844f949.scn"]
 
 [params]
 

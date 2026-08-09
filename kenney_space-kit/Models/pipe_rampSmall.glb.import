@@ -4,12 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://btx6idtjxnxmb"
-path="res://.godot/imported/pipe_rampSmall.glb-d4177ac85edbf976eb0f5b8b6f94b873.scn"
+path="res://.godot/imported/pipe_rampSmall.glb-6db47934ee52565cf21b00bc098d0994.scn"
 
 [deps]
 
-source_file="res://kenney_space-kit/Models/GLTF format/pipe_rampSmall.glb"
-dest_files=["res://.godot/imported/pipe_rampSmall.glb-d4177ac85edbf976eb0f5b8b6f94b873.scn"]
+source_file="res://kenney_space-kit/Models/pipe_rampSmall.glb"
+dest_files=["res://.godot/imported/pipe_rampSmall.glb-6db47934ee52565cf21b00bc098d0994.scn"]
 
 [params]
 

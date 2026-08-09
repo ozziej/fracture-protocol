@@ -4,12 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://njg36n8v4px1"
-path="res://.godot/imported/pipe_cross.glb-c7ac56f3d3b431661eb94d363ae70a7e.scn"
+path="res://.godot/imported/pipe_cross.glb-6532a47fbc8061f2c0945b5d180565e5.scn"
 
 [deps]
 
-source_file="res://kenney_space-kit/Models/GLTF format/pipe_cross.glb"
-dest_files=["res://.godot/imported/pipe_cross.glb-c7ac56f3d3b431661eb94d363ae70a7e.scn"]
+source_file="res://kenney_space-kit/Models/pipe_cross.glb"
+dest_files=["res://.godot/imported/pipe_cross.glb-6532a47fbc8061f2c0945b5d180565e5.scn"]
 
 [params]
 

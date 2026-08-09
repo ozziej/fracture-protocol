@@ -4,12 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://cdlm0u7ycw47x"
-path="res://.godot/imported/structure_detailed.glb-f24fbf21ddc41c0dd8f97fcc42266cf4.scn"
+path="res://.godot/imported/structure_detailed.glb-6ecc15100ba27c7da61d71af69e30d7a.scn"
 
 [deps]
 
-source_file="res://kenney_space-kit/Models/GLTF format/structure_detailed.glb"
-dest_files=["res://.godot/imported/structure_detailed.glb-f24fbf21ddc41c0dd8f97fcc42266cf4.scn"]
+source_file="res://kenney_space-kit/Models/structure_detailed.glb"
+dest_files=["res://.godot/imported/structure_detailed.glb-6ecc15100ba27c7da61d71af69e30d7a.scn"]
 
 [params]
 

@@ -4,12 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://bjnba3mq3a1cu"
-path="res://.godot/imported/corridor_windowClosed.glb-0a71facedcf2f52a825d58df32d06aaf.scn"
+path="res://.godot/imported/corridor_windowClosed.glb-001ffc2ae462f310d6ead66036a61edc.scn"
 
 [deps]
 
-source_file="res://kenney_space-kit/Models/GLTF format/corridor_windowClosed.glb"
-dest_files=["res://.godot/imported/corridor_windowClosed.glb-0a71facedcf2f52a825d58df32d06aaf.scn"]
+source_file="res://kenney_space-kit/Models/corridor_windowClosed.glb"
+dest_files=["res://.godot/imported/corridor_windowClosed.glb-001ffc2ae462f310d6ead66036a61edc.scn"]
 
 [params]
 

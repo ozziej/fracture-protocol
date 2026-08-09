@@ -353,7 +353,8 @@
             "y": 0,
             "z": -1
           },
-          "radius": 4.5
+          "radius": 4.5,
+          "supports_staging": true
         },
         {
           "id": "east_crossing",
@@ -363,7 +364,8 @@
             "y": 0,
             "z": -13
           },
-          "radius": 4.5
+          "radius": 4.5,
+          "supports_staging": true
         },
         {
           "id": "west_crossing",
@@ -373,7 +375,8 @@
             "y": 0,
             "z": 12
           },
-          "radius": 4.5
+          "radius": 4.5,
+          "supports_staging": true
         }
       ]
     }
@@ -381,6 +384,9 @@
   "mission_maps": {
     "relay_divide": {
       "base_map_id": "relay_divide_base",
+      "objectives": {
+        "first_staging_point_id": "west_crossing"
+      },
       "rules": {
         "max_queue": 5,
         "max_units_total": 24,
@@ -402,6 +408,11 @@
         "collector_load_seconds": 2.5,
         "production_time_multiplier": 1.2,
         "collector_production_time_multiplier": 1.35
+      },
+      "ai": {
+        "collector_source_id": "south_field",
+        "relay_position": {"x": 17, "y": 0, "z": -5},
+        "staging_point_id": "east_crossing"
       },
       "spawns": {
         "player": {

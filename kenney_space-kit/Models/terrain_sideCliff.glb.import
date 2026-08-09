@@ -4,12 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://ys8a6malcfp4"
-path="res://.godot/imported/terrain_sideCliff.glb-a372f2c3cfc9aaecde853a958cc59433.scn"
+path="res://.godot/imported/terrain_sideCliff.glb-d876ef168626959e0851f1a952d55a0a.scn"
 
 [deps]
 
-source_file="res://kenney_space-kit/Models/GLTF format/terrain_sideCliff.glb"
-dest_files=["res://.godot/imported/terrain_sideCliff.glb-a372f2c3cfc9aaecde853a958cc59433.scn"]
+source_file="res://kenney_space-kit/Models/terrain_sideCliff.glb"
+dest_files=["res://.godot/imported/terrain_sideCliff.glb-d876ef168626959e0851f1a952d55a0a.scn"]
 
 [params]
 

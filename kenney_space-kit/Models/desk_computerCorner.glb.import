@@ -4,12 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://s3mu7p26xtm0"
-path="res://.godot/imported/desk_computerCorner.glb-a70ca4d415b992fd9d4b3079c02490a9.scn"
+path="res://.godot/imported/desk_computerCorner.glb-70d6dd03e58c7259ba1348e1c756333e.scn"
 
 [deps]
 
-source_file="res://kenney_space-kit/Models/GLTF format/desk_computerCorner.glb"
-dest_files=["res://.godot/imported/desk_computerCorner.glb-a70ca4d415b992fd9d4b3079c02490a9.scn"]
+source_file="res://kenney_space-kit/Models/desk_computerCorner.glb"
+dest_files=["res://.godot/imported/desk_computerCorner.glb-70d6dd03e58c7259ba1348e1c756333e.scn"]
 
 [params]
 

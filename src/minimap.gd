@@ -36,7 +36,10 @@ func _draw() -> void:
 			point_color = Color(0.18, 0.82, 0.93, 1.0)
 		elif point["owner"] == "enemy":
 			point_color = Color(0.95, 0.28, 0.37, 1.0)
-		draw_circle(_map_point(point["position"], map_rect), 3.0, point_color)
+		var point_position := _map_point(point["position"], map_rect)
+		draw_circle(point_position, 3.0, point_color)
+		if bool(point.get("staging_active", false)):
+			draw_arc(point_position, 5.5, 0.0, TAU, 20, point_color.lightened(0.25), 1.4)
 	for building_id in snapshot.get("buildings", {}):
 		var building: Dictionary = snapshot["buildings"][building_id]
 		var building_color := Color(0.18, 0.82, 0.93, 1.0) if building["team"] == "player" else Color(0.95, 0.28, 0.37, 1.0)

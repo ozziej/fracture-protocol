@@ -4,12 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://bv53yyekhlwcr"
-path="res://.godot/imported/rock_crystalsLargeB.glb-fd6b4c386d5e7defd093291a85e7c0fe.scn"
+path="res://.godot/imported/rock_crystalsLargeB.glb-7878597b198dda97c3f0635334374e45.scn"
 
 [deps]
 
-source_file="res://kenney_space-kit/Models/GLTF format/rock_crystalsLargeB.glb"
-dest_files=["res://.godot/imported/rock_crystalsLargeB.glb-fd6b4c386d5e7defd093291a85e7c0fe.scn"]
+source_file="res://kenney_space-kit/Models/rock_crystalsLargeB.glb"
+dest_files=["res://.godot/imported/rock_crystalsLargeB.glb-7878597b198dda97c3f0635334374e45.scn"]
 
 [params]
 

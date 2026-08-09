@@ -107,9 +107,9 @@ func _setup_fallback_match() -> void:
 	_add_resource_node("north_field", "Northern Energy Field", Vector3(-15.0, 0.0, -1.0), 1.0)
 	_add_resource_node("south_field", "Southern Energy Field", Vector3(17.0, 0.0, 3.0), -1.0)
 
-	_add_control_point("central_relay", "Central Relay", Vector3(0.0, 0.0, -1.0))
-	_add_control_point("east_crossing", "East Crossing", Vector3(23.0, 0.0, -13.0))
-	_add_control_point("west_crossing", "West Crossing", Vector3(-23.0, 0.0, 12.0))
+	_add_control_point("central_relay", "Central Relay", Vector3(0.0, 0.0, -1.0), 4.5, true)
+	_add_control_point("east_crossing", "East Crossing", Vector3(23.0, 0.0, -13.0), 4.5, true)
+	_add_control_point("west_crossing", "West Crossing", Vector3(-23.0, 0.0, 12.0), 4.5, true)
 
 	var player_hub_id := _add_building("player", "command_hub", Vector3(-30.0, 0.0, 15.0))
 	var player_refinery_id := _add_building("player", "refinery", Vector3(-24.0, 0.0, 15.0))
@@ -144,7 +144,8 @@ func _setup_match_from_level() -> void:
 			str(point.get("id", "relay_%d" % control_points.size())),
 			str(point.get("display_name", "Relay")),
 			_level_vector3(point.get("position", {})),
-			float(point.get("radius", 4.5))
+			float(point.get("radius", 4.5)),
+			bool(point.get("supports_staging", false))
 		)
 
 	var authored_buildings: Dictionary = {}
@@ -238,6 +239,10 @@ func get_level_bounds() -> Vector2:
 	return level_bounds
 
 
+func get_level_objectives() -> Dictionary:
+	return level_definition.get("objectives", {})
+
+
 func step(delta: float) -> void:
 	if match_over:
 		return
@@ -256,10 +261,11 @@ func step_fixed() -> void:
 	_process_commands()
 	_update_construction()
 	_update_research()
-	_update_production()
-	_update_units()
 	_update_control_points()
 	_update_supply_states()
+	_update_forward_staging_states()
+	_update_production()
+	_update_units()
 	_update_economy()
 	_update_ai()
 	_check_victory()
@@ -722,6 +728,12 @@ func _is_repair_station_nearby(team: String, position: Vector3) -> bool:
 			continue
 		if building["position"].distance_to(position) <= REPAIR_STATION_RADIUS:
 			return true
+	for point_id in control_points:
+		var point: Dictionary = control_points[point_id]
+		if not _is_forward_staging_active(team, point_id):
+			continue
+		if point["position"].distance_to(position) <= float(point["radius"]):
+			return true
 	return false
 
 
@@ -830,7 +842,6 @@ func _try_produce(issuer: String, building_id: String, unit_type: String) -> voi
 
 func _try_set_rally_point(issuer: String, payload: Dictionary) -> void:
 	var building_id := str(payload.get("building_id", ""))
-	var requested_position: Vector3 = payload.get("position", Vector3.ZERO)
 	if not buildings.has(building_id):
 		_reject_order(issuer, "Select a friendly Assembly Bay.", "set_rally_point")
 		return
@@ -838,6 +849,29 @@ func _try_set_rally_point(issuer: String, payload: Dictionary) -> void:
 	if building["team"] != issuer or building["kind"] != "assembly_bay" or not building["complete"]:
 		_reject_order(issuer, "Rally points require a completed friendly Assembly Bay.", "set_rally_point")
 		return
+	var control_point_id := str(payload.get("control_point_id", ""))
+	if not control_point_id.is_empty():
+		if not control_points.has(control_point_id):
+			_reject_order(issuer, "Choose a valid forward staging site.", "set_rally_point")
+			return
+		var control_point: Dictionary = control_points[control_point_id]
+		if control_point["owner"] != issuer or not _is_forward_staging_active(issuer, control_point_id):
+			_reject_order(issuer, "Secure and connect %s before assigning it as a staging rally." % control_point["display_name"], "set_rally_point")
+			return
+		building["rally_position"] = control_point["position"]
+		building["rally_enabled"] = true
+		building["rally_mode"] = "control_point"
+		building["rally_point_id"] = control_point_id
+		building["rally_suspended"] = false
+		_emit_event("RallyPointSet", {
+			"building_id": building_id,
+			"team": issuer,
+			"position": control_point["position"],
+			"control_point_id": control_point_id,
+			"message": "%s staging rally assigned to %s." % [building["display_name"], control_point["display_name"]],
+		})
+		return
+	var requested_position: Vector3 = payload.get("position", Vector3.ZERO)
 	var position := Vector3(requested_position.x, 0.0, requested_position.z)
 	if abs(position.x) > level_bounds.x - 2.0 or abs(position.z) > level_bounds.y - 2.0:
 		_reject_order(issuer, "Rally point must be inside the level bounds.", "set_rally_point")
@@ -849,6 +883,9 @@ func _try_set_rally_point(issuer: String, payload: Dictionary) -> void:
 		return
 	building["rally_position"] = position
 	building["rally_enabled"] = true
+	building["rally_mode"] = "ground"
+	building["rally_point_id"] = ""
+	building["rally_suspended"] = false
 	_emit_event("RallyPointSet", {
 		"building_id": building_id,
 		"team": issuer,
@@ -945,7 +982,7 @@ func _update_production() -> void:
 		if float(job["remaining"]) <= 0.0:
 			var exit_position := _production_exit_position(building)
 			var spawned_id := _add_unit(building["team"], job["unit_type"], exit_position)
-			var rally_position: Vector3 = building.get("rally_position", exit_position)
+			var rally_position := _active_rally_position(building, exit_position)
 			if spawned_id.is_empty():
 				continue
 			if rally_position.distance_to(exit_position) > 0.15:
@@ -956,6 +993,8 @@ func _update_production() -> void:
 			queue.pop_front()
 			var spawned_name: String = unit_definitions[job["unit_type"]].display_name
 			var completion_message := "%s ready at rally point." % spawned_name
+			if bool(building.get("rally_suspended", false)):
+				completion_message = "%s ready at the Assembly Bay exit — staging rally is suspended." % spawned_name
 			if job["unit_type"] == "collector":
 				completion_message = "Collector ready at the Assembly Bay exit — assign a resource route."
 			_emit_event("ProductionCompleted", {"building_id": building_id, "unit_id": spawned_id, "unit_type": job["unit_type"], "team": building["team"], "message": completion_message})
@@ -1331,6 +1370,76 @@ func _update_control_points() -> void:
 			_emit_event("TerritoryCaptured", {"point_id": point_id, "team": "enemy", "message": "%s lost." % point["display_name"]})
 
 
+func _update_forward_staging_states() -> void:
+	var player_connected_ids := _get_connected_supply_source_ids("player")
+	var enemy_connected_ids := _get_connected_supply_source_ids("enemy")
+	for point_id in control_points:
+		var point: Dictionary = control_points[point_id]
+		var owner: String = str(point.get("owner", "neutral"))
+		var active := bool(point.get("supports_staging", false)) and (owner == "player" or owner == "enemy")
+		if active:
+			var connected_ids: Array = player_connected_ids if owner == "player" else enemy_connected_ids
+			active = connected_ids.has(point_id)
+		var was_active := bool(point.get("staging_active", false))
+		var previous_team := str(point.get("staging_team", "neutral"))
+		point["staging_active"] = active
+		point["staging_team"] = owner if active else "neutral"
+		if active and not was_active:
+			_emit_event("ForwardStagingActivated", {
+				"point_id": point_id,
+				"team": owner,
+				"message": "%s is online as a forward staging site." % point["display_name"],
+			})
+		elif not active and was_active:
+			_emit_event("ForwardStagingDeactivated", {
+				"point_id": point_id,
+				"team": previous_team,
+				"message": "%s forward staging site is offline." % point["display_name"],
+			})
+	_update_staging_rallies()
+
+
+func _update_staging_rallies() -> void:
+	for building_id in buildings:
+		var building: Dictionary = buildings[building_id]
+		if str(building.get("rally_mode", "ground")) != "control_point":
+			continue
+		var point_id := str(building.get("rally_point_id", ""))
+		var active := control_points.has(point_id) and _is_forward_staging_active(str(building["team"]), point_id)
+		var suspended := bool(building.get("rally_suspended", false))
+		if active:
+			building["rally_position"] = control_points[point_id]["position"]
+			if suspended:
+				building["rally_suspended"] = false
+				_emit_event("RallyPointRestored", {
+					"building_id": building_id,
+					"control_point_id": point_id,
+					"team": building["team"],
+					"message": "%s staging rally restored at %s." % [building["display_name"], control_points[point_id]["display_name"]],
+				})
+		elif not suspended:
+			building["rally_suspended"] = true
+			var point_name := str(control_points[point_id].get("display_name", "the staging site")) if control_points.has(point_id) else "the staging site"
+			_emit_event("RallyPointSuspended", {
+				"building_id": building_id,
+				"control_point_id": point_id,
+				"team": building["team"],
+				"message": "%s staging rally suspended — %s is not connected." % [building["display_name"], point_name],
+			})
+
+
+func _is_forward_staging_active(team: String, point_id: String) -> bool:
+	if not control_points.has(point_id):
+		return false
+	var point: Dictionary = control_points[point_id]
+	return bool(point.get("staging_active", false)) and str(point.get("staging_team", "")) == team
+
+
+func _active_rally_position(building: Dictionary, exit_position: Vector3) -> Vector3:
+	if not bool(building.get("rally_enabled", false)) or bool(building.get("rally_suspended", false)):
+		return exit_position
+	return building.get("rally_position", exit_position)
+
 func _update_economy() -> void:
 	_economy_timer += TICK_SECONDS
 	if _economy_timer < 1.0:
@@ -1368,7 +1477,7 @@ func _update_supply_states() -> void:
 			})
 
 
-func _get_connected_supply_sources(team: String) -> Array:
+func _get_connected_supply_source_ids(team: String) -> Array:
 	var candidates: Array = []
 	for building_id in buildings:
 		var building: Dictionary = buildings[building_id]
@@ -1397,8 +1506,17 @@ func _get_connected_supply_sources(team: String) -> Array:
 					connected_positions.append(candidate["position"])
 					expanded = true
 					break
-	return connected_positions
+	return connected_ids
 
+
+func _get_connected_supply_sources(team: String) -> Array:
+	var positions: Array = []
+	for entity_id in _get_connected_supply_source_ids(team):
+		if buildings.has(entity_id):
+			positions.append(buildings[entity_id]["position"])
+		elif control_points.has(entity_id):
+			positions.append(control_points[entity_id]["position"])
+	return positions
 
 func _income_for_team(team: String) -> float:
 	var income := 0.0
@@ -1424,8 +1542,10 @@ func _update_ai() -> void:
 	_ai_manage_collectors()
 	_ai_manage_research()
 	_ai_manage_relay()
+	_ai_manage_staging()
 	_ai_manage_production()
 	_ai_manage_combat()
+
 
 
 func _ai_manage_repairs() -> void:
@@ -1499,6 +1619,30 @@ func _ai_manage_relay() -> void:
 	issue_command("build", "enemy", {"building_type": "relay", "position": relay_position})
 
 
+func _ai_manage_staging() -> void:
+	var ai_config: Dictionary = level_definition.get("ai", {})
+	var point_id := str(ai_config.get("staging_point_id", "east_crossing"))
+	if not control_points.has(point_id):
+		return
+	var assembly_id := _first_building_for_team("enemy", "assembly_bay")
+	if assembly_id.is_empty():
+		return
+	if not _is_forward_staging_active("enemy", point_id):
+		var capture_group: Array = []
+		var player_hq_id := _first_building_for_team("player", "command_hub")
+		var player_hq_position: Vector3 = buildings[player_hq_id]["position"] if not player_hq_id.is_empty() else Vector3.INF
+		for entity_id in units:
+			var unit: Dictionary = units[entity_id]
+			if unit["team"] == "enemy" and unit["kind"] != "collector" and unit["position"].distance_to(player_hq_position) > 20.0 and (unit["order"] == "idle" or unit["order"] == "move" or unit["order"] == "attack_move"):
+				capture_group.append(entity_id)
+		if not capture_group.is_empty():
+			issue_command("move", "enemy", {"entity_ids": capture_group, "position": control_points[point_id]["position"]})
+		return
+	var assembly: Dictionary = buildings[assembly_id]
+	if str(assembly.get("rally_mode", "ground")) != "control_point" or str(assembly.get("rally_point_id", "")) != point_id or bool(assembly.get("rally_suspended", false)):
+		issue_command("set_rally_point", "enemy", {"building_id": assembly_id, "control_point_id": point_id})
+
+
 func _ai_manage_production() -> void:
 	var assembly_id := _first_building_for_team("enemy", "assembly_bay")
 	if assembly_id.is_empty() or not buildings.has(assembly_id):
@@ -1516,6 +1660,17 @@ func _ai_manage_combat() -> void:
 	var player_hq := _first_building_for_team("player", "command_hub")
 	var enemy_hq := _first_building_for_team("enemy", "command_hub")
 	if player_hq.is_empty() or enemy_hq.is_empty() or current_tick % 60 != 0:
+		return
+	var ai_config: Dictionary = level_definition.get("ai", {})
+	var staging_point_id := str(ai_config.get("staging_point_id", "east_crossing"))
+	var immediate_hq_threat := false
+	var player_hq_position: Vector3 = buildings[player_hq]["position"]
+	for entity_id in units:
+		var candidate: Dictionary = units[entity_id]
+		if candidate["team"] == "enemy" and candidate["kind"] != "collector" and candidate["position"].distance_to(player_hq_position) <= 20.0:
+			immediate_hq_threat = true
+			break
+	if control_points.has(staging_point_id) and not _is_forward_staging_active("enemy", staging_point_id) and not immediate_hq_threat:
 		return
 	var attack_group: Array = []
 	for entity_id in units:
@@ -1792,6 +1947,9 @@ func _add_building(team: String, kind: String, position: Vector3, under_construc
 		"queue": [],
 		"rally_enabled": rally_enabled,
 		"rally_position": rally_position,
+		"rally_mode": "ground",
+		"rally_point_id": "",
+		"rally_suspended": false,
 		"research_id": "",
 		"research_remaining": 0.0,
 		"research_total": 0.0,
@@ -1799,7 +1957,7 @@ func _add_building(team: String, kind: String, position: Vector3, under_construc
 	return entity_id
 
 
-func _add_control_point(point_id: String, display_name: String, position: Vector3, radius: float = 4.5) -> void:
+func _add_control_point(point_id: String, display_name: String, position: Vector3, radius: float = 4.5, supports_staging := false) -> void:
 	control_points[point_id] = {
 		"id": point_id,
 		"display_name": display_name,
@@ -1807,6 +1965,9 @@ func _add_control_point(point_id: String, display_name: String, position: Vector
 		"owner": "neutral",
 		"capture_progress": 0.0,
 		"radius": radius,
+		"supports_staging": supports_staging,
+		"staging_active": false,
+		"staging_team": "neutral",
 	}
 
 

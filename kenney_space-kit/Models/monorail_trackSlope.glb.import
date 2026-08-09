@@ -4,12 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://14ddx6mt6htu"
-path="res://.godot/imported/monorail_trackSlope.glb-17def3a800d131d3da333d68b4db8cef.scn"
+path="res://.godot/imported/monorail_trackSlope.glb-edcb37a343eed7b4b5c4068f127fbddb.scn"
 
 [deps]
 
-source_file="res://kenney_space-kit/Models/GLTF format/monorail_trackSlope.glb"
-dest_files=["res://.godot/imported/monorail_trackSlope.glb-17def3a800d131d3da333d68b4db8cef.scn"]
+source_file="res://kenney_space-kit/Models/monorail_trackSlope.glb"
+dest_files=["res://.godot/imported/monorail_trackSlope.glb-edcb37a343eed7b4b5c4068f127fbddb.scn"]
 
 [params]
 

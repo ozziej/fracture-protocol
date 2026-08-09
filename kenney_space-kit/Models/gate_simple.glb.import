@@ -4,12 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://cpixj5ejt64jx"
-path="res://.godot/imported/gate_simple.glb-b4078e75c86ff10cabc1de15a870256a.scn"
+path="res://.godot/imported/gate_simple.glb-674718782af53629440570497c0ecdf2.scn"
 
 [deps]
 
-source_file="res://kenney_space-kit/Models/GLTF format/gate_simple.glb"
-dest_files=["res://.godot/imported/gate_simple.glb-b4078e75c86ff10cabc1de15a870256a.scn"]
+source_file="res://kenney_space-kit/Models/gate_simple.glb"
+dest_files=["res://.godot/imported/gate_simple.glb-674718782af53629440570497c0ecdf2.scn"]
 
 [params]
 

@@ -4,12 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://bw6urqh2wlr1k"
-path="res://.godot/imported/terrain_roadSplit.glb-fc9ad926fffa163f0b14bab74e849639.scn"
+path="res://.godot/imported/terrain_roadSplit.glb-dfdbe1fd61561da5debd96a1f157a6de.scn"
 
 [deps]
 
-source_file="res://kenney_space-kit/Models/GLTF format/terrain_roadSplit.glb"
-dest_files=["res://.godot/imported/terrain_roadSplit.glb-fc9ad926fffa163f0b14bab74e849639.scn"]
+source_file="res://kenney_space-kit/Models/terrain_roadSplit.glb"
+dest_files=["res://.godot/imported/terrain_roadSplit.glb-dfdbe1fd61561da5debd96a1f157a6de.scn"]
 
 [params]
 

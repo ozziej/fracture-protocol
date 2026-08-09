@@ -4,12 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://c7mn2icrnqtuc"
-path="res://.godot/imported/satelliteDish.glb-252273fdd4bb2c317210ec01a603b5ac.scn"
+path="res://.godot/imported/satelliteDish.glb-169039d30324ad97fa7296ee6f3bc489.scn"
 
 [deps]
 
-source_file="res://kenney_space-kit/Models/GLTF format/satelliteDish.glb"
-dest_files=["res://.godot/imported/satelliteDish.glb-252273fdd4bb2c317210ec01a603b5ac.scn"]
+source_file="res://kenney_space-kit/Models/satelliteDish.glb"
+dest_files=["res://.godot/imported/satelliteDish.glb-169039d30324ad97fa7296ee6f3bc489.scn"]
 
 [params]
 

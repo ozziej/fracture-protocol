@@ -4,12 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://b70mdp2ys71sq"
-path="res://.godot/imported/craft_racer.glb-abcadba527758f36db3ed7aa847f42f1.scn"
+path="res://.godot/imported/craft_racer.glb-267a4e9caa4917ed1b58c79327d32be2.scn"
 
 [deps]
 
-source_file="res://kenney_space-kit/Models/GLTF format/craft_racer.glb"
-dest_files=["res://.godot/imported/craft_racer.glb-abcadba527758f36db3ed7aa847f42f1.scn"]
+source_file="res://kenney_space-kit/Models/craft_racer.glb"
+dest_files=["res://.godot/imported/craft_racer.glb-267a4e9caa4917ed1b58c79327d32be2.scn"]
 
 [params]
 
