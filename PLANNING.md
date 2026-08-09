@@ -1,7 +1,7 @@
-# Near-Future RTS — Planning Document
+# Fracture Protocol — Planning Document
 
-**Status:** Movement and economy readability polish implemented; balance review next
-**Version:** 0.3
+**Status:** Authored level, production pacing, and force limits implemented; playtest next
+**Version:** 0.4
 **Target:** PC  
 **Engine direction:** Godot 4  
 **First playable:** Local skirmish against AI  
@@ -31,9 +31,12 @@ The current Godot 4 prototype has a playable local skirmish foundation:
 - Unit presentation interpolates between fixed simulation positions, while destination markers continue to track the authoritative simulation target.
 - Collector loading now fills over a readable 2.5-second interval and exposes a distinct cargo progress bar below its health bar.
 - Construction visuals remain grounded at every progress value: the body grows upward from the terrain and its cap, antenna, health bar, and label follow the current top.
-- Automated scenario coverage now includes Collector management, AI behavior, rush/turtle/greedy/tech-first/unit-first/Collector-loss/supply-cut paths, clean restart, the focused movement/presentation regression, and a 100-unit simulation benchmark.
+- Production now uses a five-item queue cap, slower authored build pacing, explicit exit anchors, selectable Assembly Bay rally points, and visible queue/force-limit feedback.
+- The authored `data/level_data.json` schema now drives the first skirmish's bounds, roads, lane markers, obstacles, accents, resource fields, capture points, player/enemy spawns, AI coordinates, and per-level caps/timing rules.
+- Unit and building health fills are aligned to their backgrounds at full health; Collector cargo remains a separate progressive bar.
+- Automated scenario coverage now includes Collector management, AI behavior, rush/turtle/greedy/tech-first/unit-first/Collector-loss/supply-cut paths, clean restart, the focused movement/presentation regression, authored terrain loading, queue limits, rally exits, force caps, and a 100-unit simulation benchmark.
 
-The next iteration should use the now-complete shared loop for a real balance/usability review, then introduce faction-specific economic and logistics decisions. Asset work can proceed selectively around the representative relay corridor rather than replacing the whole graybox at once.
+The next iteration should playtest the authored level and tune the new pacing, queue pressure, force caps, rally placement, and Collector risk/reward before adding more units or faction-specific economy. Asset work can proceed selectively around the representative relay corridor rather than replacing the whole graybox at once.
 
 ## 1. Vision
 

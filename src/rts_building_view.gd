@@ -7,6 +7,7 @@ var kind := ""
 var body_mesh: MeshInstance3D
 var cap_mesh: MeshInstance3D
 var antenna_mesh: MeshInstance3D
+var rally_marker: MeshInstance3D
 var selection_disc: MeshInstance3D
 var visual_body_height := 0.0
 var visual_antenna_height := 0.0
@@ -26,6 +27,10 @@ func setup(data: Dictionary) -> void:
 func sync(data: Dictionary, selected: bool) -> void:
 	global_position = data["position"]
 	selection_disc.visible = selected
+	if rally_marker:
+		var rally_position: Vector3 = data.get("rally_position", data["position"])
+		rally_marker.position = Vector3(rally_position.x - data["position"].x, 0.08, rally_position.z - data["position"].z)
+		rally_marker.visible = selected and bool(data.get("rally_enabled", false))
 	var construction_progress: float = clamp(float(data["construction_progress"]), 0.0, 1.0)
 	var body_scale: float = 0.3 + construction_progress * 0.7
 	body_mesh.scale.y = body_scale
@@ -41,7 +46,7 @@ func sync(data: Dictionary, selected: bool) -> void:
 	health_front.position.y = occupied_height + 2.65
 	name_label.position.y = occupied_height + 3.02
 	var health_ratio: float = clamp(float(data["health"]) / max(1.0, float(data["max_health"])), 0.0, 1.0)
-	health_front.scale.x = max(0.02, health_ratio)
+	_set_progress_bar(health_front, health_ratio, 2.5, 2.5)
 	var label_text: String = data["display_name"] if data["complete"] else "CONSTRUCTING %d%%" % int(construction_progress * 100.0)
 	var research_id: String = str(data.get("research_id", ""))
 	if data["complete"] and not research_id.is_empty():
@@ -103,11 +108,24 @@ func _build_visuals() -> void:
 	selection_disc.visible = false
 	add_child(selection_disc)
 
+	if kind == "assembly_bay":
+		var rally_mesh := CylinderMesh.new()
+		rally_mesh.top_radius = 0.82
+		rally_mesh.bottom_radius = 0.82
+		rally_mesh.height = 0.055
+		rally_mesh.radial_segments = 24
+		rally_marker = MeshInstance3D.new()
+		rally_marker.name = "RallyMarker"
+		rally_marker.mesh = rally_mesh
+		rally_marker.material_override = _material(Color("#ffd36a"))
+		rally_marker.visible = false
+		add_child(rally_marker)
+
 	health_back = _health_bar(Color(0.06, 0.08, 0.11, 1.0), Vector3(2.5, 0.1, 0.1))
 	health_back.position = Vector3(0.0, body_size.y + 2.65, 0.0)
 	add_child(health_back)
-	health_front = _health_bar(Color(0.28, 0.94, 0.55, 1.0), Vector3(2.44, 0.12, 0.12))
-	health_front.position = Vector3(-1.22, body_size.y + 2.65, 0.04)
+	health_front = _health_bar(Color(0.28, 0.94, 0.55, 1.0), Vector3(2.5, 0.12, 0.12))
+	health_front.position = Vector3(0.0, body_size.y + 2.65, 0.04)
 	add_child(health_front)
 
 	name_label = Label3D.new()
@@ -119,6 +137,12 @@ func _build_visuals() -> void:
 	name_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	name_label.no_depth_test = true
 	add_child(name_label)
+
+
+func _set_progress_bar(instance: MeshInstance3D, ratio: float, background_width: float, foreground_width: float) -> void:
+	var visible_ratio: float = max(0.02, ratio)
+	instance.scale.x = visible_ratio
+	instance.position.x = -background_width * 0.5 + foreground_width * 0.5 * visible_ratio
 
 
 func _health_bar(color: Color, size: Vector3) -> MeshInstance3D:

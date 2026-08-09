@@ -45,13 +45,13 @@ func sync(data: Dictionary, selected: bool, frame_delta: float = 0.0) -> void:
 			rotation.y = lerp_angle(previous_rotation.y, desired_yaw, 1.0 - exp(-frame_delta * 20.0))
 	selection_disc.visible = selected
 	var health_ratio: float = clamp(float(data["health"]) / max(1.0, float(data["max_health"])), 0.0, 1.0)
-	health_front.scale.x = max(0.02, health_ratio)
+	_set_progress_bar(health_front, health_ratio, 1.35, 1.35)
 	if cargo_front and cargo_back:
 		var cargo_capacity: float = max(1.0, float(data.get("collector_capacity", 0.0)))
 		var cargo_ratio: float = clamp(float(data.get("collector_cargo", 0.0)) / cargo_capacity, 0.0, 1.0)
 		cargo_back.visible = kind == "collector"
 		cargo_front.visible = kind == "collector"
-		cargo_front.scale.x = max(0.02, cargo_ratio)
+		_set_progress_bar(cargo_front, cargo_ratio, 1.35, 1.35)
 	var supply_state: String = str(data.get("supply_state", "connected"))
 	var order: String = str(data.get("order", "idle"))
 	var label_text: String = data["display_name"]
@@ -142,16 +142,16 @@ func _build_visuals() -> void:
 	health_back = _health_bar(Color(0.06, 0.08, 0.11, 1.0), Vector3(1.35, 0.08, 0.08))
 	health_back.position = Vector3(0.0, definition_height + 0.4, 0.0)
 	add_child(health_back)
-	health_front = _health_bar(Color(0.28, 0.94, 0.55, 1.0), Vector3(1.31, 0.095, 0.095))
-	health_front.position = Vector3(-0.655, definition_height + 0.4, 0.03)
+	health_front = _health_bar(Color(0.28, 0.94, 0.55, 1.0), Vector3(1.35, 0.095, 0.095))
+	health_front.position = Vector3(0.0, definition_height + 0.4, 0.03)
 	add_child(health_front)
 
 	if kind == "collector":
 		cargo_back = _health_bar(Color(0.06, 0.08, 0.11, 1.0), Vector3(1.35, 0.07, 0.07))
 		cargo_back.position = Vector3(0.0, definition_height + 0.22, 0.0)
 		add_child(cargo_back)
-		cargo_front = _health_bar(Color("#f3bd52"), Vector3(1.31, 0.085, 0.085))
-		cargo_front.position = Vector3(-0.655, definition_height + 0.22, 0.035)
+		cargo_front = _health_bar(Color("#f3bd52"), Vector3(1.35, 0.085, 0.085))
+		cargo_front.position = Vector3(0.0, definition_height + 0.22, 0.035)
 		add_child(cargo_front)
 
 	name_label = Label3D.new()
@@ -186,6 +186,12 @@ func _update_order_marker(data: Dictionary, selected: bool) -> void:
 	order_line.rotation.y = atan2(delta.x, delta.z)
 	order_line.scale = Vector3(1.0, 1.0, length)
 	order_target.position = delta + Vector3(0.0, 0.14, 0.0)
+
+
+func _set_progress_bar(instance: MeshInstance3D, ratio: float, background_width: float, foreground_width: float) -> void:
+	var visible_ratio: float = max(0.02, ratio)
+	instance.scale.x = visible_ratio
+	instance.position.x = -background_width * 0.5 + foreground_width * 0.5 * visible_ratio
 
 
 func _health_bar(color: Color, size: Vector3) -> MeshInstance3D:

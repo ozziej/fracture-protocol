@@ -28,7 +28,7 @@ func _initialize() -> void:
 		if not economy_sim.buildings.has(collector["collector_destination_id"]):
 			failures.append("collector should have a specific refinery destination")
 		var credits_before_delivery: float = economy_sim.player_credits
-		_run_ticks(economy_sim, 105)
+		_run_ticks(economy_sim, 160)
 		if economy_sim.player_credits <= credits_before_delivery:
 			failures.append("collector delivery should increase player credits")
 		if not _has_event(economy_sim, "ResourceDelivered", "unit_id", collector_id):
@@ -118,7 +118,7 @@ func _initialize() -> void:
 
 		var units_before_bulwark: int = technology_sim.units.size()
 		technology_sim.issue_command("produce", "player", {"building_id": technology_assembly_id, "unit_type": "bulwark"})
-		_run_ticks(technology_sim, 46)
+		_run_ticks(technology_sim, 60)
 		if technology_sim.units.size() <= units_before_bulwark or _find_entity(technology_sim.units, "bulwark", "player").is_empty():
 			failures.append("research should unlock Bulwark production")
 
@@ -216,7 +216,7 @@ func _initialize() -> void:
 			"building_id": assembly_id,
 			"unit_type": "raider",
 		})
-		_run_ticks(simulation, 35)
+		_run_ticks(simulation, 45)
 		if simulation.units.size() <= unit_count_before_production:
 			failures.append("production queue should spawn a raider")
 

@@ -39,7 +39,7 @@ func _initialize() -> void:
 	var assembly_id := _find_entity(simulation.buildings, "assembly_bay", "player")
 	var unit_count_before_production: int = simulation.units.size()
 	simulation.issue_command("produce", "player", {"building_id": assembly_id, "unit_type": "raider"})
-	_run_ticks(simulation, 35)
+	_run_ticks(simulation, 45)
 	if simulation.units.size() <= unit_count_before_production:
 		failures.append("production queue should spawn a unit")
 

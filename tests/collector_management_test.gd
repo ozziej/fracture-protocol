@@ -28,7 +28,7 @@ func _initialize() -> void:
 
 		var units_before_queue: int = simulation.units.size()
 		simulation.issue_command("produce", "player", {"building_id": assembly_id, "unit_type": "collector"})
-		_run_ticks(simulation, 37)
+		_run_ticks(simulation, 60)
 		if simulation.units.size() <= units_before_queue:
 			failures.append("Assembly Bay should produce a replacement Collector")
 		else:

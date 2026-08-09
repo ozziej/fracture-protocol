@@ -13,7 +13,7 @@ const SUPPLY_LINK_RADIUS := 19.0
 const SUPPLY_EFFECT_RADIUS := 13.0
 const UNSUPPLIED_SPEED_MULTIPLIER := 0.82
 const UNSUPPLIED_DAMAGE_MULTIPLIER := 0.7
-const NAVIGATION_OBSTACLES := [
+const DEFAULT_NAVIGATION_OBSTACLES := [
 	Rect2(-11.0, 14.0, 8.0, 2.0),
 	Rect2(8.5, 8.0, 3.0, 8.0),
 	Rect2(-20.5, -18.0, 7.0, 2.0),
@@ -21,6 +21,8 @@ const NAVIGATION_OBSTACLES := [
 	Rect2(37.5, 8.5, 5.0, 3.0),
 	Rect2(-41.5, -9.5, 5.0, 3.0),
 ]
+const LEVEL_DATA_PATH := "res://data/level_data.json"
+const MAX_PRODUCTION_QUEUE := 5
 const NAV_PATH_MARGIN := 1.25
 const NAV_CORNER_PADDING := 0.45
 const COLLECTOR_LOAD_SECONDS := 2.5
@@ -48,6 +50,11 @@ var technology_definitions: Dictionary = {}
 var team_technologies: Dictionary = {"player": {}, "enemy": {}}
 var command_queue: Array = []
 var event_history: Array = []
+var level_id := ""
+var level_definition: Dictionary = {}
+var level_rules: Dictionary = {}
+var level_bounds := Vector2(60.0, 40.0)
+var navigation_obstacles: Array = []
 
 var _next_entity_id := 1
 var _economy_timer := 0.0
@@ -57,6 +64,7 @@ var _event_sequence := 0
 
 func _ready() -> void:
 	_build_definitions()
+	_load_level_data()
 
 
 func restart_match() -> void:
@@ -65,6 +73,8 @@ func restart_match() -> void:
 
 func start_match() -> void:
 	_build_definitions()
+	_load_level_data()
+	_configure_level_runtime()
 	current_tick = 0
 	accumulator = 0.0
 	player_credits = 850.0
@@ -82,6 +92,18 @@ func start_match() -> void:
 	command_queue.clear()
 	event_history.clear()
 
+	if level_definition.is_empty():
+		_setup_fallback_match()
+	else:
+		_setup_match_from_level()
+
+	_emit_event("MatchStarted", {
+		"tick": current_tick,
+		"message": "Skirmish online. Protect the Collector route, then research Advanced Targeting.",
+	})
+
+
+func _setup_fallback_match() -> void:
 	_add_resource_node("north_field", "Northern Energy Field", Vector3(-15.0, 0.0, -1.0), 1.0)
 	_add_resource_node("south_field", "Southern Energy Field", Vector3(17.0, 0.0, 3.0), -1.0)
 
@@ -105,10 +127,115 @@ func start_match() -> void:
 	_add_unit("enemy", "bulwark", Vector3(23.0, 0.0, -7.0))
 	_add_collector("enemy", "south_field", enemy_refinery_id, enemy_hub_id, buildings[enemy_refinery_id]["position"])
 
-	_emit_event("MatchStarted", {
-		"tick": current_tick,
-		"message": "Skirmish online. Protect the Collector route, then research Advanced Targeting.",
-	})
+
+func _setup_match_from_level() -> void:
+	for node_data in level_definition.get("resource_nodes", []):
+		var node: Dictionary = node_data
+		_add_resource_node(
+			str(node.get("id", "resource_%d" % resource_nodes.size())),
+			str(node.get("display_name", "Energy Field")),
+			_level_vector3(node.get("position", {})),
+			float(node.get("faction_hint", 0.0)),
+			float(node.get("remaining", 5000.0))
+		)
+	for point_data in level_definition.get("control_points", []):
+		var point: Dictionary = point_data
+		_add_control_point(
+			str(point.get("id", "relay_%d" % control_points.size())),
+			str(point.get("display_name", "Relay")),
+			_level_vector3(point.get("position", {})),
+			float(point.get("radius", 4.5))
+		)
+
+	var authored_buildings: Dictionary = {}
+	for team in ["player", "enemy"]:
+		var spawn_data: Dictionary = level_definition.get("spawns", {}).get(team, {})
+		for building_data in spawn_data.get("buildings", []):
+			var building_entry: Dictionary = building_data
+			var building_id := _add_building(team, str(building_entry.get("kind", "relay")), _level_vector3(building_entry.get("position", {})))
+			var authored_id := str(building_entry.get("id", ""))
+			if not authored_id.is_empty():
+				authored_buildings[authored_id] = building_id
+		for unit_data in spawn_data.get("units", []):
+			var unit_entry: Dictionary = unit_data
+			var unit_kind := str(unit_entry.get("kind", "ranger"))
+			var unit_position := _level_vector3(unit_entry.get("position", {}))
+			if unit_kind == "collector":
+				var source_id := str(unit_entry.get("source_id", ""))
+				var destination_id := str(unit_entry.get("destination_id", ""))
+				var home_id := str(unit_entry.get("home_id", ""))
+				if authored_buildings.has(destination_id):
+					destination_id = authored_buildings[destination_id]
+				if authored_buildings.has(home_id):
+					home_id = authored_buildings[home_id]
+				_add_collector(team, source_id, destination_id, home_id, unit_position)
+			else:
+				_add_unit(team, unit_kind, unit_position)
+
+
+func _load_level_data() -> void:
+	level_id = ""
+	level_definition = {}
+	level_rules = {}
+	var file := FileAccess.open(LEVEL_DATA_PATH, FileAccess.READ)
+	if file == null:
+		return
+	var parsed = JSON.parse_string(file.get_as_text())
+	if not parsed is Dictionary:
+		push_warning("Level data must contain a JSON object: %s" % LEVEL_DATA_PATH)
+		return
+	var root: Dictionary = parsed
+	var missions: Dictionary = root.get("mission_maps", {})
+	var requested_level_id := str(root.get("default_level_id", ""))
+	if requested_level_id.is_empty() or not missions.has(requested_level_id):
+		if missions.is_empty():
+			return
+		requested_level_id = str(missions.keys()[0])
+	var mission: Dictionary = missions.get(requested_level_id, {})
+	var base_maps: Dictionary = root.get("base_maps", {})
+	var base_id := str(mission.get("base_map_id", ""))
+	var base: Dictionary = base_maps.get(base_id, {})
+	level_definition = base.duplicate(true)
+	for key in mission:
+		if key != "base_map_id":
+			level_definition[key] = mission[key]
+	level_id = requested_level_id
+
+
+func _configure_level_runtime() -> void:
+	level_rules = level_definition.get("rules", {})
+	var bounds: Dictionary = level_definition.get("map_bounds", {})
+	level_bounds = Vector2(float(bounds.get("half_width", 60.0)), float(bounds.get("half_depth", 40.0)))
+	navigation_obstacles.clear()
+	var terrain: Dictionary = level_definition.get("terrain", {})
+	for obstacle_data in terrain.get("obstacles", []):
+		var obstacle: Dictionary = obstacle_data
+		var position := _level_vector3(obstacle.get("position", {}))
+		var size := _level_vector3(obstacle.get("size", {}), Vector3(1.0, 1.0, 1.0))
+		navigation_obstacles.append(Rect2(position.x - size.x * 0.5, position.z - size.z * 0.5, size.x, size.z))
+	if navigation_obstacles.is_empty():
+		navigation_obstacles = DEFAULT_NAVIGATION_OBSTACLES.duplicate()
+
+
+func _level_vector3(value: Variant, fallback: Vector3 = Vector3.ZERO) -> Vector3:
+	if value is Vector3:
+		return value
+	if value is Dictionary:
+		var data: Dictionary = value
+		return Vector3(float(data.get("x", fallback.x)), float(data.get("y", fallback.y)), float(data.get("z", fallback.z)))
+	return fallback
+
+
+func get_level_id() -> String:
+	return level_id
+
+
+func get_level_terrain() -> Dictionary:
+	return level_definition.get("terrain", {})
+
+
+func get_level_bounds() -> Vector2:
+	return level_bounds
 
 
 func step(delta: float) -> void:
@@ -197,6 +324,36 @@ func get_supply_summary(team: String) -> Dictionary:
 		"unsupplied_units": unsupplied_units,
 		"total_units": connected_units + unsupplied_units,
 		"connected_sources": _get_connected_supply_sources(team).size(),
+	}
+
+
+func get_limit_summary(team: String) -> Dictionary:
+	var unit_by_kind: Dictionary = {}
+	for kind in unit_definitions:
+		unit_by_kind[kind] = {
+			"current": _count_units(team, kind),
+			"queued": _count_queued_units(team, kind),
+			"max": _unit_limit(team, kind),
+		}
+	var building_by_kind: Dictionary = {}
+	for kind in building_definitions:
+		building_by_kind[kind] = {
+			"current": _count_buildings(team, kind),
+			"max": _building_limit(team, kind),
+		}
+	return {
+		"units": {
+			"current": _count_units(team),
+			"queued": _count_queued_units(team),
+			"max": _max_units_total(),
+			"by_kind": unit_by_kind,
+		},
+		"buildings": {
+			"current": _count_buildings(team),
+			"max": _max_buildings_total(),
+			"by_kind": building_by_kind,
+		},
+		"queue": {"max": _max_production_queue()},
 	}
 
 
@@ -393,6 +550,8 @@ func _process_commands() -> void:
 				_try_build(issuer, payload.get("building_type", "relay"), payload.get("position", Vector3.ZERO))
 			"produce":
 				_try_produce(issuer, payload.get("building_id", ""), payload.get("unit_type", "raider"))
+			"set_rally_point":
+				_try_set_rally_point(issuer, payload)
 			"research":
 				_try_research(issuer, payload.get("building_id", ""), payload.get("technology_id", "advanced_targeting"))
 			"assign_collector":
@@ -608,6 +767,10 @@ func _try_build(issuer: String, building_type: String, position: Vector3) -> voi
 	if not building_definitions.has(building_type):
 		return
 	var definition = building_definitions[building_type]
+	var limit_reason := _building_limit_reason(issuer, building_type)
+	if not limit_reason.is_empty():
+		_reject_order(issuer, limit_reason, "build")
+		return
 	var cost: float = definition.cost
 	if _get_credits(issuer) < cost:
 		_emit_event("OrderRejected", {"team": issuer, "reason": "Need %d more credits." % int(cost - _get_credits(issuer)), "order": "build"})
@@ -638,6 +801,15 @@ func _try_produce(issuer: String, building_id: String, unit_type: String) -> voi
 	if not production_allowed:
 		_reject_order(issuer, "%s cannot produce %s." % [building["display_name"], definition.display_name], "produce")
 		return
+	var queue: Array = building.get("queue", [])
+	var queue_limit := _max_production_queue()
+	if queue.size() >= queue_limit:
+		_reject_order(issuer, "%s queue full (%d/%d)." % [building["display_name"], queue.size(), queue_limit], "produce")
+		return
+	var unit_limit_reason := _unit_queue_limit_reason(issuer, unit_type)
+	if not unit_limit_reason.is_empty():
+		_reject_order(issuer, unit_limit_reason, "produce")
+		return
 	var required_technology: String = str(definition.required_technology)
 	if not required_technology.is_empty() and not is_technology_unlocked(issuer, required_technology):
 		var technology_name: String = technology_definitions[required_technology].display_name if technology_definitions.has(required_technology) else required_technology
@@ -648,10 +820,41 @@ func _try_produce(issuer: String, building_id: String, unit_type: String) -> voi
 		_emit_event("OrderRejected", {"team": issuer, "reason": "Need %d more credits." % int(definition.cost - _get_credits(issuer)), "order": "produce"})
 		return
 	_set_credits(issuer, _get_credits(issuer) - definition.cost)
-	var queue: Array = building["queue"]
-	queue.append({"unit_type": unit_type, "remaining": definition.build_time})
+	queue.append({
+		"unit_type": unit_type,
+		"remaining": definition.build_time * _production_time_multiplier(unit_type),
+	})
 	building["queue"] = queue
 	_emit_event("ProductionStarted", {"building_id": building_id, "unit_type": unit_type, "team": issuer, "message": "%s queued." % definition.display_name})
+
+
+func _try_set_rally_point(issuer: String, payload: Dictionary) -> void:
+	var building_id := str(payload.get("building_id", ""))
+	var requested_position: Vector3 = payload.get("position", Vector3.ZERO)
+	if not buildings.has(building_id):
+		_reject_order(issuer, "Select a friendly Assembly Bay.", "set_rally_point")
+		return
+	var building: Dictionary = buildings[building_id]
+	if building["team"] != issuer or building["kind"] != "assembly_bay" or not building["complete"]:
+		_reject_order(issuer, "Rally points require a completed friendly Assembly Bay.", "set_rally_point")
+		return
+	var position := Vector3(requested_position.x, 0.0, requested_position.z)
+	if abs(position.x) > level_bounds.x - 2.0 or abs(position.z) > level_bounds.y - 2.0:
+		_reject_order(issuer, "Rally point must be inside the level bounds.", "set_rally_point")
+		return
+	var definition = building_definitions[building["kind"]]
+	var minimum_distance: float = max(3.0, max(definition.footprint.x, definition.footprint.y) * 0.5 + 1.0)
+	if building["position"].distance_to(position) < minimum_distance:
+		_reject_order(issuer, "Rally point must be outside the Assembly Bay.", "set_rally_point")
+		return
+	building["rally_position"] = position
+	building["rally_enabled"] = true
+	_emit_event("RallyPointSet", {
+		"building_id": building_id,
+		"team": issuer,
+		"position": position,
+		"message": "%s rally point set." % building["display_name"],
+	})
 
 
 func _try_research(issuer: String, building_id: String, technology_id: String) -> void:
@@ -740,15 +943,49 @@ func _update_production() -> void:
 		var job: Dictionary = queue[0]
 		job["remaining"] = float(job["remaining"]) - TICK_SECONDS
 		if float(job["remaining"]) <= 0.0:
-			var spawn_offset := Vector3(0.0, 0.0, 4.0 if building["team"] == "player" else -4.0)
-			var spawned_id := _add_unit(building["team"], job["unit_type"], building["position"] + spawn_offset)
+			var exit_position := _production_exit_position(building)
+			var spawned_id := _add_unit(building["team"], job["unit_type"], exit_position)
+			var rally_position: Vector3 = building.get("rally_position", exit_position)
+			if spawned_id.is_empty():
+				continue
+			if rally_position.distance_to(exit_position) > 0.15:
+				var spawned_unit: Dictionary = units[spawned_id]
+				spawned_unit["target_position"] = rally_position
+				spawned_unit["waypoints"] = _build_navigation_path(exit_position, rally_position)
+				spawned_unit["order"] = "move"
 			queue.pop_front()
 			var spawned_name: String = unit_definitions[job["unit_type"]].display_name
-			var completion_message := "%s ready." % spawned_name
+			var completion_message := "%s ready at rally point." % spawned_name
 			if job["unit_type"] == "collector":
-				completion_message = "Collector ready — assign a resource route."
+				completion_message = "Collector ready at the Assembly Bay exit — assign a resource route."
 			_emit_event("ProductionCompleted", {"building_id": building_id, "unit_id": spawned_id, "unit_type": job["unit_type"], "team": building["team"], "message": completion_message})
 		building["queue"] = queue
+
+
+func _max_production_queue() -> int:
+	return max(1, int(level_rules.get("max_queue", MAX_PRODUCTION_QUEUE)))
+
+
+func _production_time_multiplier(unit_type: String) -> float:
+	var multiplier: float = max(0.1, float(level_rules.get("production_time_multiplier", 1.0)))
+	if unit_type == "collector":
+		multiplier *= max(0.1, float(level_rules.get("collector_production_time_multiplier", 1.0)))
+	return multiplier
+
+
+func _collector_speed_multiplier() -> float:
+	return max(0.1, float(level_rules.get("collector_speed_multiplier", 1.0)))
+
+
+func _collector_load_seconds() -> float:
+	return max(0.1, float(level_rules.get("collector_load_seconds", COLLECTOR_LOAD_SECONDS)))
+
+
+func _production_exit_position(building: Dictionary) -> Vector3:
+	var definition = building_definitions[building["kind"]]
+	var clearance: float = max(3.5, max(definition.footprint.x, definition.footprint.y) * 0.5 + 2.0)
+	var direction := 1.0 if building["team"] == "player" else -1.0
+	return building["position"] + Vector3(0.0, 0.0, direction * clearance)
 
 
 func _update_units() -> void:
@@ -830,6 +1067,7 @@ func _update_units() -> void:
 
 
 func _update_collector_unit(unit: Dictionary, definition, speed_multiplier: float, damage_multiplier: float) -> void:
+	var collector_speed: float = definition.speed * speed_multiplier * _collector_speed_multiplier()
 	var state: String = str(unit.get("collector_state", "unassigned"))
 	var source_id: String = str(unit.get("collector_source_id", ""))
 	var destination_id: String = str(unit.get("collector_destination_id", ""))
@@ -866,7 +1104,7 @@ func _update_collector_unit(unit: Dictionary, definition, speed_multiplier: floa
 		unit["waypoints"] = []
 	elif state == "retreating":
 		var home_position: Vector3 = _collector_home_position(unit)
-		_advance_unit_along_route(unit, definition.speed * speed_multiplier)
+		_advance_unit_along_route(unit, collector_speed)
 		if unit["position"].distance_to(home_position) <= COLLECTOR_HOME_DISTANCE:
 			if float(unit.get("collector_cargo", 0.0)) > 0.0 and buildings.has(destination_id):
 				unit["collector_state"] = "to_destination"
@@ -877,10 +1115,10 @@ func _update_collector_unit(unit: Dictionary, definition, speed_multiplier: floa
 			state = str(unit["collector_state"])
 	elif state == "to_source":
 		var source_position: Vector3 = resource_nodes[source_id]["position"]
-		_advance_unit_along_route(unit, definition.speed * speed_multiplier)
+		_advance_unit_along_route(unit, collector_speed)
 		if unit["position"].distance_to(source_position) <= COLLECTOR_HOME_DISTANCE:
 			unit["collector_state"] = "loading"
-			unit["collector_timer"] = COLLECTOR_LOAD_SECONDS
+			unit["collector_timer"] = _collector_load_seconds()
 			unit["order"] = "idle"
 			unit["waypoints"] = []
 	elif state == "loading":
@@ -888,7 +1126,7 @@ func _update_collector_unit(unit: Dictionary, definition, speed_multiplier: floa
 		var source: Dictionary = resource_nodes[source_id]
 		var previous_cargo: float = float(unit.get("collector_cargo", 0.0))
 		unit["collector_timer"] = max(0.0, float(unit.get("collector_timer", 0.0)) - TICK_SECONDS)
-		var load_ratio: float = clamp(1.0 - float(unit["collector_timer"]) / COLLECTOR_LOAD_SECONDS, 0.0, 1.0)
+		var load_ratio: float = clamp(1.0 - float(unit["collector_timer"]) / _collector_load_seconds(), 0.0, 1.0)
 		var desired_cargo: float = float(unit["collector_capacity"]) * load_ratio
 		var cargo_increment: float = min(max(0.0, desired_cargo - previous_cargo), float(source["remaining"]))
 		var amount: float = previous_cargo + cargo_increment
@@ -909,7 +1147,7 @@ func _update_collector_unit(unit: Dictionary, definition, speed_multiplier: floa
 				unit["collector_state"] = "idle"
 	elif state == "to_destination":
 		var destination_position: Vector3 = buildings[destination_id]["position"]
-		_advance_unit_along_route(unit, definition.speed * speed_multiplier)
+		_advance_unit_along_route(unit, collector_speed)
 		if unit["position"].distance_to(destination_position) <= COLLECTOR_HOME_DISTANCE:
 			_deliver_collector_cargo(unit, destination_id)
 			unit["collector_state"] = "to_source"
@@ -1005,7 +1243,7 @@ func _build_navigation_path(start: Vector3, destination: Vector3) -> Array:
 		return [destination]
 
 	var nodes: Array = [start_point, destination_point]
-	for obstacle in NAVIGATION_OBSTACLES:
+	for obstacle in navigation_obstacles:
 		var expanded: Rect2 = obstacle.grow(NAV_PATH_MARGIN)
 		nodes.append(expanded.position + Vector2(-NAV_CORNER_PADDING, -NAV_CORNER_PADDING))
 		nodes.append(Vector2(expanded.end.x + NAV_CORNER_PADDING, expanded.position.y - NAV_CORNER_PADDING))
@@ -1058,7 +1296,7 @@ func _build_navigation_path(start: Vector3, destination: Vector3) -> Array:
 
 
 func _navigation_segment_clear(from_point: Vector2, to_point: Vector2) -> bool:
-	for obstacle in NAVIGATION_OBSTACLES:
+	for obstacle in navigation_obstacles:
 		var blocked: Rect2 = obstacle.grow(NAV_PATH_MARGIN)
 		if blocked.has_point(from_point) or blocked.has_point(to_point):
 			return false
@@ -1215,6 +1453,8 @@ func _ai_manage_repairs() -> void:
 func _ai_manage_collectors() -> void:
 	var assembly_id := _first_building_for_team("enemy", "assembly_bay")
 	var refinery_id := _first_building_for_team("enemy", "refinery")
+	var ai_config: Dictionary = level_definition.get("ai", {})
+	var collector_source_id := str(ai_config.get("collector_source_id", "south_field"))
 	if refinery_id.is_empty():
 		return
 	var collector_count := 0
@@ -1226,7 +1466,7 @@ func _ai_manage_collectors() -> void:
 		if str(unit.get("collector_state", "")) == "unassigned" and float(unit.get("collector_cargo", 0.0)) <= 0.0:
 			issue_command("assign_collector", "enemy", {
 				"collector_id": entity_id,
-				"source_id": "south_field",
+				"source_id": collector_source_id,
 				"destination_id": refinery_id,
 			})
 	if collector_count == 0 and not assembly_id.is_empty() and enemy_credits >= unit_definitions["collector"].cost and not _production_queue_contains(assembly_id, "collector"):
@@ -1254,7 +1494,9 @@ func _ai_manage_relay() -> void:
 			return
 	if enemy_credits < building_definitions["relay"].cost:
 		return
-	issue_command("build", "enemy", {"building_type": "relay", "position": Vector3(17.0, 0.0, -5.0)})
+	var ai_config: Dictionary = level_definition.get("ai", {})
+	var relay_position := _level_vector3(ai_config.get("relay_position", Vector3(17.0, 0.0, -5.0)))
+	issue_command("build", "enemy", {"building_type": "relay", "position": relay_position})
 
 
 func _ai_manage_production() -> void:
@@ -1404,6 +1646,73 @@ func _count_units_in_radius(team: String, position: Vector3, radius: float) -> i
 	return count
 
 
+func _max_units_total() -> int:
+	return max(1, int(level_rules.get("max_units_total", 9999)))
+
+
+func _max_buildings_total() -> int:
+	return max(1, int(level_rules.get("max_buildings_total", 9999)))
+
+
+func _unit_limit(_team: String, kind: String) -> int:
+	var limits: Dictionary = level_rules.get("max_units_by_kind", {})
+	return max(1, int(limits.get(kind, _max_units_total())))
+
+
+func _building_limit(_team: String, kind: String) -> int:
+	var limits: Dictionary = level_rules.get("max_buildings_by_kind", {})
+	return max(1, int(limits.get(kind, _max_buildings_total())))
+
+
+func _count_units(team: String, kind: String = "") -> int:
+	var count := 0
+	for entity_id in units:
+		var unit: Dictionary = units[entity_id]
+		if unit["team"] == team and (kind.is_empty() or unit["kind"] == kind):
+			count += 1
+	return count
+
+
+func _count_queued_units(team: String, kind: String = "") -> int:
+	var count := 0
+	for building_id in buildings:
+		var building: Dictionary = buildings[building_id]
+		if building["team"] != team:
+			continue
+		for job in building.get("queue", []):
+			if kind.is_empty() or str(job.get("unit_type", "")) == kind:
+				count += 1
+	return count
+
+
+func _count_buildings(team: String, kind: String = "") -> int:
+	var count := 0
+	for entity_id in buildings:
+		var building: Dictionary = buildings[entity_id]
+		if building["team"] == team and (kind.is_empty() or building["kind"] == kind):
+			count += 1
+	return count
+
+
+func _unit_queue_limit_reason(team: String, kind: String) -> String:
+	if _count_units(team) + _count_queued_units(team) >= _max_units_total():
+		return "Unit capacity reached (%d/%d)." % [_count_units(team) + _count_queued_units(team), _max_units_total()]
+	var current_kind := _count_units(team, kind) + _count_queued_units(team, kind)
+	if current_kind >= _unit_limit(team, kind):
+		return "%s limit reached (%d/%d)." % [unit_definitions[kind].display_name, current_kind, _unit_limit(team, kind)]
+	return ""
+
+
+func _building_limit_reason(team: String, kind: String) -> String:
+	var current_total := _count_buildings(team)
+	if current_total >= _max_buildings_total():
+		return "Building capacity reached (%d/%d)." % [current_total, _max_buildings_total()]
+	var current_kind := _count_buildings(team, kind)
+	if current_kind >= _building_limit(team, kind):
+		return "%s limit reached (%d/%d)." % [building_definitions[kind].display_name, current_kind, _building_limit(team, kind)]
+	return ""
+
+
 func _is_valid_build_position(team: String, position: Vector3) -> bool:
 	var near_network := false
 	for source_position in _get_connected_supply_sources(team):
@@ -1414,7 +1723,7 @@ func _is_valid_build_position(team: String, position: Vector3) -> bool:
 		var building: Dictionary = buildings[building_id]
 		if building["position"].distance_to(position) < 4.0:
 			return false
-	return near_network and abs(position.x) < 53.0 and abs(position.z) < 33.0
+	return near_network and abs(position.x) <= level_bounds.x - 2.0 and abs(position.z) <= level_bounds.y - 2.0
 
 
 func _add_unit(team: String, kind: String, position: Vector3) -> String:
@@ -1463,17 +1772,26 @@ func _add_building(team: String, kind: String, position: Vector3, under_construc
 	var definition = building_definitions[kind]
 	var entity_id := _new_entity_id("building")
 	var complete := not under_construction
+	var normalized_position := Vector3(position.x, 0.0, position.z)
+	var rally_enabled: bool = not str(definition.can_produce).is_empty()
+	var rally_position := normalized_position
+	if rally_enabled:
+		var clearance: float = max(3.5, max(definition.footprint.x, definition.footprint.y) * 0.5 + 2.0)
+		var direction := 1.0 if team == "player" else -1.0
+		rally_position += Vector3(0.0, 0.0, direction * clearance)
 	buildings[entity_id] = {
 		"id": entity_id,
 		"team": team,
 		"kind": kind,
 		"display_name": definition.display_name,
-		"position": Vector3(position.x, 0.0, position.z),
+		"position": normalized_position,
 		"health": definition.max_health,
 		"max_health": definition.max_health,
 		"complete": complete,
 		"construction_progress": 1.0 if complete else 0.0,
 		"queue": [],
+		"rally_enabled": rally_enabled,
+		"rally_position": rally_position,
 		"research_id": "",
 		"research_remaining": 0.0,
 		"research_total": 0.0,
@@ -1481,24 +1799,24 @@ func _add_building(team: String, kind: String, position: Vector3, under_construc
 	return entity_id
 
 
-func _add_control_point(point_id: String, display_name: String, position: Vector3) -> void:
+func _add_control_point(point_id: String, display_name: String, position: Vector3, radius: float = 4.5) -> void:
 	control_points[point_id] = {
 		"id": point_id,
 		"display_name": display_name,
 		"position": position,
 		"owner": "neutral",
 		"capture_progress": 0.0,
-		"radius": 4.5,
+		"radius": radius,
 	}
 
 
-func _add_resource_node(node_id: String, display_name: String, position: Vector3, faction_hint: float) -> void:
+func _add_resource_node(node_id: String, display_name: String, position: Vector3, faction_hint: float, remaining: float = 5000.0) -> void:
 	resource_nodes[node_id] = {
 		"id": node_id,
 		"display_name": display_name,
 		"position": position,
 		"faction_hint": faction_hint,
-		"remaining": 5000.0,
+		"remaining": remaining,
 	}
 
 

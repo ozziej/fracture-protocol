@@ -12,7 +12,7 @@ func _initialize() -> void:
 	greedy_sim.start_match()
 	var greedy_collector_id := _find_entity(greedy_sim.units, "collector", "player")
 	var greedy_refinery_id := _find_entity(greedy_sim.buildings, "refinery", "player")
-	_run_ticks(greedy_sim, 50)
+	_run_ticks(greedy_sim, 65)
 	if greedy_collector_id.is_empty() or greedy_refinery_id.is_empty():
 		failures.append("Collector should visibly travel from its resource source toward its assigned refinery")
 	else:
@@ -21,13 +21,13 @@ func _initialize() -> void:
 		var greedy_target: Vector3 = greedy_sim.resource_nodes["north_field"]["position"] if greedy_state == "loading" else greedy_sim.buildings[greedy_refinery_id]["position"]
 		if greedy_state != "loading" or float(greedy_collector["collector_cargo"]) <= 0.0 or float(greedy_collector["collector_cargo"]) >= float(greedy_collector["collector_capacity"]) or greedy_collector["target_position"].distance_to(greedy_target) > 0.2:
 			failures.append("Collector should visibly load at a slower, partial-load pace before returning to its refinery")
-	_run_ticks(greedy_sim, 70)
+	_run_ticks(greedy_sim, 100)
 	if greedy_sim.player_credits <= 850.0 or not _has_team_event(greedy_sim, "ResourceDelivered", "player"):
-		failures.append("greedy scenario should deliver energy during the first 12 seconds")
+		failures.append("greedy scenario should deliver energy during the first 17 seconds")
 	else:
 		var delivery_event := _first_team_event(greedy_sim, "ResourceDelivered", "player")
-		if int(delivery_event.get("tick", 9999)) > 120:
-			failures.append("greedy scenario delivery should arrive within the first 12 seconds")
+		if int(delivery_event.get("tick", 9999)) > 165:
+			failures.append("greedy scenario delivery should arrive within the first 17 seconds")
 
 	# Collector killed: replacing and reassigning the worker should recover the economy.
 	var collector_loss_sim = SimulationScript.new()
@@ -44,13 +44,13 @@ func _initialize() -> void:
 		var assembly_id := _find_entity(collector_loss_sim.buildings, "assembly_bay", "player")
 		var refinery_id := _find_entity(collector_loss_sim.buildings, "refinery", "player")
 		collector_loss_sim.issue_command("produce", "player", {"building_id": assembly_id, "unit_type": "collector"})
-		_run_ticks(collector_loss_sim, 37)
+		_run_ticks(collector_loss_sim, 60)
 		var replacement_id := _find_entity(collector_loss_sim.units, "collector", "player")
 		if replacement_id.is_empty():
 			failures.append("collector-loss scenario should support replacement production")
 		else:
 			collector_loss_sim.issue_command("assign_collector", "player", {"collector_id": replacement_id, "source_id": "north_field", "destination_id": refinery_id})
-			_run_ticks(collector_loss_sim, 130)
+			_run_ticks(collector_loss_sim, 180)
 			if not _has_team_event(collector_loss_sim, "ResourceDelivered", "player"):
 				failures.append("a replaced and reassigned Collector should restore income")
 
@@ -67,7 +67,7 @@ func _initialize() -> void:
 	if not tech_sim.is_technology_unlocked("player", "advanced_targeting"):
 		failures.append("tech-first opening should unlock Advanced Targeting")
 	tech_sim.issue_command("produce", "player", {"building_id": tech_assembly_id, "unit_type": "bulwark"})
-	_run_ticks(tech_sim, 46)
+	_run_ticks(tech_sim, 60)
 	if _find_entity(tech_sim.units, "bulwark", "player").is_empty():
 		failures.append("tech-first opening should produce a Bulwark after research")
 
@@ -76,7 +76,7 @@ func _initialize() -> void:
 	unit_first_sim.start_match()
 	var unit_first_assembly_id := _find_entity(unit_first_sim.buildings, "assembly_bay", "player")
 	unit_first_sim.issue_command("produce", "player", {"building_id": unit_first_assembly_id, "unit_type": "raider"})
-	_run_ticks(unit_first_sim, 36)
+	_run_ticks(unit_first_sim, 45)
 	if _find_entity(unit_first_sim.units, "raider", "player").is_empty():
 		failures.append("unit-first opening should produce a Raider")
 

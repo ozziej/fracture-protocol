@@ -38,6 +38,7 @@ var credits_label: Label
 var territory_label: Label
 var supply_label: Label
 var technology_label: Label
+var force_label: Label
 var selected_label: Label
 var objective_label: Label
 var status_label: Label
@@ -187,47 +188,52 @@ func _build_camera() -> void:
 
 
 func _build_world_shell() -> void:
+	var terrain: Dictionary = simulation.get_level_terrain()
+	var bounds: Vector2 = simulation.get_level_bounds()
+	var ground_size := _vector3_from_data(terrain.get("ground_size", {}), Vector3(bounds.x * 2.0, 0.25, bounds.y * 2.0))
+	var ground_position := _vector3_from_data(terrain.get("ground_position", {}), Vector3(0.0, -0.18, 0.0))
 	var ground := MeshInstance3D.new()
 	var ground_mesh := BoxMesh.new()
-	ground_mesh.size = Vector3(120.0, 0.25, 80.0)
+	ground_mesh.size = ground_size
 	ground.mesh = ground_mesh
-	ground.position.y = -0.18
+	ground.position = ground_position
 	ground.material_override = _material(Color("#0b222b"), 0.92, 0.05)
 	add_child(ground)
 
-	for x in range(-60, 61, 4):
+	var grid_spacing: int = max(1, int(terrain.get("grid_spacing", 4)))
+	for x in range(int(-bounds.x), int(bounds.x) + 1, grid_spacing):
 		var line := MeshInstance3D.new()
 		var line_mesh := BoxMesh.new()
-		line_mesh.size = Vector3(0.035, 0.018, 80.0)
+		line_mesh.size = Vector3(0.035, 0.018, ground_size.z)
 		line.mesh = line_mesh
-		line.position = Vector3(float(x), -0.02, 0.0)
+		line.position = Vector3(float(x), ground_position.y + ground_size.y * 0.5 + 0.01, 0.0)
 		line.material_override = _material(Color(0.13, 0.36, 0.4, 0.45), 1.0, 0.0)
 		add_child(line)
-	for z in range(-40, 41, 4):
+	for z in range(int(-bounds.y), int(bounds.y) + 1, grid_spacing):
 		var line := MeshInstance3D.new()
 		var line_mesh := BoxMesh.new()
-		line_mesh.size = Vector3(120.0, 0.018, 0.035)
+		line_mesh.size = Vector3(ground_size.x, 0.018, 0.035)
 		line.mesh = line_mesh
-		line.position = Vector3(0.0, -0.01, float(z))
+		line.position = Vector3(0.0, ground_position.y + ground_size.y * 0.5 + 0.01, float(z))
 		line.material_override = _material(Color(0.13, 0.36, 0.4, 0.45), 1.0, 0.0)
 		add_child(line)
 
-	_create_road(Vector3(0.0, 0.01, -1.0), Vector3(106.0, 0.03, 3.2))
-	_create_road(Vector3(0.0, 0.01, -1.0), Vector3(3.2, 0.03, 68.0))
-	_create_road(Vector3(-34.0, 0.01, 15.0), Vector3(20.0, 0.03, 2.6))
-	for x in range(-48, 49, 6):
-		_create_lane_marker(Vector3(float(x), 0.06, -1.0))
-	_create_road(Vector3(34.0, 0.01, -15.0), Vector3(20.0, 0.03, 2.6))
-
-	for obstacle in [
-		{"position": Vector3(-7.0, 0.55, 15.0), "size": Vector3(8.0, 1.1, 2.0)},
-		{"position": Vector3(10.0, 0.7, 12.0), "size": Vector3(3.0, 1.4, 8.0)},
-		{"position": Vector3(-17.0, 0.45, -17.0), "size": Vector3(7.0, 0.9, 2.0)},
-		{"position": Vector3(6.0, 0.6, -20.0), "size": Vector3(3.0, 1.2, 7.0)},
-		{"position": Vector3(40.0, 0.35, 10.0), "size": Vector3(5.0, 0.7, 3.0)},
-		{"position": Vector3(-39.0, 0.35, -8.0), "size": Vector3(5.0, 0.7, 3.0)},
-	]:
-		_create_obstacle(obstacle["position"], obstacle["size"])
+	for road_data in terrain.get("roads", []):
+		var road: Dictionary = road_data
+		_create_road(_vector3_from_data(road.get("position", {})), _vector3_from_data(road.get("size", {}), Vector3(4.0, 0.03, 4.0)))
+	for marker_data in terrain.get("lane_markers", []):
+		var marker: Dictionary = marker_data
+		_create_lane_marker(_vector3_from_data(marker.get("position", {})))
+	for accent_data in terrain.get("accents", []):
+		var accent: Dictionary = accent_data
+		_create_terrain_accent(
+			_vector3_from_data(accent.get("position", {})),
+			_vector3_from_data(accent.get("size", {}), Vector3(4.0, 0.04, 4.0)),
+			Color(str(accent.get("color", "#123d49")))
+		)
+	for obstacle_data in terrain.get("obstacles", []):
+		var obstacle: Dictionary = obstacle_data
+		_create_obstacle(_vector3_from_data(obstacle.get("position", {})), _vector3_from_data(obstacle.get("size", {}), Vector3(2.0, 1.0, 2.0)))
 
 
 func _create_road(position: Vector3, size: Vector3) -> void:
@@ -267,6 +273,25 @@ func _create_obstacle(position: Vector3, size: Vector3) -> void:
 	add_child(highlight)
 
 
+func _create_terrain_accent(position: Vector3, size: Vector3, color: Color) -> void:
+	var accent := MeshInstance3D.new()
+	var accent_mesh := BoxMesh.new()
+	accent_mesh.size = size
+	accent.mesh = accent_mesh
+	accent.position = position
+	accent.material_override = _material(color, 0.72, 0.08)
+	add_child(accent)
+
+
+func _vector3_from_data(value: Variant, fallback: Vector3 = Vector3.ZERO) -> Vector3:
+	if value is Vector3:
+		return value
+	if value is Dictionary:
+		var data: Dictionary = value
+		return Vector3(float(data.get("x", fallback.x)), float(data.get("y", fallback.y)), float(data.get("z", fallback.z)))
+	return fallback
+
+
 func _build_ui() -> void:
 	var canvas := CanvasLayer.new()
 	canvas.name = "TacticalHUD"
@@ -278,7 +303,7 @@ func _build_ui() -> void:
 
 	var top_panel := PanelContainer.new()
 	top_panel.position = Vector2(18.0, 16.0)
-	top_panel.size = Vector2(920.0, 70.0)
+	top_panel.size = Vector2(1170.0, 70.0)
 	top_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.025, 0.075, 0.1, 0.94), Color(0.18, 0.7, 0.78, 0.75)))
 	root.add_child(top_panel)
 	var top_margin := MarginContainer.new()
@@ -301,6 +326,8 @@ func _build_ui() -> void:
 	top_row.add_child(supply_label)
 	technology_label = _label("TECH LOCKED", 17, Color("#ffbf6a"))
 	top_row.add_child(technology_label)
+	force_label = _label("FORCE 4/24", 17, Color("#c3d8df"))
+	top_row.add_child(force_label)
 
 	objective_label = _label("OBJECTIVE: Protect the Collector route, then research Advanced Targeting.", 15, Color("#ffd36a"))
 	objective_label.position = Vector2(22.0, 98.0)
@@ -312,7 +339,7 @@ func _build_ui() -> void:
 	status_label.size = Vector2(980.0, 26.0)
 	root.add_child(status_label)
 
-	var help := _label("WASD pan   H focus   F attack-move   X stop   Ctrl/Cmd+1-9 assign   1-9 recall   C collector   U route   Q raider   V bulwark   T research   Y repair   B relay   N restart   Right-click order   Credits fund production/research/repair; unsupplied units are slower and weaker.", 12, Color("#8ca9b5"))
+	var help := _label("WASD pan   H focus   F attack-move   X stop   Ctrl/Cmd+1-9 assign   1-9 recall   C collector   U route   Q raider   V bulwark   T research   Y repair   B relay   N restart   Right-click order   Right-click a selected Assembly Bay to set its rally point.   Credits fund production/research/repair; unsupplied units are slower and weaker.", 12, Color("#8ca9b5"))
 	help.position = Vector2(22.0, 149.0)
 	help.size = Vector2(1230.0, 24.0)
 	root.add_child(help)
@@ -430,17 +457,23 @@ func _issue_context_order(screen_position: Vector2) -> void:
 	if selected_ids.is_empty():
 		return
 	var clicked_id := _entity_at_screen(screen_position, false)
-	if not clicked_id.is_empty() and ((simulation.units.has(clicked_id) and simulation.units[clicked_id]["team"] == "enemy") or (simulation.buildings.has(clicked_id) and simulation.buildings[clicked_id]["team"] == "enemy")):
+	var clicked_enemy: bool = not clicked_id.is_empty() and ((simulation.units.has(clicked_id) and simulation.units[clicked_id]["team"] == "enemy") or (simulation.buildings.has(clicked_id) and simulation.buildings[clicked_id]["team"] == "enemy"))
+	if clicked_enemy:
 		simulation.issue_command("attack", "player", {"entity_ids": selected_ids, "target_id": clicked_id})
 		attack_move_mode = false
-	else:
-		var destination := _screen_to_ground(screen_position)
-		if _is_inside_map(destination):
-			if attack_move_mode:
-				simulation.issue_command("attack_move", "player", {"entity_ids": selected_ids, "position": destination})
-				attack_move_mode = false
-			else:
-				simulation.issue_command("move", "player", {"entity_ids": selected_ids, "position": destination})
+		return
+	var rally_building_id := _selected_rally_building_id()
+	var destination := _screen_to_ground(screen_position)
+	if not attack_move_mode and not rally_building_id.is_empty() and _is_inside_map(destination):
+		simulation.issue_command("set_rally_point", "player", {"building_id": rally_building_id, "position": destination})
+		status_label.text = "Rally point order queued for the selected Assembly Bay."
+		return
+	if _is_inside_map(destination):
+		if attack_move_mode:
+			simulation.issue_command("attack_move", "player", {"entity_ids": selected_ids, "position": destination})
+			attack_move_mode = false
+		else:
+			simulation.issue_command("move", "player", {"entity_ids": selected_ids, "position": destination})
 
 
 func _handle_control_group(group_index: int, assign: bool) -> void:
@@ -488,7 +521,8 @@ func _focus_selection(show_status := true) -> void:
 			status_label.text = "Select a friendly force before focusing the camera."
 		return
 	center /= float(count)
-	camera_target = Vector3(clamp(center.x, -36.0, 36.0), 0.0, clamp(center.z, -25.0, 25.0))
+	var bounds: Vector2 = simulation.get_level_bounds()
+	camera_target = Vector3(clamp(center.x, -bounds.x * 0.6, bounds.x * 0.6), 0.0, clamp(center.z, -bounds.y * 0.62, bounds.y * 0.62))
 	if show_status:
 		status_label.text = "Camera focused on %d selected entities." % count
 
@@ -527,7 +561,8 @@ func _screen_to_ground(screen_position: Vector2) -> Vector3:
 
 
 func _is_inside_map(position: Vector3) -> bool:
-	return abs(position.x) <= MAP_HALF_WIDTH - 2.0 and abs(position.z) <= MAP_HALF_DEPTH - 2.0
+	var bounds: Vector2 = simulation.get_level_bounds() if simulation else Vector2(MAP_HALF_WIDTH, MAP_HALF_DEPTH)
+	return abs(position.x) <= bounds.x - 2.0 and abs(position.z) <= bounds.y - 2.0
 
 
 func _toggle_attack_move_mode() -> void:
@@ -596,6 +631,18 @@ func _find_player_assembly_bay() -> String:
 		var building: Dictionary = simulation.buildings[building_id]
 		if building["team"] == "player" and building["kind"] == "assembly_bay":
 			return building_id
+	return ""
+
+
+func _selected_rally_building_id() -> String:
+	if selected_ids.size() != 1:
+		return ""
+	var entity_id := str(selected_ids[0])
+	if not simulation.buildings.has(entity_id):
+		return ""
+	var building: Dictionary = simulation.buildings[entity_id]
+	if building["team"] == "player" and building["kind"] == "assembly_bay" and building["complete"]:
+		return entity_id
 	return ""
 
 
@@ -764,8 +811,9 @@ func _process_camera_input(delta: float) -> void:
 		camera_target.z -= delta * 18.0
 	elif pointer_position.y > get_viewport().size.y - 12.0:
 		camera_target.z += delta * 18.0
-	camera_target.x = clamp(camera_target.x, -36.0, 36.0)
-	camera_target.z = clamp(camera_target.z, -25.0, 25.0)
+	var bounds: Vector2 = simulation.get_level_bounds() if simulation else Vector2(MAP_HALF_WIDTH, MAP_HALF_DEPTH)
+	camera_target.x = clamp(camera_target.x, -bounds.x * 0.6, bounds.x * 0.6)
+	camera_target.z = clamp(camera_target.z, -bounds.y * 0.62, bounds.y * 0.62)
 
 
 
@@ -1044,6 +1092,10 @@ func _update_hud() -> void:
 		supply_state = "%d UNSUPPLIED" % unsupplied_units
 	supply_label.text = "SUPPLY %s" % supply_state
 	supply_label.modulate = Color("#ffbf6a") if unsupplied_units > 0 else Color("#7cf1ad")
+	var limits: Dictionary = simulation.get_limit_summary("player")
+	var unit_limits: Dictionary = limits["units"]
+	force_label.text = "FORCE %d/%d" % [int(unit_limits["current"]) + int(unit_limits["queued"]), int(unit_limits["max"])]
+	force_label.modulate = Color("#ff7b86") if int(unit_limits["current"]) + int(unit_limits["queued"]) >= int(unit_limits["max"]) else Color("#c3d8df")
 	var research_status: Dictionary = simulation.get_research_status("player")
 	var targeting_online: bool = simulation.is_technology_unlocked("player", "advanced_targeting")
 	var active_research_id: String = str(research_status.get("active_id", ""))
@@ -1061,8 +1113,15 @@ func _update_hud() -> void:
 		technology_label.text = "TECH LOCKED"
 		technology_label.modulate = Color("#ffbf6a")
 		research_button.text = "RESEARCH TARGETING [T]"
-	var has_assembly := not _find_player_assembly_bay().is_empty()
-	queue_button.disabled = simulation.player_credits < 105.0 or not has_assembly
+	var assembly_id := _find_player_assembly_bay()
+	var has_assembly := not assembly_id.is_empty()
+	var assembly_queue_count := 0
+	if has_assembly:
+		assembly_queue_count = simulation.buildings[assembly_id].get("queue", []).size()
+	var queue_limit: int = int(limits["queue"]["max"])
+	var queue_full := assembly_queue_count >= queue_limit
+	queue_button.text = "QUEUE FULL %d/%d" % [assembly_queue_count, queue_limit] if queue_full else "QUEUE RAIDER [Q]"
+	queue_button.disabled = simulation.player_credits < 105.0 or not has_assembly or queue_full
 	var selected_collector := _selected_collector_id()
 	if collector_assignment_mode:
 		collector_button.text = "CANCEL ROUTE [U]"
@@ -1075,8 +1134,8 @@ func _update_hud() -> void:
 	else:
 		collector_button.text = "QUEUE COLLECTOR [C]"
 		collector_button.tooltip_text = "Queue a Collector at the Assembly Bay. Select one and press U to assign its source and Resource Processor. Cost: 115 credits."
-		collector_button.disabled = simulation.player_credits < 115.0 or not has_assembly
-	heavy_queue_button.disabled = simulation.player_credits < 160.0 or not targeting_online or not has_assembly
+		collector_button.disabled = simulation.player_credits < 115.0 or not has_assembly or queue_full
+	heavy_queue_button.disabled = simulation.player_credits < 160.0 or not targeting_online or not has_assembly or queue_full
 	research_button.disabled = targeting_online or not active_research_id.is_empty() or simulation.player_credits < 300.0 or not has_assembly
 	repair_button.disabled = simulation.player_credits < 30.0 or not _has_damaged_selection()
 	build_button.disabled = simulation.player_credits < 180.0 and build_mode.is_empty()
@@ -1125,12 +1184,19 @@ func _selection_detail(data: Dictionary) -> String:
 		var research_progress: int = int(clamp(1.0 - float(data.get("research_remaining", 0.0)) / research_total, 0.0, 1.0) * 100.0)
 		research_text = "   RESEARCH %d%%" % research_progress
 	var queue_text := ""
-	if data.has("queue") and not data["queue"].is_empty():
-		var next_job: Dictionary = data["queue"][0]
-		queue_text = "   QUEUE %s %ds" % [str(next_job.get("unit_type", "")).to_upper(), int(ceil(float(next_job.get("remaining", 0.0))))]
+	if data.has("queue"):
+		var queue_items: Array = data["queue"]
+		var queue_limit: int = simulation.get_limit_summary("player")["queue"]["max"]
+		queue_text = "   QUEUE %d/%d" % [queue_items.size(), queue_limit]
+		if not queue_items.is_empty():
+			var next_job: Dictionary = queue_items[0]
+			queue_text += " NEXT %s %ds" % [str(next_job.get("unit_type", "")).to_upper(), int(ceil(float(next_job.get("remaining", 0.0))))]
+	var rally_text := ""
+	if bool(data.get("rally_enabled", false)):
+		rally_text = "   RALLY SET"
 	if data.has("order"):
-		return "HP %d/%d   ORDER %s%s%s%s%s" % [int(data["health"]), int(data["max_health"]), str(data["order"]).to_upper(), supply_text, collector_text, research_text, queue_text]
-	return "HP %d/%d   %s%s%s%s%s" % [int(data["health"]), int(data["max_health"]), "ONLINE" if data["complete"] else "BUILDING", supply_text, collector_text, research_text, queue_text]
+		return "HP %d/%d   ORDER %s%s%s%s%s%s" % [int(data["health"]), int(data["max_health"]), str(data["order"]).to_upper(), supply_text, collector_text, research_text, queue_text, rally_text]
+	return "HP %d/%d   %s%s%s%s%s%s" % [int(data["health"]), int(data["max_health"]), "ONLINE" if data["complete"] else "BUILDING", supply_text, collector_text, research_text, queue_text, rally_text]
 
 
 func _on_simulation_event(event_type: String, payload: Dictionary) -> void:

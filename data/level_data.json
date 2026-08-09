@@ -1,0 +1,554 @@
+{
+  "schema_version": 1,
+  "default_level_id": "relay_divide",
+  "base_maps": {
+    "relay_divide_base": {
+      "display_name": "Relay Divide",
+      "map_bounds": {
+        "half_width": 60,
+        "half_depth": 40
+      },
+      "terrain": {
+        "ground_size": {
+          "x": 120,
+          "y": 0.25,
+          "z": 80
+        },
+        "ground_position": {
+          "x": 0,
+          "y": -0.18,
+          "z": 0
+        },
+        "grid_spacing": 4,
+        "roads": [
+          {
+            "position": {
+              "x": 0,
+              "y": 0.01,
+              "z": -1
+            },
+            "size": {
+              "x": 106,
+              "y": 0.03,
+              "z": 3.2
+            },
+            "kind": "primary"
+          },
+          {
+            "position": {
+              "x": 0,
+              "y": 0.01,
+              "z": -1
+            },
+            "size": {
+              "x": 3.2,
+              "y": 0.03,
+              "z": 68
+            },
+            "kind": "crossing"
+          },
+          {
+            "position": {
+              "x": -34,
+              "y": 0.01,
+              "z": 15
+            },
+            "size": {
+              "x": 20,
+              "y": 0.03,
+              "z": 2.6
+            },
+            "kind": "base_link"
+          },
+          {
+            "position": {
+              "x": 34,
+              "y": 0.01,
+              "z": -15
+            },
+            "size": {
+              "x": 20,
+              "y": 0.03,
+              "z": 2.6
+            },
+            "kind": "base_link"
+          }
+        ],
+        "lane_markers": [
+          {
+            "position": {
+              "x": -48,
+              "y": 0.06,
+              "z": -1
+            }
+          },
+          {
+            "position": {
+              "x": -42,
+              "y": 0.06,
+              "z": -1
+            }
+          },
+          {
+            "position": {
+              "x": -36,
+              "y": 0.06,
+              "z": -1
+            }
+          },
+          {
+            "position": {
+              "x": -30,
+              "y": 0.06,
+              "z": -1
+            }
+          },
+          {
+            "position": {
+              "x": -24,
+              "y": 0.06,
+              "z": -1
+            }
+          },
+          {
+            "position": {
+              "x": -18,
+              "y": 0.06,
+              "z": -1
+            }
+          },
+          {
+            "position": {
+              "x": -12,
+              "y": 0.06,
+              "z": -1
+            }
+          },
+          {
+            "position": {
+              "x": -6,
+              "y": 0.06,
+              "z": -1
+            }
+          },
+          {
+            "position": {
+              "x": 0,
+              "y": 0.06,
+              "z": -1
+            }
+          },
+          {
+            "position": {
+              "x": 6,
+              "y": 0.06,
+              "z": -1
+            }
+          },
+          {
+            "position": {
+              "x": 12,
+              "y": 0.06,
+              "z": -1
+            }
+          },
+          {
+            "position": {
+              "x": 18,
+              "y": 0.06,
+              "z": -1
+            }
+          },
+          {
+            "position": {
+              "x": 24,
+              "y": 0.06,
+              "z": -1
+            }
+          },
+          {
+            "position": {
+              "x": 30,
+              "y": 0.06,
+              "z": -1
+            }
+          },
+          {
+            "position": {
+              "x": 36,
+              "y": 0.06,
+              "z": -1
+            }
+          },
+          {
+            "position": {
+              "x": 42,
+              "y": 0.06,
+              "z": -1
+            }
+          },
+          {
+            "position": {
+              "x": 48,
+              "y": 0.06,
+              "z": -1
+            }
+          }
+        ],
+        "obstacles": [
+          {
+            "position": {
+              "x": -7,
+              "y": 0.55,
+              "z": 15
+            },
+            "size": {
+              "x": 8,
+              "y": 1.1,
+              "z": 2
+            },
+            "kind": "barrier"
+          },
+          {
+            "position": {
+              "x": 10,
+              "y": 0.7,
+              "z": 12
+            },
+            "size": {
+              "x": 3,
+              "y": 1.4,
+              "z": 8
+            },
+            "kind": "tower_block"
+          },
+          {
+            "position": {
+              "x": -17,
+              "y": 0.45,
+              "z": -17
+            },
+            "size": {
+              "x": 7,
+              "y": 0.9,
+              "z": 2
+            },
+            "kind": "barrier"
+          },
+          {
+            "position": {
+              "x": 6,
+              "y": 0.6,
+              "z": -20
+            },
+            "size": {
+              "x": 3,
+              "y": 1.2,
+              "z": 7
+            },
+            "kind": "tower_block"
+          },
+          {
+            "position": {
+              "x": 40,
+              "y": 0.35,
+              "z": 10
+            },
+            "size": {
+              "x": 5,
+              "y": 0.7,
+              "z": 3
+            },
+            "kind": "debris"
+          },
+          {
+            "position": {
+              "x": -39,
+              "y": 0.35,
+              "z": -8
+            },
+            "size": {
+              "x": 5,
+              "y": 0.7,
+              "z": 3
+            },
+            "kind": "debris"
+          }
+        ],
+        "accents": [
+          {
+            "position": {
+              "x": 0,
+              "y": 0.05,
+              "z": -1
+            },
+            "size": {
+              "x": 8.4,
+              "y": 0.05,
+              "z": 8.4
+            },
+            "kind": "signal_pad",
+            "color": "#145563"
+          },
+          {
+            "position": {
+              "x": -13,
+              "y": 0.04,
+              "z": 6
+            },
+            "size": {
+              "x": 10,
+              "y": 0.04,
+              "z": 4
+            },
+            "kind": "staging_pad",
+            "color": "#123d49"
+          },
+          {
+            "position": {
+              "x": 17,
+              "y": 0.04,
+              "z": -9
+            },
+            "size": {
+              "x": 10,
+              "y": 0.04,
+              "z": 4
+            },
+            "kind": "staging_pad",
+            "color": "#123d49"
+          }
+        ]
+      },
+      "resource_nodes": [
+        {
+          "id": "north_field",
+          "display_name": "Northern Energy Field",
+          "position": {
+            "x": -15,
+            "y": 0,
+            "z": -1
+          },
+          "faction_hint": 1,
+          "remaining": 5000
+        },
+        {
+          "id": "south_field",
+          "display_name": "Southern Energy Field",
+          "position": {
+            "x": 17,
+            "y": 0,
+            "z": 3
+          },
+          "faction_hint": -1,
+          "remaining": 5000
+        }
+      ],
+      "control_points": [
+        {
+          "id": "central_relay",
+          "display_name": "Central Relay",
+          "position": {
+            "x": 0,
+            "y": 0,
+            "z": -1
+          },
+          "radius": 4.5
+        },
+        {
+          "id": "east_crossing",
+          "display_name": "East Crossing",
+          "position": {
+            "x": 23,
+            "y": 0,
+            "z": -13
+          },
+          "radius": 4.5
+        },
+        {
+          "id": "west_crossing",
+          "display_name": "West Crossing",
+          "position": {
+            "x": -23,
+            "y": 0,
+            "z": 12
+          },
+          "radius": 4.5
+        }
+      ]
+    }
+  },
+  "mission_maps": {
+    "relay_divide": {
+      "base_map_id": "relay_divide_base",
+      "rules": {
+        "max_queue": 5,
+        "max_units_total": 24,
+        "max_buildings_total": 8,
+        "max_units_by_kind": {
+          "ranger": 8,
+          "warden": 4,
+          "raider": 10,
+          "bulwark": 6,
+          "collector": 3
+        },
+        "max_buildings_by_kind": {
+          "command_hub": 1,
+          "refinery": 3,
+          "assembly_bay": 2,
+          "relay": 4
+        },
+        "collector_speed_multiplier": 0.78,
+        "collector_load_seconds": 2.5,
+        "production_time_multiplier": 1.2,
+        "collector_production_time_multiplier": 1.35
+      },
+      "spawns": {
+        "player": {
+          "buildings": [
+            {
+              "id": "player_hq",
+              "kind": "command_hub",
+              "position": {
+                "x": -30,
+                "y": 0,
+                "z": 15
+              }
+            },
+            {
+              "id": "player_refinery",
+              "kind": "refinery",
+              "position": {
+                "x": -24,
+                "y": 0,
+                "z": 15
+              }
+            },
+            {
+              "id": "player_assembly",
+              "kind": "assembly_bay",
+              "position": {
+                "x": -30,
+                "y": 0,
+                "z": 9
+              }
+            }
+          ],
+          "units": [
+            {
+              "kind": "ranger",
+              "position": {
+                "x": -22,
+                "y": 0,
+                "z": 9
+              }
+            },
+            {
+              "kind": "ranger",
+              "position": {
+                "x": -20,
+                "y": 0,
+                "z": 11
+              }
+            },
+            {
+              "kind": "warden",
+              "position": {
+                "x": -23,
+                "y": 0,
+                "z": 7
+              }
+            },
+            {
+              "kind": "collector",
+              "position": {
+                "x": -24,
+                "y": 0,
+                "z": 15
+              },
+              "source_id": "north_field",
+              "destination_id": "player_refinery",
+              "home_id": "player_hq"
+            }
+          ]
+        },
+        "enemy": {
+          "buildings": [
+            {
+              "id": "enemy_hq",
+              "kind": "command_hub",
+              "position": {
+                "x": 30,
+                "y": 0,
+                "z": -15
+              }
+            },
+            {
+              "id": "enemy_refinery",
+              "kind": "refinery",
+              "position": {
+                "x": 24,
+                "y": 0,
+                "z": -15
+              }
+            },
+            {
+              "id": "enemy_assembly",
+              "kind": "assembly_bay",
+              "position": {
+                "x": 30,
+                "y": 0,
+                "z": -9
+              }
+            }
+          ],
+          "units": [
+            {
+              "kind": "raider",
+              "position": {
+                "x": 22,
+                "y": 0,
+                "z": -9
+              }
+            },
+            {
+              "kind": "raider",
+              "position": {
+                "x": 20,
+                "y": 0,
+                "z": -11
+              }
+            },
+            {
+              "kind": "bulwark",
+              "position": {
+                "x": 23,
+                "y": 0,
+                "z": -7
+              }
+            },
+            {
+              "kind": "collector",
+              "position": {
+                "x": 24,
+                "y": 0,
+                "z": -15
+              },
+              "source_id": "south_field",
+              "destination_id": "enemy_refinery",
+              "home_id": "enemy_hq"
+            }
+          ]
+        }
+      },
+      "ai": {
+        "collector_source_id": "south_field",
+        "relay_position": {
+          "x": 17,
+          "y": 0,
+          "z": -5
+        }
+      }
+    }
+  }
+}
