@@ -15,6 +15,113 @@ func _initialize() -> void:
 	if int(initial_supply["connected_sources"]) != 1:
 		failures.append("starting network should have one connected source")
 
+	var economy_sim = SimulationScript.new()
+	root.add_child(economy_sim)
+	economy_sim.start_match()
+	var collector_id := _find_entity(economy_sim.units, "collector", "player")
+	if collector_id.is_empty():
+		failures.append("match should start with a player collector")
+	else:
+		var collector: Dictionary = economy_sim.units[collector_id]
+		if collector["collector_source_id"] != "north_field":
+			failures.append("collector should have a specific resource source")
+		if not economy_sim.buildings.has(collector["collector_destination_id"]):
+			failures.append("collector should have a specific refinery destination")
+		var credits_before_delivery: float = economy_sim.player_credits
+		_run_ticks(economy_sim, 105)
+		if economy_sim.player_credits <= credits_before_delivery:
+			failures.append("collector delivery should increase player credits")
+		if not _has_event(economy_sim, "ResourceDelivered", "unit_id", collector_id):
+			failures.append("collector delivery should emit a ResourceDelivered event")
+		if float(economy_sim.resource_nodes["north_field"]["remaining"]) >= 5000.0:
+			failures.append("collector delivery should consume source resources")
+
+	var defense_sim = SimulationScript.new()
+	root.add_child(defense_sim)
+	defense_sim.start_match()
+	var defense_collector_id := _find_entity(defense_sim.units, "collector", "player")
+	var defense_attacker_id := _find_entity(defense_sim.units, "raider", "enemy")
+	if defense_collector_id.is_empty() or defense_attacker_id.is_empty():
+		failures.append("collector defense playtest needs a collector and an enemy raider")
+	else:
+		defense_sim.units[defense_collector_id]["position"] = Vector3(-8.0, 0.0, -1.0)
+		defense_sim.units[defense_collector_id]["target_position"] = defense_sim.units[defense_collector_id]["position"]
+		defense_sim.units[defense_attacker_id]["position"] = Vector3(-2.0, 0.0, -1.0)
+		defense_sim.issue_command("attack", "enemy", {
+			"entity_ids": [defense_attacker_id],
+			"target_id": defense_collector_id,
+		})
+		_run_ticks(defense_sim, 3)
+		if defense_sim.units[defense_collector_id]["collector_state"] != "retreating":
+			failures.append("damaged collector should switch to retreating")
+		if not _has_event(defense_sim, "UnitDamaged", "attacker_id", defense_collector_id):
+			failures.append("collector should defend itself while retreating")
+		var home_id: String = defense_sim.units[defense_collector_id]["collector_home_id"]
+		var home_position: Vector3 = defense_sim.buildings[home_id]["position"]
+		_run_ticks(defense_sim, 45)
+		if defense_sim.units[defense_collector_id]["position"].distance_to(home_position) > 12.0:
+			failures.append("retreating collector should move back toward its base")
+
+	var technology_sim = SimulationScript.new()
+	root.add_child(technology_sim)
+	technology_sim.start_match()
+	var technology_assembly_id := _find_entity(technology_sim.buildings, "assembly_bay", "player")
+	var units_before_gate: int = technology_sim.units.size()
+	if technology_assembly_id.is_empty():
+		failures.append("technology playtest needs a player Assembly Bay")
+	else:
+		technology_sim.issue_command("produce", "player", {"building_id": technology_assembly_id, "unit_type": "bulwark"})
+		_run_ticks(technology_sim, 1)
+		if technology_sim.units.size() != units_before_gate:
+			failures.append("Bulwark production should be gated before research")
+		if not _has_event(technology_sim, "OrderRejected", "order", "produce"):
+			failures.append("gated production should explain its rejection")
+		technology_sim.issue_command("research", "player", {"building_id": technology_assembly_id, "technology_id": "advanced_targeting"})
+		_run_ticks(technology_sim, 1)
+		if str(technology_sim.get_research_status("player")["active_id"]) != "advanced_targeting":
+			failures.append("Assembly Bay should start Advanced Targeting research")
+		_run_ticks(technology_sim, 85)
+		if not technology_sim.is_technology_unlocked("player", "advanced_targeting"):
+			failures.append("research should unlock Advanced Targeting")
+		if not _has_event(technology_sim, "TechnologyUnlocked", "technology_id", "advanced_targeting"):
+			failures.append("research completion should emit TechnologyUnlocked")
+
+		var repair_unit_id := _find_entity(technology_sim.units, "ranger", "player")
+		var repair_hub_id := _find_entity(technology_sim.buildings, "command_hub", "player")
+		if repair_unit_id.is_empty() or repair_hub_id.is_empty():
+			failures.append("repair playtest needs a player unit and Command Hub")
+		else:
+			technology_sim.units[repair_unit_id]["position"] = technology_sim.buildings[repair_hub_id]["position"]
+			technology_sim.units[repair_unit_id]["target_position"] = technology_sim.units[repair_unit_id]["position"]
+			technology_sim.units[repair_unit_id]["health"] = 40.0
+			var credits_before_repair: float = technology_sim.player_credits
+			technology_sim.issue_command("repair", "player", {"entity_ids": [repair_unit_id]})
+			_run_ticks(technology_sim, 1)
+			if technology_sim.units[repair_unit_id]["health"] <= 40.0:
+				failures.append("a damaged unit near base should be repairable")
+			if technology_sim.player_credits >= credits_before_repair:
+				failures.append("unit repair should spend credits")
+			if not _has_event(technology_sim, "UnitRepaired", "unit_id", repair_unit_id):
+				failures.append("unit repair should emit UnitRepaired")
+
+		var repair_building_id := _find_entity(technology_sim.buildings, "refinery", "player")
+		if repair_building_id.is_empty():
+			failures.append("repair playtest needs a player refinery")
+		else:
+			technology_sim.buildings[repair_building_id]["health"] = 250.0
+			technology_sim.issue_command("repair", "player", {"entity_ids": [repair_building_id]})
+			_run_ticks(technology_sim, 1)
+			if technology_sim.buildings[repair_building_id]["health"] <= 250.0:
+				failures.append("a damaged structure should be repairable")
+			if not _has_event(technology_sim, "BuildingRepaired", "building_id", repair_building_id):
+				failures.append("building repair should emit BuildingRepaired")
+
+		var units_before_bulwark: int = technology_sim.units.size()
+		technology_sim.issue_command("produce", "player", {"building_id": technology_assembly_id, "unit_type": "bulwark"})
+		_run_ticks(technology_sim, 46)
+		if technology_sim.units.size() <= units_before_bulwark or _find_entity(technology_sim.units, "bulwark", "player").is_empty():
+			failures.append("research should unlock Bulwark production")
+
 	var navigation_sim = SimulationScript.new()
 	root.add_child(navigation_sim)
 	navigation_sim.start_match()

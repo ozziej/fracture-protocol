@@ -36,6 +36,18 @@ func sync(data: Dictionary, selected: bool) -> void:
 		label_text += "\n" + order.replace("_", "-").to_upper()
 	if supply_state == "unsupplied":
 		label_text += "\n! UNSUPPLIED"
+	var collector_state: String = str(data.get("collector_state", ""))
+	if not collector_state.is_empty():
+		var collector_route_label := collector_state.replace("_", "-").to_upper()
+		if collector_state == "to_source":
+			collector_route_label = "SOURCE " + str(data.get("collector_source_name", ""))
+		elif collector_state == "to_destination":
+			collector_route_label = "TO " + str(data.get("collector_destination_name", ""))
+		elif collector_state == "retreating":
+			collector_route_label = "RETREAT TO BASE"
+		label_text += "\n" + collector_route_label
+		if float(data.get("collector_capacity", 0.0)) > 0.0:
+			label_text += " %d/%d" % [int(data.get("collector_cargo", 0.0)), int(data.get("collector_capacity", 0.0))]
 	name_label.text = label_text
 	name_label.modulate = Color("#ffbf6a") if supply_state == "unsupplied" else _team_palette(team).lightened(0.45)
 	_update_order_marker(data, selected)
@@ -65,6 +77,14 @@ func _build_visuals() -> void:
 		nose_mesh.material_override = _material(palette.lightened(0.12))
 		nose_mesh.position = Vector3(0.0, definition_height * 0.78, -0.15)
 		add_child(nose_mesh)
+	elif kind == "collector":
+		var cargo_mesh := BoxMesh.new()
+		cargo_mesh.size = Vector3(0.85, 0.38, 0.72)
+		var cargo_instance := MeshInstance3D.new()
+		cargo_instance.mesh = cargo_mesh
+		cargo_instance.material_override = _material(Color("#d7a44a"))
+		cargo_instance.position = Vector3(0.0, definition_height * 0.78, 0.0)
+		add_child(cargo_instance)
 
 	var disc := CylinderMesh.new()
 	disc.top_radius = 0.9

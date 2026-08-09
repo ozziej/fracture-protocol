@@ -10,5 +10,6 @@ extends Resource
 @export var footprint: Vector2 = Vector2(3.0, 3.0)
 @export var produces_income: float = 0.0
 @export var can_produce: String = ""
+@export var can_research: String = ""
 @export var body_height: float = 1.5
 

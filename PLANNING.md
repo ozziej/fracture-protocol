@@ -18,11 +18,14 @@ The current Godot 4 prototype has a playable local skirmish foundation:
 - A fixed-step simulation with commands, events, serialisable dictionaries, base structures, units, capture points, resource income, production, combat, and a basic AI opponent.
 - Obstacle-aware movement around the authored graybox map, attack-move orders that resume after contact, and a stop order that clears the current route.
 - Control groups with keyboard focus support, plus visible destination markers and order labels for selected units.
+- Damage events now produce procedural combat tracers, impact flashes, damage readouts, and destruction bursts without requiring final assets.
 - A connected supply network that begins at the Command Hub and can extend through completed Forward Relays and owned control points.
 - Unsupplied units receive a readable warning plus reduced movement speed and combat damage until they reconnect.
-- Automated verification for movement, supply loss and recovery, relay construction, territory capture, production completion, and combat damage.
+- Automated verification for movement, supply loss and recovery, relay construction, territory capture, production completion, combat damage, technology gating, and repair orders.
+- A Collector unit links a named resource source to a specific refinery, carries cargo visibly between them, generates delivery income, and retreats to its Command Hub while defending itself when attacked.
+- Advanced Targeting research at the Assembly Bay visibly gates Bulwark production, while paid repair orders restore damaged units near repair stations or damaged structures in place.
 
-The next iteration should turn this systems foundation into a stronger player-facing slice: make combat feedback more expressive, then deepen the economy/technology loop. Asset integration remains deliberately deferred until these interactions feel dependable.
+The next iteration should turn this systems foundation into a stronger player-facing slice: add explicit Collector reassignment and replacement decisions, then exercise a complete five-minute graybox match with the new economy, technology, repair, and feedback layers. Asset integration remains deliberately deferred until these interactions feel dependable.
 
 ## 1. Vision
 
@@ -129,6 +132,14 @@ The camera is part of the competitive design. Visual spectacle must never hide a
 The MVP uses one primary battlefield resource. Resource sites are visible after scouting and are collected through dedicated structures or field assets. The resource is spent on construction, production, research, repairs, and faction-specific abilities.
 
 The first economy should remain simple enough that players can understand the cause of a shortage. Additional currencies, global income, or complex upkeep should wait until the first skirmish is fun.
+
+### Collector loop
+
+A Collector is assigned to a named resource source and a specific refinery. It travels to the source, loads a finite cargo amount, and visibly returns to the refinery before the credits are delivered. Collectors have health, a light weapon, and a limited defensive response: taking damage switches the unit to a retreat route toward its Command Hub while it continues firing at enemies within range. The first playable slice starts each faction with one Collector; production and reassignment decisions can follow after this route is readable.
+
+### Technology and repairs
+
+The first technology choice is Advanced Targeting. The Assembly Bay researches it for a visible time and credit cost; completion unlocks Bulwark production. Repair is deliberately paid and local: damaged units must be brought near a Command Hub, Resource Processor, or Forward Relay, while damaged structures can be restored in place. This creates a readable choice between protecting an asset long enough to recover it, spending credits on recovery, or replacing it.
 
 ### Territory
 
@@ -295,8 +306,16 @@ The simulation should emit events for presentation and diagnostics rather than c
 
 Initial event types:
 
+- ResourceCollected.
+- ResourceDelivered.
+- CollectorRetreating.
+
 - `UnitDamaged`.
 - `UnitDestroyed`.
+- `UnitRepaired`.
+- `BuildingRepaired`.
+- `ResearchStarted`.
+- `TechnologyUnlocked`.
 - `BuildingCompleted`.
 - `BuildingDestroyed`.
 - `ResourceChanged`.
@@ -489,9 +508,9 @@ After the local skirmish is proven, the likely order is:
 
 ## 19. Recommended First Work Items
 
-1. Add stronger combat feedback: projectiles or hit flashes, attack indicators, destruction effects, and clearer target state.
-2. Expand the economy from passive refinery income into visible resource collection and clearer technology gating.
-3. Add basic technology prerequisites and repair decisions to the skirmish loop.
-4. Exercise a complete five-minute graybox match with the new control and feedback layer.
-5. Only then begin selective visual asset integration for one representative battle slice.
+1. Add explicit Collector reassignment and replacement decisions after the automatic route is readable.
+2. Exercise a complete five-minute graybox match with the economy, technology, repair, and feedback layers.
+3. Add faction-specific economic and logistics decisions only after the shared loop is legible.
+4. Only then begin selective visual asset integration for one representative battle slice.
+5. Run the representative 100-unit performance check before committing to final visual production.
 

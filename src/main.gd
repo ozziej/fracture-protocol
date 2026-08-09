@@ -34,12 +34,17 @@ var build_ghost: Node3D
 var credits_label: Label
 var territory_label: Label
 var supply_label: Label
+var technology_label: Label
 var selected_label: Label
 var status_label: Label
 var event_log_label: Label
 var build_button: Button
 var queue_button: Button
+var heavy_queue_button: Button
+var research_button: Button
+var repair_button: Button
 var minimap
+var combat_effect_sequence := 0
 
 
 func _ready() -> void:
@@ -109,6 +114,12 @@ func _unhandled_input(event: InputEvent) -> void:
 				_stop_selected_units()
 			KEY_Q:
 				_queue_strider()
+			KEY_V:
+				_queue_bulwark()
+			KEY_T:
+				_research_advanced_targeting()
+			KEY_Y:
+				_repair_selected()
 			KEY_E:
 				camera_yaw = clamp(camera_yaw + deg_to_rad(8.0), -0.78, 0.78)
 			KEY_R:
@@ -239,7 +250,7 @@ func _build_ui() -> void:
 
 	var top_panel := PanelContainer.new()
 	top_panel.position = Vector2(18.0, 16.0)
-	top_panel.size = Vector2(780.0, 70.0)
+	top_panel.size = Vector2(920.0, 70.0)
 	top_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.025, 0.075, 0.1, 0.94), Color(0.18, 0.7, 0.78, 0.75)))
 	root.add_child(top_panel)
 	var top_margin := MarginContainer.new()
@@ -260,13 +271,15 @@ func _build_ui() -> void:
 	top_row.add_child(territory_label)
 	supply_label = _label("SUPPLY CONNECTED", 17, Color("#7cf1ad"))
 	top_row.add_child(supply_label)
+	technology_label = _label("TECH LOCKED", 17, Color("#ffbf6a"))
+	top_row.add_child(technology_label)
 
 	status_label = _label("Skirmish online. Secure the relay network.", 16, Color("#c3d8df"))
 	status_label.position = Vector2(22.0, 99.0)
 	status_label.size = Vector2(760.0, 32.0)
 	root.add_child(status_label)
 
-	var help := _label("WASD pan   H focus   F attack-move   X stop   Ctrl/Cmd+1-9 assign   1-9 recall   Q raider   B relay   Right-click order", 13, Color("#8ca9b5"))
+	var help := _label("WASD pan   H focus   F attack-move   X stop   Ctrl/Cmd+1-9 assign   1-9 recall   Q raider   V bulwark   T research   Y repair   B relay   Right-click order", 13, Color("#8ca9b5"))
 	help.position = Vector2(22.0, 130.0)
 	help.size = Vector2(1200.0, 24.0)
 	root.add_child(help)
@@ -281,7 +294,7 @@ func _build_ui() -> void:
 
 	var bottom_panel := PanelContainer.new()
 	bottom_panel.position = Vector2(18.0, 616.0)
-	bottom_panel.size = Vector2(980.0, 88.0)
+	bottom_panel.size = Vector2(1244.0, 88.0)
 	bottom_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.025, 0.075, 0.1, 0.96), Color(0.18, 0.7, 0.78, 0.75)))
 	root.add_child(bottom_panel)
 	var bottom_margin := MarginContainer.new()
@@ -294,25 +307,46 @@ func _build_ui() -> void:
 	bottom_row.add_theme_constant_override("separation", 12)
 	bottom_margin.add_child(bottom_row)
 	selected_label = _label("NO SELECTION\nSelect units or a structure", 15, Color("#d2e7ec"))
-	selected_label.custom_minimum_size = Vector2(350.0, 52.0)
+	selected_label.custom_minimum_size = Vector2(280.0, 52.0)
 	bottom_row.add_child(selected_label)
 
 	build_button = Button.new()
 	build_button.text = "DEPLOY RELAY [B]"
-	build_button.custom_minimum_size = Vector2(190.0, 48.0)
+	build_button.custom_minimum_size = Vector2(145.0, 48.0)
 	build_button.tooltip_text = "Place a Forward Relay near a connected friendly structure. Cost: 180 credits."
 	build_button.pressed.connect(_toggle_build_mode)
 	bottom_row.add_child(build_button)
 
 	queue_button = Button.new()
 	queue_button.text = "QUEUE RAIDER [Q]"
-	queue_button.custom_minimum_size = Vector2(180.0, 48.0)
+	queue_button.custom_minimum_size = Vector2(145.0, 48.0)
 	queue_button.tooltip_text = "Queue a fast attack vehicle at the Assembly Bay. Cost: 105 credits."
 	queue_button.pressed.connect(_queue_strider)
 	bottom_row.add_child(queue_button)
 
-	var note := _label("FIRST PASS\nGraybox skirmish", 13, Color("#7e9da7"))
-	note.custom_minimum_size = Vector2(150.0, 52.0)
+	heavy_queue_button = Button.new()
+	heavy_queue_button.text = "QUEUE BULWARK [V]"
+	heavy_queue_button.custom_minimum_size = Vector2(155.0, 48.0)
+	heavy_queue_button.tooltip_text = "Queue a heavy assault vehicle after Advanced Targeting research. Cost: 160 credits."
+	heavy_queue_button.pressed.connect(_queue_bulwark)
+	bottom_row.add_child(heavy_queue_button)
+
+	research_button = Button.new()
+	research_button.text = "RESEARCH TARGETING [T]"
+	research_button.custom_minimum_size = Vector2(170.0, 48.0)
+	research_button.tooltip_text = "Research Advanced Targeting at the Assembly Bay. Cost: 300 credits."
+	research_button.pressed.connect(_research_advanced_targeting)
+	bottom_row.add_child(research_button)
+
+	repair_button = Button.new()
+	repair_button.text = "REPAIR [Y]"
+	repair_button.custom_minimum_size = Vector2(115.0, 48.0)
+	repair_button.tooltip_text = "Repair selected units near a repair station or selected structures. Cost: 30/45 credits."
+	repair_button.pressed.connect(_repair_selected)
+	bottom_row.add_child(repair_button)
+
+	var note := _label("SYSTEMS SLICE\nTech + repairs", 13, Color("#7e9da7"))
+	note.custom_minimum_size = Vector2(100.0, 52.0)
 	bottom_row.add_child(note)
 
 	minimap = MinimapScript.new()
@@ -339,7 +373,7 @@ func _finish_left_click() -> void:
 	if drag_rect.size.length() < 12.0:
 		var clicked_id := _entity_at_screen(pointer_position, true)
 		selected_ids.clear()
-		if not clicked_id.is_empty() and simulation.units.has(clicked_id) and simulation.units[clicked_id]["team"] == "player":
+		if not clicked_id.is_empty() and ((simulation.units.has(clicked_id) and simulation.units[clicked_id]["team"] == "player") or (simulation.buildings.has(clicked_id) and simulation.buildings[clicked_id]["team"] == "player")):
 			selected_ids.append(clicked_id)
 	else:
 		selected_ids.clear()
@@ -518,17 +552,52 @@ func _update_build_ghost() -> void:
 	build_ghost.position = Vector3(position.x, 0.0, position.z)
 
 
-func _queue_strider() -> void:
-	var assembly_id := ""
+func _find_player_assembly_bay() -> String:
 	for building_id in simulation.buildings:
 		var building: Dictionary = simulation.buildings[building_id]
 		if building["team"] == "player" and building["kind"] == "assembly_bay":
-			assembly_id = building_id
-			break
+			return building_id
+	return ""
+
+
+func _queue_strider() -> void:
+	var assembly_id := _find_player_assembly_bay()
 	if assembly_id.is_empty():
 		status_label.text = "No Assembly Bay available."
 		return
 	simulation.issue_command("produce", "player", {"building_id": assembly_id, "unit_type": "raider"})
+
+
+func _queue_bulwark() -> void:
+	var assembly_id := _find_player_assembly_bay()
+	if assembly_id.is_empty():
+		status_label.text = "No Assembly Bay available."
+		return
+	simulation.issue_command("produce", "player", {"building_id": assembly_id, "unit_type": "bulwark"})
+
+
+func _research_advanced_targeting() -> void:
+	var assembly_id := _find_player_assembly_bay()
+	if assembly_id.is_empty():
+		status_label.text = "No Assembly Bay available for research."
+		return
+	simulation.issue_command("research", "player", {"building_id": assembly_id, "technology_id": "advanced_targeting"})
+
+
+func _repair_selected() -> void:
+	if selected_ids.is_empty():
+		status_label.text = "Select a damaged unit or structure before repairing."
+		return
+	simulation.issue_command("repair", "player", {"entity_ids": selected_ids})
+
+
+func _has_damaged_selection() -> bool:
+	for entity_id in selected_ids:
+		if simulation.units.has(entity_id) and float(simulation.units[entity_id]["health"]) < float(simulation.units[entity_id]["max_health"]):
+			return true
+		if simulation.buildings.has(entity_id) and float(simulation.buildings[entity_id]["health"]) < float(simulation.buildings[entity_id]["max_health"]):
+			return true
+	return false
 
 
 func _process_camera_input(delta: float) -> void:
@@ -711,10 +780,34 @@ func _update_hud() -> void:
 		supply_state = "%d UNSUPPLIED" % unsupplied_units
 	supply_label.text = "SUPPLY %s" % supply_state
 	supply_label.modulate = Color("#ffbf6a") if unsupplied_units > 0 else Color("#7cf1ad")
-	queue_button.disabled = simulation.player_credits < 105.0
+	var research_status: Dictionary = simulation.get_research_status("player")
+	var targeting_online: bool = simulation.is_technology_unlocked("player", "advanced_targeting")
+	var active_research_id: String = str(research_status.get("active_id", ""))
+	if targeting_online:
+		technology_label.text = "TECH TARGETING ONLINE"
+		technology_label.modulate = Color("#7cf1ad")
+		research_button.text = "TARGETING ONLINE"
+	elif not active_research_id.is_empty():
+		var research_total: float = max(0.1, float(research_status.get("total", 0.0)))
+		var research_progress: int = int(clamp(1.0 - float(research_status.get("remaining", 0.0)) / research_total, 0.0, 1.0) * 100.0)
+		technology_label.text = "TECH %d%%" % research_progress
+		technology_label.modulate = Color("#ffd36a")
+		research_button.text = "RESEARCHING %d%%" % research_progress
+	else:
+		technology_label.text = "TECH LOCKED"
+		technology_label.modulate = Color("#ffbf6a")
+		research_button.text = "RESEARCH TARGETING [T]"
+	var has_assembly := not _find_player_assembly_bay().is_empty()
+	queue_button.disabled = simulation.player_credits < 105.0 or not has_assembly
+	heavy_queue_button.disabled = simulation.player_credits < 160.0 or not targeting_online or not has_assembly
+	research_button.disabled = targeting_online or not active_research_id.is_empty() or simulation.player_credits < 300.0 or not has_assembly
+	repair_button.disabled = simulation.player_credits < 30.0 or not _has_damaged_selection()
 	build_button.disabled = simulation.player_credits < 180.0 and build_mode.is_empty()
 	if simulation.match_over:
 		queue_button.disabled = true
+		heavy_queue_button.disabled = true
+		research_button.disabled = true
+		repair_button.disabled = true
 		build_button.disabled = true
 		_cancel_build_mode()
 
@@ -731,25 +824,142 @@ func _selection_detail(data: Dictionary) -> String:
 	var supply_text := ""
 	if data.has("supply_state"):
 		supply_text = "   SUPPLY %s" % str(data["supply_state"]).to_upper()
+	var collector_text := ""
+	if not str(data.get("collector_state", "")).is_empty():
+		var collector_route_label := str(data["collector_state"]).replace("_", "-").to_upper()
+		if data["collector_state"] == "to_source":
+			collector_route_label = "SOURCE " + str(data.get("collector_source_name", ""))
+		elif data["collector_state"] == "to_destination":
+			collector_route_label = "TO " + str(data.get("collector_destination_name", ""))
+		elif data["collector_state"] == "retreating":
+			collector_route_label = "RETREAT TO BASE"
+		collector_text = "   %s %d/%d" % [
+			collector_route_label,
+			int(data.get("collector_cargo", 0.0)),
+			int(data.get("collector_capacity", 0.0)),
+		]
+	var research_text := ""
+	if not str(data.get("research_id", "")).is_empty():
+		var research_total: float = max(0.1, float(data.get("research_total", 0.0)))
+		var research_progress: int = int(clamp(1.0 - float(data.get("research_remaining", 0.0)) / research_total, 0.0, 1.0) * 100.0)
+		research_text = "   RESEARCH %d%%" % research_progress
 	if data.has("order"):
-		return "HP %d/%d   ORDER %s%s" % [int(data["health"]), int(data["max_health"]), str(data["order"]).to_upper(), supply_text]
-	return "HP %d/%d   %s%s" % [int(data["health"]), int(data["max_health"]), "ONLINE" if data["complete"] else "BUILDING", supply_text]
+		return "HP %d/%d   ORDER %s%s%s%s" % [int(data["health"]), int(data["max_health"]), str(data["order"]).to_upper(), supply_text, collector_text, research_text]
+	return "HP %d/%d   %s%s%s%s" % [int(data["health"]), int(data["max_health"]), "ONLINE" if data["complete"] else "BUILDING", supply_text, collector_text, research_text]
 
 
 func _on_simulation_event(event_type: String, payload: Dictionary) -> void:
+	if event_type == "UnitDamaged" or event_type == "BuildingDamaged":
+		_spawn_damage_feedback(payload, event_type == "BuildingDamaged")
+	elif event_type == "UnitDestroyed" or event_type == "BuildingDestroyed":
+		_spawn_destruction_feedback(payload)
 	if not status_label or not event_log_label:
 		return
-	if payload.has("message"):
-		status_label.text = payload["message"]
+	var feedback_message: String = str(payload.get("message", payload.get("reason", "")))
+	if not feedback_message.is_empty():
+		status_label.text = feedback_message
 	if event_type == "MatchWon" or event_type == "MatchLost":
 		status_label.text = "[ %s ] %s" % ["VICTORY" if event_type == "MatchWon" else "DEFEAT", payload.get("message", "Match complete")]
 		status_label.modulate = Color("#ffd36a") if event_type == "MatchWon" else Color("#ff7b86")
 	var lines: PackedStringArray = event_log_label.text.split("\n")
-	if payload.has("message"):
-		lines.append("[%03d] %s" % [int(payload.get("tick", 0)), payload["message"]])
+	if not feedback_message.is_empty():
+		lines.append("[%03d] %s" % [int(payload.get("tick", 0)), feedback_message])
 	while lines.size() > 5:
 		lines.remove_at(0)
 	event_log_label.text = "EVENT LOG\n" + "\n".join(lines.slice(1))
+
+
+func _spawn_damage_feedback(payload: Dictionary, building_hit: bool) -> void:
+	var attacker_position: Vector3 = payload.get("attacker_position", payload.get("target_position", Vector3.ZERO))
+	var target_position: Vector3 = payload.get("target_position", Vector3.ZERO)
+	var effect_color := Color("#ffb347") if building_hit else Color("#ffd36a")
+	_spawn_combat_tracer(attacker_position + Vector3.UP * 0.75, target_position + Vector3.UP * (1.0 if building_hit else 0.55), effect_color)
+	var damage: int = int(round(float(payload.get("damage", 0.0))))
+	_spawn_combat_impact(target_position + Vector3.UP * (1.0 if building_hit else 0.55), effect_color, "-%d" % damage)
+
+
+func _spawn_combat_tracer(start: Vector3, finish: Vector3, color: Color) -> void:
+	var effect := Node3D.new()
+	combat_effect_sequence += 1
+	effect.name = "CombatEffect_%03d" % combat_effect_sequence
+	var beam_mesh := BoxMesh.new()
+	beam_mesh.size = Vector3(0.075, 0.075, max(0.25, start.distance_to(finish)))
+	var beam := MeshInstance3D.new()
+	beam.mesh = beam_mesh
+	beam.material_override = _material(Color(color.r, color.g, color.b, 0.9), 0.22, 0.35)
+	effect.add_child(beam)
+	effect.position = (start + finish) * 0.5
+	add_child(effect)
+	effect.look_at(finish, Vector3.UP)
+	var tween := effect.create_tween()
+	tween.tween_interval(0.1)
+	tween.tween_callback(Callable(effect, "queue_free"))
+
+
+func _spawn_combat_impact(position: Vector3, color: Color, label_text: String) -> void:
+	var effect := Node3D.new()
+	combat_effect_sequence += 1
+	effect.name = "CombatEffect_%03d" % combat_effect_sequence
+	effect.position = position
+	var flash_mesh := SphereMesh.new()
+	flash_mesh.radius = 0.25
+	flash_mesh.height = 0.5
+	flash_mesh.radial_segments = 12
+	flash_mesh.rings = 6
+	var flash := MeshInstance3D.new()
+	flash.mesh = flash_mesh
+	flash.material_override = _material(Color(color.r, color.g, color.b, 0.88), 0.18, 0.15)
+	effect.add_child(flash)
+	var label := Label3D.new()
+	label.text = label_text
+	label.position.y = 0.35
+	label.font_size = 30
+	label.modulate = color
+	label.outline_size = 7
+	label.outline_modulate = Color(0.01, 0.02, 0.04, 0.9)
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.no_depth_test = true
+	effect.add_child(label)
+	add_child(effect)
+	var tween := effect.create_tween()
+	tween.set_parallel()
+	tween.tween_property(effect, "scale", Vector3.ONE * 1.7, 0.28)
+	tween.tween_property(effect, "position", effect.position + Vector3.UP * 0.8, 0.35)
+	tween.set_parallel(false)
+	tween.tween_callback(Callable(effect, "queue_free"))
+
+
+func _spawn_destruction_feedback(payload: Dictionary) -> void:
+	var effect := Node3D.new()
+	combat_effect_sequence += 1
+	effect.name = "CombatEffect_%03d" % combat_effect_sequence
+	effect.position = payload.get("position", Vector3.ZERO) + Vector3.UP * 0.65
+	var burst_mesh := SphereMesh.new()
+	burst_mesh.radius = 0.45
+	burst_mesh.height = 0.9
+	burst_mesh.radial_segments = 14
+	burst_mesh.rings = 7
+	var burst := MeshInstance3D.new()
+	burst.mesh = burst_mesh
+	burst.material_override = _material(Color(1.0, 0.35, 0.12, 0.9), 0.18, 0.1)
+	effect.add_child(burst)
+	var label := Label3D.new()
+	label.text = "DESTROYED"
+	label.position.y = 0.7
+	label.font_size = 30
+	label.modulate = Color("#ff8066")
+	label.outline_size = 8
+	label.outline_modulate = Color(0.01, 0.02, 0.04, 0.9)
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.no_depth_test = true
+	effect.add_child(label)
+	add_child(effect)
+	var tween := effect.create_tween()
+	tween.set_parallel()
+	tween.tween_property(effect, "scale", Vector3.ONE * 2.4, 0.42)
+	tween.tween_property(effect, "position", effect.position + Vector3.UP * 1.4, 0.48)
+	tween.set_parallel(false)
+	tween.tween_callback(Callable(effect, "queue_free"))
 
 
 func _update_selection_marquee() -> void:

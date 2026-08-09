@@ -29,7 +29,13 @@ func sync(data: Dictionary, selected: bool) -> void:
 		antenna_mesh.visible = construction_progress >= 0.95
 	var health_ratio: float = clamp(float(data["health"]) / max(1.0, float(data["max_health"])), 0.0, 1.0)
 	health_front.scale.x = max(0.02, health_ratio)
-	name_label.text = data["display_name"] if data["complete"] else "CONSTRUCTING %d%%" % int(construction_progress * 100.0)
+	var label_text: String = data["display_name"] if data["complete"] else "CONSTRUCTING %d%%" % int(construction_progress * 100.0)
+	var research_id: String = str(data.get("research_id", ""))
+	if data["complete"] and not research_id.is_empty():
+		var research_total: float = max(0.1, float(data.get("research_total", 0.0)))
+		var research_progress: float = clamp(1.0 - float(data.get("research_remaining", 0.0)) / research_total, 0.0, 1.0)
+		label_text += "\nRESEARCH %s %d%%" % [research_id.replace("_", "-").to_upper(), int(research_progress * 100.0)]
+	name_label.text = label_text
 
 
 func _build_visuals() -> void:

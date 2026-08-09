@@ -13,4 +13,5 @@ extends Resource
 @export var attack_cooldown: float = 1.0
 @export var vision_range: float = 14.0
 @export var body_scale: Vector3 = Vector3.ONE
+@export var required_technology: String = ""
 

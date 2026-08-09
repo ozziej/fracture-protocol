@@ -9,6 +9,20 @@ func _initialize() -> void:
 	var main = MainScript.new()
 	root.add_child(main)
 
+	main._on_simulation_event("UnitDamaged", {
+		"attacker_position": Vector3(-4.0, 0.0, 0.0),
+		"target_position": Vector3(0.0, 0.0, 0.0),
+		"damage": 17.0,
+		"tick": 1,
+	})
+	var combat_effect_visible := false
+	for child in main.get_children():
+		if str(child.name).begins_with("CombatEffect_"):
+			combat_effect_visible = true
+			break
+	if not combat_effect_visible:
+		failures.append("damage events should create combat feedback")
+
 	var player_ids: Array = main.simulation.get_player_unit_ids()
 	if player_ids.is_empty():
 		failures.append("controls smoke test needs player units")
@@ -48,6 +62,29 @@ func _initialize() -> void:
 		if not marker_endpoint_correct:
 			failures.append("destination markers should land on the ordered world position")
 
+		var assembly_id := _find_entity(main.simulation.buildings, "assembly_bay", "player")
+		if assembly_id.is_empty():
+			failures.append("controls smoke test needs a player Assembly Bay")
+		else:
+			main._unhandled_input(_key_event(KEY_T))
+			main.simulation.step_fixed()
+			if str(main.simulation.get_research_status("player")["active_id"]) != "advanced_targeting":
+				failures.append("T should start Advanced Targeting research")
+
+		var repair_unit_id: String = player_ids[0]
+		var hub_id := _find_entity(main.simulation.buildings, "command_hub", "player")
+		if hub_id.is_empty():
+			failures.append("controls smoke test needs a player Command Hub")
+		else:
+			main.simulation.units[repair_unit_id]["position"] = main.simulation.buildings[hub_id]["position"]
+			main.simulation.units[repair_unit_id]["target_position"] = main.simulation.units[repair_unit_id]["position"]
+			main.simulation.units[repair_unit_id]["health"] = 25.0
+			main.selected_ids = [repair_unit_id]
+			main._unhandled_input(_key_event(KEY_Y))
+			main.simulation.step_fixed()
+			if main.simulation.units[repair_unit_id]["health"] <= 25.0:
+				failures.append("Y should repair a damaged unit near base")
+
 	if failures.is_empty():
 		print("CONTROLS_SMOKE_PASS")
 		quit(0)
@@ -64,3 +101,10 @@ func _key_event(keycode: int, modifier := false) -> InputEventKey:
 	event.pressed = true
 	event.ctrl_pressed = modifier
 	return event
+
+
+func _find_entity(entities: Dictionary, kind: String, team: String) -> String:
+	for entity_id in entities:
+		if entities[entity_id]["kind"] == kind and entities[entity_id]["team"] == team:
+			return entity_id
+	return ""
