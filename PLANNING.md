@@ -1,7 +1,7 @@
 # Near-Future RTS — Planning Document
 
-**Status:** Initial planning draft  
-**Version:** 0.1  
+**Status:** Movement and economy readability polish implemented; balance review next
+**Version:** 0.3
 **Target:** PC  
 **Engine direction:** Godot 4  
 **First playable:** Local skirmish against AI  
@@ -22,10 +22,18 @@ The current Godot 4 prototype has a playable local skirmish foundation:
 - A connected supply network that begins at the Command Hub and can extend through completed Forward Relays and owned control points.
 - Unsupplied units receive a readable warning plus reduced movement speed and combat damage until they reconnect.
 - Automated verification for movement, supply loss and recovery, relay construction, territory capture, production completion, combat damage, technology gating, and repair orders.
-- A Collector unit links a named resource source to a specific refinery, carries cargo visibly between them, generates delivery income, and retreats to its Command Hub while defending itself when attacked.
+- A Collector unit links a named resource source to a specific refinery, carries cargo visibly between them, generates delivery income, and retreats to its Command Hub while defending itself when attacked. The player can queue replacement Collectors, select one, press `U`, click a resource field, and click a specific friendly Resource Processor to reassign its route.
 - Advanced Targeting research at the Assembly Bay visibly gates Bulwark production, while paid repair orders restore damaged units near repair stations or damaged structures in place.
+- The AI now uses the same command/economy boundary to research, repair, build relays, replace and route Collectors, produce forces, defend threats, and launch attacks. `N` resets the match without stale entities or orders.
+- The HUD now gives first-minute objective guidance, explains the credit/supply/research/repair tradeoffs, exposes production queue status, and gives explicit Collector route controls.
+- The central relay corridor has a first code-native visual slice: signal core, pulsing halo/light, and readable road markers that can later receive final assets.
+- Explicit Move orders now override attack pursuit while still allowing fire against remembered or newly detected enemies that remain in range.
+- Unit presentation interpolates between fixed simulation positions, while destination markers continue to track the authoritative simulation target.
+- Collector loading now fills over a readable 2.5-second interval and exposes a distinct cargo progress bar below its health bar.
+- Construction visuals remain grounded at every progress value: the body grows upward from the terrain and its cap, antenna, health bar, and label follow the current top.
+- Automated scenario coverage now includes Collector management, AI behavior, rush/turtle/greedy/tech-first/unit-first/Collector-loss/supply-cut paths, clean restart, the focused movement/presentation regression, and a 100-unit simulation benchmark.
 
-The next iteration should turn this systems foundation into a stronger player-facing slice: add explicit Collector reassignment and replacement decisions, then exercise a complete five-minute graybox match with the new economy, technology, repair, and feedback layers. Asset integration remains deliberately deferred until these interactions feel dependable.
+The next iteration should use the now-complete shared loop for a real balance/usability review, then introduce faction-specific economic and logistics decisions. Asset work can proceed selectively around the representative relay corridor rather than replacing the whole graybox at once.
 
 ## 1. Vision
 
@@ -135,7 +143,7 @@ The first economy should remain simple enough that players can understand the ca
 
 ### Collector loop
 
-A Collector is assigned to a named resource source and a specific refinery. It travels to the source, loads a finite cargo amount, and visibly returns to the refinery before the credits are delivered. Collectors have health, a light weapon, and a limited defensive response: taking damage switches the unit to a retreat route toward its Command Hub while it continues firing at enemies within range. The first playable slice starts each faction with one Collector; production and reassignment decisions can follow after this route is readable.
+A Collector is assigned to a named resource source and a specific refinery. It travels to the source, loads a finite cargo amount, and visibly returns to the refinery before the credits are delivered. Collectors have health, a light weapon, and a limited defensive response: taking damage switches the unit to a retreat route toward its Command Hub while it continues firing at enemies within range. New Collectors begin unassigned, are produced through the normal Assembly Bay queue, and can be manually routed with a two-step source-then-refinery order.
 
 ### Technology and repairs
 
@@ -291,9 +299,11 @@ Player input and AI decisions should produce commands rather than directly modif
 Initial command types:
 
 - `MoveCommand`.
-- `AttackCommand`.
+- `AttackCommand` and `AttackMoveCommand`.
 - `BuildCommand`.
 - `ProduceCommand`.
+- `ResearchCommand`.
+- `AssignCollectorCommand`.
 - `CaptureCommand`.
 - `RepairCommand`.
 - `StopCommand`.
@@ -308,8 +318,8 @@ Initial event types:
 
 - ResourceCollected.
 - ResourceDelivered.
+- CollectorAssigned.
 - CollectorRetreating.
-
 - `UnitDamaged`.
 - `UnitDestroyed`.
 - `UnitRepaired`.
@@ -410,25 +420,25 @@ The first art milestone should polish one small map area, one base, and a repres
 
 Deliver a map where the player can move the camera, select units, issue orders, navigate obstacles, attack targets, and understand combat results.
 
-### Milestone 2 — Economy and base building
+### Milestone 2 — Economy and base building — graybox complete
 
-Add resource collection, construction, production queues, technology prerequisites, repairs, and a basic win/loss condition.
+Resource collection, explicit Collector assignment/replacement, construction, production queues, technology prerequisites, repairs, and the HQ win/loss condition are playable and regression-tested.
 
-### Milestone 3 — Territory and logistics
+### Milestone 3 — Territory and logistics — graybox complete
 
-Add capture points, relays/depots, supply state, disruption, reconnection, and territory-driven strategic decisions.
+Capture points, relays, supply state, disruption, reconnection, and territory-driven choices are implemented in the shared simulation.
 
-### Milestone 4 — AI skirmish
+### Milestone 4 — AI skirmish — first pass complete
 
-Add an AI that builds, expands, produces, defends, attacks, and uses the same simulation rules as the player.
+The AI builds, researches, repairs, replaces Collectors, produces, defends, attacks, and uses the same command/economy rules as the player.
 
-### Milestone 5 — Representative visual slice
+### Milestone 5 — Representative visual slice — first pass started
 
-Replace the graybox presentation for one section of the map and a representative faction/unit set with high-quality materials, lighting, animation, audio, VFX, and readable UI.
+The central relay corridor has a code-native signal-core treatment and lane markers. The next pass can replace this treatment selectively with authored assets, animation, audio, and VFX without changing the gameplay contract.
 
-### Milestone 6 — Hardening and evaluation
+### Milestone 6 — Hardening and evaluation — active
 
-Run balance, usability, performance, and regression tests. Confirm that a new player can understand the first five minutes without external instructions.
+Scenario tests, clean restart coverage, first-minute guidance, and the 100-unit simulation benchmark are in place. The next review must tune match pacing and verify the actual 60 FPS visual baseline on the chosen PC hardware.
 
 ## 15. Acceptance Tests
 
@@ -508,9 +518,9 @@ After the local skirmish is proven, the likely order is:
 
 ## 19. Recommended First Work Items
 
-1. Add explicit Collector reassignment and replacement decisions after the automatic route is readable.
-2. Exercise a complete five-minute graybox match with the economy, technology, repair, and feedback layers.
-3. Add faction-specific economic and logistics decisions only after the shared loop is legible.
-4. Only then begin selective visual asset integration for one representative battle slice.
-5. Run the representative 100-unit performance check before committing to final visual production.
+1. Run focused balance sessions against the new greedy, rush, turtle, tech-first, unit-first, Collector-loss, and supply-cut scenarios; tune costs, timings, and AI aggression from observed outcomes.
+2. Do a first-time-player usability pass in the real window, checking whether the objective, queue state, Collector route, supply warning, and repair feedback are understood without reading the source.
+3. Add faction-specific economic and logistics decisions only after the shared loop remains legible under balance pressure.
+4. Expand the representative relay-corridor visual slice with authored materials, animation, audio, and VFX while preserving the current silhouettes and feedback.
+5. Repeat the 100-unit benchmark with the visual slice active on the chosen PC baseline, then begin campaign/multiplayer feasibility work only after the local skirmish is stable.
 

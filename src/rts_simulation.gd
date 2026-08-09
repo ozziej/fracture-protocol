@@ -23,7 +23,7 @@ const NAVIGATION_OBSTACLES := [
 ]
 const NAV_PATH_MARGIN := 1.25
 const NAV_CORNER_PADDING := 0.45
-const COLLECTOR_LOAD_SECONDS := 0.8
+const COLLECTOR_LOAD_SECONDS := 2.5
 const COLLECTOR_CAPACITY := 75.0
 const COLLECTOR_HOME_DISTANCE := 0.9
 const REPAIR_UNIT_AMOUNT := 40.0
@@ -57,6 +57,10 @@ var _event_sequence := 0
 
 func _ready() -> void:
 	_build_definitions()
+
+
+func restart_match() -> void:
+	start_match()
 
 
 func start_match() -> void:
@@ -101,7 +105,10 @@ func start_match() -> void:
 	_add_unit("enemy", "bulwark", Vector3(23.0, 0.0, -7.0))
 	_add_collector("enemy", "south_field", enemy_refinery_id, enemy_hub_id, buildings[enemy_refinery_id]["position"])
 
-	_emit_event("MatchStarted", {"tick": current_tick, "message": "Skirmish online. Secure the relay network."})
+	_emit_event("MatchStarted", {
+		"tick": current_tick,
+		"message": "Skirmish online. Protect the Collector route, then research Advanced Targeting.",
+	})
 
 
 func step(delta: float) -> void:
@@ -351,7 +358,7 @@ func _build_definitions() -> void:
 	assembly_bay.build_time = 4.0
 	assembly_bay.max_health = 450.0
 	assembly_bay.footprint = Vector2(3.5, 3.5)
-	assembly_bay.can_produce = "raider"
+	assembly_bay.can_produce = "raider,collector,bulwark"
 	assembly_bay.can_research = "advanced_targeting"
 	assembly_bay.body_height = 2.0
 	building_definitions[assembly_bay.id] = assembly_bay
@@ -388,6 +395,8 @@ func _process_commands() -> void:
 				_try_produce(issuer, payload.get("building_id", ""), payload.get("unit_type", "raider"))
 			"research":
 				_try_research(issuer, payload.get("building_id", ""), payload.get("technology_id", "advanced_targeting"))
+			"assign_collector":
+				_try_assign_collector(issuer, payload)
 			"stop":
 				_apply_stop_command(issuer, payload)
 			"capture":
@@ -407,6 +416,7 @@ func _apply_move_command(issuer: String, payload: Dictionary) -> void:
 		var target_position: Vector3 = destination + _formation_offset(accepted, entity_ids.size())
 		unit["target_position"] = target_position
 		unit["waypoints"] = _build_navigation_path(unit["position"], target_position)
+		unit["move_fire_target"] = str(unit.get("attack_target", "")) if _entity_exists(str(unit.get("attack_target", ""))) else ""
 		unit["attack_target"] = ""
 		unit["order"] = "move"
 		accepted += 1
@@ -431,6 +441,7 @@ func _apply_attack_move_command(issuer: String, payload: Dictionary) -> void:
 		var target_position: Vector3 = destination + _formation_offset(accepted, entity_ids.size())
 		unit["target_position"] = target_position
 		unit["waypoints"] = _build_navigation_path(unit["position"], target_position)
+		unit["move_fire_target"] = ""
 		unit["attack_target"] = ""
 		unit["order"] = "attack_move"
 		accepted += 1
@@ -455,6 +466,7 @@ func _apply_attack_command(issuer: String, payload: Dictionary) -> void:
 		if not units.has(entity_id) or units[entity_id]["team"] != issuer:
 			continue
 		var unit: Dictionary = units[entity_id]
+		unit["move_fire_target"] = ""
 		unit["attack_target"] = target_id
 		unit["waypoints"] = []
 		unit["order"] = "attack"
@@ -475,6 +487,7 @@ func _apply_stop_command(issuer: String, payload: Dictionary) -> void:
 		if units.has(entity_id) and units[entity_id]["team"] == issuer:
 			var unit: Dictionary = units[entity_id]
 			unit["order"] = "idle"
+			unit["move_fire_target"] = ""
 			unit["attack_target"] = ""
 			unit["target_position"] = unit["position"]
 			unit["waypoints"] = []
@@ -557,6 +570,40 @@ func _reject_order(issuer: String, reason: String, order: String) -> void:
 	_emit_event("OrderRejected", {"team": issuer, "reason": reason, "message": reason, "order": order})
 
 
+func _try_assign_collector(issuer: String, payload: Dictionary) -> void:
+	var collector_id: String = str(payload.get("collector_id", ""))
+	var source_id: String = str(payload.get("source_id", ""))
+	var destination_id: String = str(payload.get("destination_id", ""))
+	if not units.has(collector_id):
+		_reject_order(issuer, "Collector no longer exists.", "assign_collector")
+		return
+	var collector: Dictionary = units[collector_id]
+	if collector["team"] != issuer or collector["kind"] != "collector":
+		_reject_order(issuer, "Select a friendly Collector.", "assign_collector")
+		return
+	if not resource_nodes.has(source_id):
+		_reject_order(issuer, "Select a valid resource field.", "assign_collector")
+		return
+	if not buildings.has(destination_id):
+		_reject_order(issuer, "Select a valid Resource Processor.", "assign_collector")
+		return
+	var destination: Dictionary = buildings[destination_id]
+	if destination["team"] != issuer or destination["kind"] != "refinery" or not destination["complete"]:
+		_reject_order(issuer, "Route destination must be a completed friendly Resource Processor.", "assign_collector")
+		return
+	if float(collector.get("collector_cargo", 0.0)) > 0.0:
+		_reject_order(issuer, "Wait for the Collector to deliver its current load.", "assign_collector")
+		return
+	_configure_collector_route(collector, source_id, destination_id)
+	_emit_event("CollectorAssigned", {
+		"unit_id": collector_id,
+		"source_id": source_id,
+		"destination_id": destination_id,
+		"team": issuer,
+		"message": "Collector route set: %s to %s." % [resource_nodes[source_id]["display_name"], destination["display_name"]],
+	})
+
+
 func _try_build(issuer: String, building_type: String, position: Vector3) -> void:
 	if not building_definitions.has(building_type):
 		return
@@ -582,6 +629,15 @@ func _try_produce(issuer: String, building_id: String, unit_type: String) -> voi
 		_emit_event("OrderRejected", {"team": issuer, "reason": "Assembly Bay is not ready.", "order": "produce"})
 		return
 	var definition = unit_definitions[unit_type]
+	var production_options: PackedStringArray = str(building_definitions[building["kind"]].can_produce).split(",")
+	var production_allowed := false
+	for option in production_options:
+		if str(option).strip_edges() == unit_type:
+			production_allowed = true
+			break
+	if not production_allowed:
+		_reject_order(issuer, "%s cannot produce %s." % [building["display_name"], definition.display_name], "produce")
+		return
 	var required_technology: String = str(definition.required_technology)
 	if not required_technology.is_empty() and not is_technology_unlocked(issuer, required_technology):
 		var technology_name: String = technology_definitions[required_technology].display_name if technology_definitions.has(required_technology) else required_technology
@@ -687,7 +743,11 @@ func _update_production() -> void:
 			var spawn_offset := Vector3(0.0, 0.0, 4.0 if building["team"] == "player" else -4.0)
 			var spawned_id := _add_unit(building["team"], job["unit_type"], building["position"] + spawn_offset)
 			queue.pop_front()
-			_emit_event("ProductionCompleted", {"building_id": building_id, "unit_id": spawned_id, "unit_type": job["unit_type"], "team": building["team"], "message": "%s ready." % unit_definitions[job["unit_type"]].display_name})
+			var spawned_name: String = unit_definitions[job["unit_type"]].display_name
+			var completion_message := "%s ready." % spawned_name
+			if job["unit_type"] == "collector":
+				completion_message = "Collector ready — assign a resource route."
+			_emit_event("ProductionCompleted", {"building_id": building_id, "unit_id": spawned_id, "unit_type": job["unit_type"], "team": building["team"], "message": completion_message})
 		building["queue"] = queue
 
 
@@ -708,6 +768,31 @@ func _update_units() -> void:
 		var damage_multiplier: float = float(unit.get("supply_damage_multiplier", 1.0))
 		if unit["kind"] == "collector":
 			_update_collector_unit(unit, definition, speed_multiplier, damage_multiplier)
+			continue
+		if unit["order"] == "move":
+			# An explicit move is the primary objective. Units may fire at a remembered or newly
+			# detected target in range, but they must never turn toward or chase it while moving.
+			_advance_unit_along_route(unit, definition.speed * speed_multiplier)
+			var fire_target: String = attack_target
+			if fire_target.is_empty():
+				fire_target = str(unit.get("move_fire_target", ""))
+			if not fire_target.is_empty():
+				if not _entity_exists(fire_target):
+					unit["move_fire_target"] = ""
+				else:
+					var move_target_position: Vector3 = _get_entity_position(fire_target)
+					var move_target_distance: float = unit["position"].distance_to(move_target_position)
+					if move_target_distance <= definition.attack_range and float(unit["cooldown"]) <= 0.0:
+						_apply_damage(fire_target, definition.attack_damage * damage_multiplier, entity_id)
+						unit["cooldown"] = definition.attack_cooldown
+			if unit["waypoints"].is_empty() and unit["position"].distance_to(unit["target_position"]) <= 0.15:
+				unit["order"] = "idle"
+				unit["attack_target"] = ""
+				unit["move_fire_target"] = ""
+				continue
+			var moving_nearby_target := _find_nearby_enemy(unit["team"], unit["position"], definition.vision_range)
+			if not moving_nearby_target.is_empty() and fire_target.is_empty():
+				unit["move_fire_target"] = moving_nearby_target
 			continue
 		if not attack_target.is_empty():
 			var target_position: Vector3 = _get_entity_position(attack_target)
@@ -745,24 +830,24 @@ func _update_units() -> void:
 
 
 func _update_collector_unit(unit: Dictionary, definition, speed_multiplier: float, damage_multiplier: float) -> void:
-	var state: String = str(unit.get("collector_state", "to_source"))
+	var state: String = str(unit.get("collector_state", "unassigned"))
 	var source_id: String = str(unit.get("collector_source_id", ""))
 	var destination_id: String = str(unit.get("collector_destination_id", ""))
-	if not resource_nodes.has(source_id):
-		unit["collector_state"] = "idle"
-		unit["order"] = "idle"
-		return
-	var home_position: Vector3 = _collector_home_position(unit)
 	var attack_target: String = str(unit.get("attack_target", ""))
 	if not attack_target.is_empty() and not _entity_exists(attack_target):
 		unit["attack_target"] = ""
 		attack_target = ""
 
-	if not resource_nodes.has(source_id) or not buildings.has(destination_id):
-		if state != "retreating":
-			unit["collector_state"] = "retreating"
-			_set_collector_route(unit, home_position)
-			state = "retreating"
+	var route_valid := not source_id.is_empty() and resource_nodes.has(source_id) and not destination_id.is_empty() and buildings.has(destination_id)
+	if route_valid:
+		var destination: Dictionary = buildings[destination_id]
+		route_valid = destination["team"] == unit["team"] and destination["kind"] == "refinery" and destination["complete"]
+	if not route_valid:
+		unit["collector_state"] = "unassigned"
+		unit["order"] = "idle"
+		unit["target_position"] = unit["position"]
+		unit["waypoints"] = []
+		state = "unassigned"
 
 	if not attack_target.is_empty():
 		var target_position: Vector3 = _get_entity_position(attack_target)
@@ -773,9 +858,14 @@ func _update_collector_unit(unit: Dictionary, definition, speed_multiplier: floa
 				unit["cooldown"] = definition.attack_cooldown
 		else:
 			unit["attack_target"] = ""
-		attack_target = str(unit.get("attack_target", ""))
+			attack_target = ""
 
-	if state == "retreating":
+	if state == "unassigned":
+		unit["order"] = "idle"
+		unit["target_position"] = unit["position"]
+		unit["waypoints"] = []
+	elif state == "retreating":
+		var home_position: Vector3 = _collector_home_position(unit)
 		_advance_unit_along_route(unit, definition.speed * speed_multiplier)
 		if unit["position"].distance_to(home_position) <= COLLECTOR_HOME_DISTANCE:
 			if float(unit.get("collector_cargo", 0.0)) > 0.0 and buildings.has(destination_id):
@@ -795,12 +885,17 @@ func _update_collector_unit(unit: Dictionary, definition, speed_multiplier: floa
 			unit["waypoints"] = []
 	elif state == "loading":
 		unit["order"] = "idle"
+		var source: Dictionary = resource_nodes[source_id]
+		var previous_cargo: float = float(unit.get("collector_cargo", 0.0))
 		unit["collector_timer"] = max(0.0, float(unit.get("collector_timer", 0.0)) - TICK_SECONDS)
-		if float(unit["collector_timer"]) <= 0.0:
-			var source: Dictionary = resource_nodes[source_id]
-			var amount: float = min(float(unit["collector_capacity"]), float(source["remaining"]))
-			unit["collector_cargo"] = amount
-			source["remaining"] = max(0.0, float(source["remaining"]) - amount)
+		var load_ratio: float = clamp(1.0 - float(unit["collector_timer"]) / COLLECTOR_LOAD_SECONDS, 0.0, 1.0)
+		var desired_cargo: float = float(unit["collector_capacity"]) * load_ratio
+		var cargo_increment: float = min(max(0.0, desired_cargo - previous_cargo), float(source["remaining"]))
+		var amount: float = previous_cargo + cargo_increment
+		unit["collector_cargo"] = amount
+		source["remaining"] = max(0.0, float(source["remaining"]) - cargo_increment)
+		var load_complete := amount >= float(unit["collector_capacity"]) - 0.01 or float(unit["collector_timer"]) <= 0.0 or float(source["remaining"]) <= 0.0
+		if load_complete:
 			if amount > 0.0:
 				unit["collector_state"] = "to_destination"
 				_set_collector_route(unit, buildings[destination_id]["position"])
@@ -839,6 +934,22 @@ func _advance_unit_along_route(unit: Dictionary, movement_speed: float) -> void:
 		if not waypoints.is_empty():
 			next_position = waypoints[0]
 		unit["position"] = unit["position"].move_toward(next_position, movement_speed * TICK_SECONDS)
+
+
+func _configure_collector_route(unit: Dictionary, source_id: String, destination_id: String) -> void:
+	if not resource_nodes.has(source_id) or not buildings.has(destination_id):
+		return
+	unit["collector_source_id"] = source_id
+	unit["collector_source_name"] = resource_nodes[source_id]["display_name"]
+	unit["collector_destination_id"] = destination_id
+	unit["collector_destination_name"] = buildings[destination_id]["display_name"]
+	if str(unit.get("collector_home_id", "")).is_empty():
+		unit["collector_home_id"] = _first_building_for_team(unit["team"], "command_hub")
+	unit["collector_state"] = "to_source"
+	unit["collector_timer"] = 0.0
+	unit["collector_cargo"] = 0.0
+	unit["attack_target"] = ""
+	_set_collector_route(unit, resource_nodes[source_id]["position"])
 
 
 func _set_collector_route(unit: Dictionary, destination: Vector3) -> void:
@@ -1066,25 +1177,135 @@ func _income_for_team(team: String) -> float:
 
 func _update_ai() -> void:
 	_ai_timer += TICK_SECONDS
-	if _ai_timer < 3.0:
+	if _ai_timer < 2.0:
 		return
 	_ai_timer = 0.0
-	var assembly_id := _first_building_for_team("enemy", "assembly_bay")
-	if not assembly_id.is_empty() and enemy_credits >= unit_definitions["raider"].cost:
-		_try_produce("enemy", assembly_id, "raider")
-
-	var player_hq := _first_building_for_team("player", "command_hub")
-	if player_hq.is_empty():
+	if match_over:
 		return
-	var enemy_units := get_units_for_team("enemy")
-	if enemy_units.is_empty():
+	_ai_manage_repairs()
+	_ai_manage_collectors()
+	_ai_manage_research()
+	_ai_manage_relay()
+	_ai_manage_production()
+	_ai_manage_combat()
+
+
+func _ai_manage_repairs() -> void:
+	var repair_ids: Array = []
+	for entity_id in units:
+		var unit: Dictionary = units[entity_id]
+		if unit["team"] != "enemy" or float(unit["health"]) >= float(unit["max_health"]):
+			continue
+		if _is_repair_station_nearby("enemy", unit["position"]):
+			repair_ids.append(entity_id)
+		elif unit["kind"] != "collector" and float(unit["health"]) <= float(unit["max_health"]) * 0.45 and str(unit.get("attack_target", "")).is_empty():
+			var home_id := _first_building_for_team("enemy", "command_hub")
+			if not home_id.is_empty():
+				issue_command("move", "enemy", {"entity_ids": [entity_id], "position": buildings[home_id]["position"]})
+	if not repair_ids.is_empty() and enemy_credits >= REPAIR_UNIT_COST:
+		issue_command("repair", "enemy", {"entity_ids": repair_ids})
+
+	for building_id in buildings:
+		var building: Dictionary = buildings[building_id]
+		if building["team"] == "enemy" and building["complete"] and float(building["health"]) < float(building["max_health"]) and enemy_credits >= REPAIR_BUILDING_COST:
+			issue_command("repair", "enemy", {"entity_ids": [building_id]})
+			break
+
+
+func _ai_manage_collectors() -> void:
+	var assembly_id := _first_building_for_team("enemy", "assembly_bay")
+	var refinery_id := _first_building_for_team("enemy", "refinery")
+	if refinery_id.is_empty():
+		return
+	var collector_count := 0
+	for entity_id in units:
+		var unit: Dictionary = units[entity_id]
+		if unit["team"] != "enemy" or unit["kind"] != "collector":
+			continue
+		collector_count += 1
+		if str(unit.get("collector_state", "")) == "unassigned" and float(unit.get("collector_cargo", 0.0)) <= 0.0:
+			issue_command("assign_collector", "enemy", {
+				"collector_id": entity_id,
+				"source_id": "south_field",
+				"destination_id": refinery_id,
+			})
+	if collector_count == 0 and not assembly_id.is_empty() and enemy_credits >= unit_definitions["collector"].cost and not _production_queue_contains(assembly_id, "collector"):
+		issue_command("produce", "enemy", {"building_id": assembly_id, "unit_type": "collector"})
+
+
+func _ai_manage_research() -> void:
+	if is_technology_unlocked("enemy", "advanced_targeting"):
+		return
+	var assembly_id := _first_building_for_team("enemy", "assembly_bay")
+	if assembly_id.is_empty():
+		return
+	var research_status := get_research_status("enemy")
+	if not str(research_status.get("active_id", "")).is_empty():
+		return
+	var technology = technology_definitions["advanced_targeting"]
+	if enemy_credits >= technology.cost:
+		issue_command("research", "enemy", {"building_id": assembly_id, "technology_id": "advanced_targeting"})
+
+
+func _ai_manage_relay() -> void:
+	for building_id in buildings:
+		var existing: Dictionary = buildings[building_id]
+		if existing["team"] == "enemy" and existing["kind"] == "relay":
+			return
+	if enemy_credits < building_definitions["relay"].cost:
+		return
+	issue_command("build", "enemy", {"building_type": "relay", "position": Vector3(17.0, 0.0, -5.0)})
+
+
+func _ai_manage_production() -> void:
+	var assembly_id := _first_building_for_team("enemy", "assembly_bay")
+	if assembly_id.is_empty() or not buildings.has(assembly_id):
+		return
+	var assembly: Dictionary = buildings[assembly_id]
+	var queue: Array = assembly.get("queue", [])
+	if queue.size() >= 2:
+		return
+	var unit_type := "bulwark" if is_technology_unlocked("enemy", "advanced_targeting") else "raider"
+	if enemy_credits >= unit_definitions[unit_type].cost:
+		issue_command("produce", "enemy", {"building_id": assembly_id, "unit_type": unit_type})
+
+
+func _ai_manage_combat() -> void:
+	var player_hq := _first_building_for_team("player", "command_hub")
+	var enemy_hq := _first_building_for_team("enemy", "command_hub")
+	if player_hq.is_empty() or enemy_hq.is_empty() or current_tick % 60 != 0:
 		return
 	var attack_group: Array = []
-	for entity_id in enemy_units:
-		if units[entity_id]["kind"] != "collector" and (units[entity_id]["order"] == "idle" or units[entity_id]["order"] == "move"):
+	for entity_id in units:
+		var unit: Dictionary = units[entity_id]
+		if unit["team"] == "enemy" and unit["kind"] != "collector" and (unit["order"] == "idle" or unit["order"] == "move" or unit["order"] == "attack_move"):
 			attack_group.append(entity_id)
-	if attack_group.size() >= 2 and current_tick % 60 == 0:
-		_apply_attack_command("enemy", {"entity_ids": attack_group, "target_id": player_hq})
+	if attack_group.size() < 2:
+		return
+	var target_id := player_hq
+	var enemy_hq_position: Vector3 = buildings[enemy_hq]["position"]
+	var closest_threat := ""
+	var closest_distance := 18.0
+	for entity_id in units:
+		var unit: Dictionary = units[entity_id]
+		if unit["team"] != "player":
+			continue
+		var distance: float = unit["position"].distance_to(enemy_hq_position)
+		if distance < closest_distance:
+			closest_distance = distance
+			closest_threat = entity_id
+	if not closest_threat.is_empty():
+		target_id = closest_threat
+	issue_command("attack", "enemy", {"entity_ids": attack_group, "target_id": target_id})
+
+
+func _production_queue_contains(building_id: String, unit_type: String) -> bool:
+	if not buildings.has(building_id):
+		return false
+	for job in buildings[building_id].get("queue", []):
+		if str(job.get("unit_type", "")) == unit_type:
+			return true
+	return false
 
 
 func _check_victory() -> void:
@@ -1208,14 +1429,15 @@ func _add_unit(team: String, kind: String, position: Vector3) -> String:
 		"target_position": Vector3(position.x, 0.0, position.z),
 		"waypoints": [],
 		"attack_target": "",
-		"collector_state": "",
+		"move_fire_target": "",
+		"collector_state": "unassigned" if kind == "collector" else "",
 		"collector_source_id": "",
 		"collector_source_name": "",
 		"collector_destination_id": "",
 		"collector_destination_name": "",
 		"collector_home_id": "",
 		"collector_cargo": 0.0,
-		"collector_capacity": 0.0,
+		"collector_capacity": COLLECTOR_CAPACITY if kind == "collector" else 0.0,
 		"collector_timer": 0.0,
 		"order": "idle",
 		"health": definition.max_health,
@@ -1231,15 +1453,9 @@ func _add_unit(team: String, kind: String, position: Vector3) -> String:
 func _add_collector(team: String, source_id: String, destination_id: String, home_id: String, position: Vector3) -> String:
 	var entity_id := _add_unit(team, "collector", position)
 	var collector: Dictionary = units[entity_id]
-	collector["collector_state"] = "to_source"
-	collector["collector_source_id"] = source_id
-	collector["collector_source_name"] = resource_nodes[source_id]["display_name"]
-	collector["collector_destination_id"] = destination_id
-	collector["collector_destination_name"] = buildings[destination_id]["display_name"]
 	collector["collector_home_id"] = home_id
 	collector["collector_capacity"] = COLLECTOR_CAPACITY
-	collector["collector_cargo"] = 0.0
-	_set_collector_route(collector, resource_nodes[source_id]["position"])
+	_configure_collector_route(collector, source_id, destination_id)
 	return entity_id
 
 

@@ -9,6 +9,14 @@ func _initialize() -> void:
 	var main = MainScript.new()
 	root.add_child(main)
 
+	if not main.objective_label.text.begins_with("OBJECTIVE"):
+		failures.append("HUD should show an actionable first-minute objective")
+	if main.collector_button.text != "QUEUE COLLECTOR [C]":
+		failures.append("HUD should expose Collector production before a Collector is selected")
+
+	if not main.control_views.has("central_relay") or main.control_views["central_relay"].get_node_or_null("RelayCore") == null:
+		failures.append("central relay should expose the representative signal core visual")
+
 	main._on_simulation_event("UnitDamaged", {
 		"attacker_position": Vector3(-4.0, 0.0, 0.0),
 		"target_position": Vector3(0.0, 0.0, 0.0),
@@ -84,6 +92,36 @@ func _initialize() -> void:
 			main.simulation.step_fixed()
 			if main.simulation.units[repair_unit_id]["health"] <= 25.0:
 				failures.append("Y should repair a damaged unit near base")
+
+	var collector_id := _find_entity(main.simulation.units, "collector", "player")
+	if collector_id.is_empty():
+		failures.append("controls smoke test needs a player Collector")
+	else:
+		main.selected_ids = [collector_id]
+		main._unhandled_input(_key_event(KEY_U))
+		if not main.collector_assignment_mode:
+			failures.append("U should enter Collector route assignment mode")
+		main._unhandled_input(_key_event(KEY_ESCAPE))
+		if main.collector_assignment_mode:
+			failures.append("Escape should cancel Collector route assignment mode")
+
+	main.pointer_position = Vector2(640.0, 360.0)
+	main.camera_target = Vector3.ZERO
+	Input.action_press("camera_forward")
+	main._process_camera_input(1.0)
+	Input.action_release("camera_forward")
+	if main.camera_target.z >= 0.0:
+		failures.append("W should pan the camera toward negative world Z")
+	main.camera_target = Vector3.ZERO
+	Input.action_press("camera_back")
+	main._process_camera_input(1.0)
+	Input.action_release("camera_back")
+	if main.camera_target.z <= 0.0:
+		failures.append("S should pan the camera toward positive world Z")
+
+	main._unhandled_input(_key_event(KEY_N))
+	if main.simulation.current_tick != 0 or main.simulation.match_over or main.simulation.units.size() < 8:
+		failures.append("N should restart the match without stale state")
 
 	if failures.is_empty():
 		print("CONTROLS_SMOKE_PASS")

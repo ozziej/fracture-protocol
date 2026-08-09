@@ -5,8 +5,11 @@ var entity_id := ""
 var team := "neutral"
 var kind := ""
 var body_mesh: MeshInstance3D
+var cap_mesh: MeshInstance3D
 var antenna_mesh: MeshInstance3D
 var selection_disc: MeshInstance3D
+var visual_body_height := 0.0
+var visual_antenna_height := 0.0
 var health_back: MeshInstance3D
 var health_front: MeshInstance3D
 var name_label: Label3D
@@ -24,9 +27,19 @@ func sync(data: Dictionary, selected: bool) -> void:
 	global_position = data["position"]
 	selection_disc.visible = selected
 	var construction_progress: float = clamp(float(data["construction_progress"]), 0.0, 1.0)
-	body_mesh.scale.y = 0.3 + construction_progress * 0.7
+	var body_scale: float = 0.3 + construction_progress * 0.7
+	body_mesh.scale.y = body_scale
+	body_mesh.position.y = visual_body_height * body_scale * 0.5
+	if cap_mesh:
+		cap_mesh.scale.y = body_scale
+		cap_mesh.position.y = visual_body_height * body_scale + 0.12 * body_scale
 	if antenna_mesh:
 		antenna_mesh.visible = construction_progress >= 0.95
+		antenna_mesh.position.y = visual_body_height * body_scale + visual_antenna_height * 0.5 + 0.2
+	var occupied_height: float = visual_body_height * body_scale
+	health_back.position.y = occupied_height + 2.65
+	health_front.position.y = occupied_height + 2.65
+	name_label.position.y = occupied_height + 3.02
 	var health_ratio: float = clamp(float(data["health"]) / max(1.0, float(data["max_health"])), 0.0, 1.0)
 	health_front.scale.x = max(0.02, health_ratio)
 	var label_text: String = data["display_name"] if data["complete"] else "CONSTRUCTING %d%%" % int(construction_progress * 100.0)
@@ -48,6 +61,7 @@ func _build_visuals() -> void:
 	elif kind == "assembly_bay":
 		body_size = Vector3(3.6, 2.0, 3.1)
 
+	visual_body_height = body_size.y
 	var body := BoxMesh.new()
 	body.size = body_size
 	body_mesh = MeshInstance3D.new()
@@ -58,7 +72,7 @@ func _build_visuals() -> void:
 
 	var cap := BoxMesh.new()
 	cap.size = Vector3(body_size.x * 0.68, 0.22, body_size.z * 0.68)
-	var cap_mesh := MeshInstance3D.new()
+	cap_mesh = MeshInstance3D.new()
 	cap_mesh.mesh = cap
 	cap_mesh.material_override = _material(palette.lightened(0.12))
 	cap_mesh.position.y = body_size.y + 0.12
@@ -70,6 +84,7 @@ func _build_visuals() -> void:
 		antenna.bottom_radius = 0.11
 		antenna.height = 2.2 if kind == "command_hub" else 1.6
 		antenna.radial_segments = 8
+		visual_antenna_height = antenna.height
 		antenna_mesh = MeshInstance3D.new()
 		antenna_mesh.mesh = antenna
 		antenna_mesh.material_override = _material(Color("#d9fbff"))

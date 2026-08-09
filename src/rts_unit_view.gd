@@ -11,7 +11,10 @@ var order_line: MeshInstance3D
 var order_target: MeshInstance3D
 var health_back: MeshInstance3D
 var health_front: MeshInstance3D
+var cargo_back: MeshInstance3D
+var cargo_front: MeshInstance3D
 var name_label: Label3D
+var visual_initialized := false
 
 
 func setup(data: Dictionary) -> void:
@@ -22,13 +25,33 @@ func setup(data: Dictionary) -> void:
 	sync(data, false)
 
 
-func sync(data: Dictionary, selected: bool) -> void:
-	global_position = data["position"]
-	if data["order"] == "move" and data["target_position"].distance_to(data["position"]) > 0.2:
+func sync(data: Dictionary, selected: bool, frame_delta: float = 0.0) -> void:
+	var desired_position: Vector3 = data["position"]
+	if not visual_initialized or frame_delta <= 0.0 or global_position.distance_to(desired_position) > 8.0:
+		global_position = desired_position
+		visual_initialized = true
+	else:
+		var position_blend: float = 1.0 - exp(-frame_delta * 24.0)
+		global_position = global_position.lerp(desired_position, position_blend)
+	var movement_order: bool = data["order"] == "move" or data["order"] == "attack_move"
+	if movement_order and data["target_position"].distance_to(desired_position) > 0.2:
+		var previous_rotation := rotation
 		look_at(Vector3(data["target_position"].x, global_position.y, data["target_position"].z), Vector3.UP)
+		var desired_yaw := rotation.y
+		rotation = previous_rotation
+		if frame_delta <= 0.0:
+			rotation.y = desired_yaw
+		else:
+			rotation.y = lerp_angle(previous_rotation.y, desired_yaw, 1.0 - exp(-frame_delta * 20.0))
 	selection_disc.visible = selected
 	var health_ratio: float = clamp(float(data["health"]) / max(1.0, float(data["max_health"])), 0.0, 1.0)
 	health_front.scale.x = max(0.02, health_ratio)
+	if cargo_front and cargo_back:
+		var cargo_capacity: float = max(1.0, float(data.get("collector_capacity", 0.0)))
+		var cargo_ratio: float = clamp(float(data.get("collector_cargo", 0.0)) / cargo_capacity, 0.0, 1.0)
+		cargo_back.visible = kind == "collector"
+		cargo_front.visible = kind == "collector"
+		cargo_front.scale.x = max(0.02, cargo_ratio)
 	var supply_state: String = str(data.get("supply_state", "connected"))
 	var order: String = str(data.get("order", "idle"))
 	var label_text: String = data["display_name"]
@@ -51,7 +74,6 @@ func sync(data: Dictionary, selected: bool) -> void:
 	name_label.text = label_text
 	name_label.modulate = Color("#ffbf6a") if supply_state == "unsupplied" else _team_palette(team).lightened(0.45)
 	_update_order_marker(data, selected)
-
 
 func _build_visuals() -> void:
 	var palette := _team_palette(team)
@@ -124,6 +146,14 @@ func _build_visuals() -> void:
 	health_front.position = Vector3(-0.655, definition_height + 0.4, 0.03)
 	add_child(health_front)
 
+	if kind == "collector":
+		cargo_back = _health_bar(Color(0.06, 0.08, 0.11, 1.0), Vector3(1.35, 0.07, 0.07))
+		cargo_back.position = Vector3(0.0, definition_height + 0.22, 0.0)
+		add_child(cargo_back)
+		cargo_front = _health_bar(Color("#f3bd52"), Vector3(1.31, 0.085, 0.085))
+		cargo_front.position = Vector3(-0.655, definition_height + 0.22, 0.035)
+		add_child(cargo_front)
+
 	name_label = Label3D.new()
 	name_label.position = Vector3(0.0, definition_height + 0.76, 0.0)
 	name_label.font_size = 32
@@ -142,7 +172,7 @@ func _update_order_marker(data: Dictionary, selected: bool) -> void:
 		order_line.visible = false
 		order_target.visible = false
 		return
-	var world_delta: Vector3 = data["target_position"] - data["position"]
+	var world_delta: Vector3 = data["target_position"] - global_position
 	world_delta.y = 0.0
 	var delta: Vector3 = world_delta.rotated(Vector3.UP, -rotation.y)
 	var length := Vector2(delta.x, delta.z).length()
