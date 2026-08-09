@@ -1,9 +1,10 @@
 class_name RtsSimulation
 extends Node
 
-const UnitDefinitionScript = preload("res://src/unit_definition.gd")
-const BuildingDefinitionScript = preload("res://src/building_definition.gd")
-const TechnologyDefinitionScript = preload("res://src/technology_definition.gd")
+const DefinitionCatalogScript = preload("res://src/simulation/rts_definition_catalog.gd")
+const NavigationServiceScript = preload("res://src/simulation/rts_navigation_service.gd")
+const AiControllerScript = preload("res://src/simulation/rts_ai_controller.gd")
+const LogisticsSystemScript = preload("res://src/simulation/rts_logistics_system.gd")
 
 signal simulation_event(event_type: String, payload: Dictionary)
 
@@ -63,6 +64,8 @@ var _next_entity_id := 1
 var _economy_timer := 0.0
 var _ai_timer := 0.0
 var _event_sequence := 0
+var _ai_controller
+var _logistics_system
 
 
 func _ready() -> void:
@@ -428,184 +431,7 @@ func get_research_status(team: String) -> Dictionary:
 
 
 func _build_definitions() -> void:
-	if not unit_definitions.is_empty() and not building_definitions.is_empty() and not technology_definitions.is_empty():
-		return
-	unit_definitions.clear()
-	building_definitions.clear()
-	technology_definitions.clear()
-
-	var targeting = TechnologyDefinitionScript.new()
-	targeting.id = "advanced_targeting"
-	targeting.display_name = "Advanced Targeting"
-	targeting.description = "Unlocks Bulwark production at the Assembly Bay."
-	targeting.cost = 300
-	targeting.research_time = 8.0
-	technology_definitions[targeting.id] = targeting
-
-	var ranger = UnitDefinitionScript.new()
-	ranger.id = "ranger"
-	ranger.display_name = "Ranger"
-	ranger.role = "general infantry"
-	ranger.cost = 80
-	ranger.build_time = 2.2
-	ranger.max_health = 75.0
-	ranger.speed = 6.0
-	ranger.attack_range = 7.5
-	ranger.attack_damage = 8.0
-	ranger.attack_cooldown = 0.65
-	ranger.armour = 0.0
-	ranger.vision_range = 15.0
-	ranger.body_scale = Vector3(0.72, 1.05, 0.72)
-	unit_definitions[ranger.id] = ranger
-
-	var warden = UnitDefinitionScript.new()
-	warden.id = "warden"
-	warden.display_name = "Warden"
-	warden.cost = 145
-	warden.build_time = 4.2
-	warden.max_health = 190.0
-	warden.speed = 3.7
-	warden.attack_range = 9.5
-	warden.attack_damage = 36.0
-	warden.attack_cooldown = 1.8
-	warden.armour = 5.0
-	warden.vision_range = 16.0
-	warden.body_scale = Vector3(1.12, 0.8, 1.12)
-	warden.body_scale = Vector3(1.05, 0.75, 1.05)
-	unit_definitions[warden.id] = warden
-
-	var raider = UnitDefinitionScript.new()
-	raider.id = "raider"
-	raider.display_name = "Raider"
-	raider.role = "fast attack vehicle"
-	raider.cost = 105
-	raider.build_time = 3.0
-	raider.max_health = 125.0
-	raider.speed = 6.4
-	raider.attack_range = 8.5
-	raider.attack_damage = 16.0
-	raider.attack_cooldown = 0.75
-	raider.vision_range = 17.0
-	raider.body_scale = Vector3(1.25, 0.65, 0.9)
-	unit_definitions[raider.id] = raider
-
-	var bulwark = UnitDefinitionScript.new()
-	bulwark.id = "bulwark"
-	bulwark.cost = 210
-	bulwark.build_time = 6.5
-	bulwark.max_health = 210.0
-	bulwark.speed = 2.6
-	bulwark.attack_range = 14.0
-	bulwark.attack_damage = 70.0
-	bulwark.attack_cooldown = 3.6
-	bulwark.armour = 3.0
-	bulwark.structure_damage_multiplier = 1.65
-	bulwark.splash_radius = 2.8
-	bulwark.splash_minimum_multiplier = 0.4
-	bulwark.projectile_mode = "arc_missile"
-	bulwark.vision_range = 14.0
-	bulwark.body_scale = Vector3(1.5, 0.85, 1.25)
-	bulwark.required_technology = "advanced_targeting"
-	bulwark.body_scale = Vector3(1.4, 0.8, 1.15)
-	bulwark.required_technology = "advanced_targeting"
-	unit_definitions[bulwark.id] = bulwark
-
-	var collector = UnitDefinitionScript.new()
-	collector.id = "collector"
-	collector.display_name = "Collector"
-	collector.role = "resource hauler"
-	collector.cost = 115
-	collector.build_time = 3.5
-	collector.max_health = 150.0
-	collector.speed = 4.8
-	collector.attack_range = 7.2
-	collector.attack_damage = 9.0
-	collector.attack_cooldown = 1.1
-	collector.vision_range = 10.0
-	collector.body_scale = Vector3(1.2, 0.7, 1.0)
-	unit_definitions[collector.id] = collector
-
-	var command_hub = BuildingDefinitionScript.new()
-	command_hub.id = "command_hub"
-	command_hub.display_name = "Command Hub"
-	command_hub.role = "headquarters"
-	command_hub.cost = 0
-	command_hub.build_time = 0.0
-	command_hub.max_health = 900.0
-	command_hub.footprint = Vector2(4.5, 4.5)
-	command_hub.body_height = 2.8
-	building_definitions[command_hub.id] = command_hub
-
-	var refinery = BuildingDefinitionScript.new()
-	refinery.id = "refinery"
-	refinery.display_name = "Resource Processor"
-	refinery.can_produce = "collector"
-	refinery.upgrade_id = "refining_efficiency"
-	refinery.upgrade_cost = 200
-	refinery.upgrade_time = 6.0
-	refinery.upgrade_effect = "delivery_value"
-	refinery.role = "economy"
-	refinery.cost = 250
-	refinery.build_time = 4.5
-	refinery.max_health = 420.0
-	refinery.footprint = Vector2(3.5, 3.5)
-	refinery.produces_income = 0.0
-	refinery.body_height = 1.8
-	building_definitions[refinery.id] = refinery
-
-	var assembly_bay = BuildingDefinitionScript.new()
-	assembly_bay.id = "assembly_bay"
-	assembly_bay.display_name = "Assembly Bay"
-	assembly_bay.role = "production"
-	assembly_bay.cost = 220
-	assembly_bay.build_time = 4.0
-	assembly_bay.max_health = 450.0
-	assembly_bay.footprint = Vector2(3.5, 3.5)
-	assembly_bay.prerequisite_building = "refinery"
-	assembly_bay.can_produce = "ranger,warden,bulwark,raider"
-	assembly_bay.upgrade_id = "fabrication_systems"
-	assembly_bay.upgrade_cost = 225
-	assembly_bay.upgrade_time = 7.0
-	assembly_bay.upgrade_effect = "production_speed"
-	assembly_bay.body_height = 2.0
-	building_definitions[assembly_bay.id] = assembly_bay
-
-	var tech_centre = BuildingDefinitionScript.new()
-	tech_centre.id = "tech_centre"
-	tech_centre.display_name = "Tech Centre"
-	tech_centre.role = "technology"
-	tech_centre.cost = 320
-	tech_centre.build_time = 5.5
-	tech_centre.max_health = 380.0
-	tech_centre.footprint = Vector2(3.2, 3.2)
-	tech_centre.prerequisite_building = "assembly_bay"
-	tech_centre.can_research = "advanced_targeting"
-	tech_centre.body_height = 2.4
-	building_definitions[tech_centre.id] = tech_centre
-
-	var silo = BuildingDefinitionScript.new()
-	silo.id = "storage_silo"
-	silo.display_name = "Storage Silo"
-	silo.role = "logistics storage"
-	silo.cost = 150
-	silo.build_time = 3.5
-	silo.max_health = 260.0
-	silo.footprint = Vector2(2.4, 2.4)
-	silo.build_source_kind = "refinery"
-	silo.prerequisite_building = "refinery"
-	silo.body_height = 2.8
-	building_definitions[silo.id] = silo
-
-	var relay = BuildingDefinitionScript.new()
-	relay.id = "relay"
-	relay.display_name = "Forward Relay"
-	relay.role = "logistics"
-	relay.cost = 180
-	relay.build_time = 4.0
-	relay.max_health = 300.0
-	relay.footprint = Vector2(2.6, 2.6)
-	relay.body_height = 2.5
-	building_definitions[relay.id] = relay
+	DefinitionCatalogScript.populate(unit_definitions, building_definitions, technology_definitions)
 
 
 func _process_commands() -> void:
@@ -1505,156 +1331,19 @@ func _deliver_collector_cargo(unit: Dictionary, destination_id: String) -> void:
 
 
 func _build_navigation_path(start: Vector3, destination: Vector3) -> Array:
-	var start_point := Vector2(start.x, start.z)
-	var destination_point := Vector2(destination.x, destination.z)
-	if _navigation_segment_clear(start_point, destination_point):
-		return [destination]
-
-	var nodes: Array = [start_point, destination_point]
-	for obstacle in navigation_obstacles:
-		var expanded: Rect2 = obstacle.grow(NAV_PATH_MARGIN)
-		nodes.append(expanded.position + Vector2(-NAV_CORNER_PADDING, -NAV_CORNER_PADDING))
-		nodes.append(Vector2(expanded.end.x + NAV_CORNER_PADDING, expanded.position.y - NAV_CORNER_PADDING))
-		nodes.append(Vector2(expanded.end.x + NAV_CORNER_PADDING, expanded.end.y + NAV_CORNER_PADDING))
-		nodes.append(Vector2(expanded.position.x - NAV_CORNER_PADDING, expanded.end.y + NAV_CORNER_PADDING))
-
-	var distances: Array = []
-	var previous: Array = []
-	var visited: Array = []
-	for _index in range(nodes.size()):
-		distances.append(1.0e20)
-		previous.append(-1)
-		visited.append(false)
-	distances[0] = 0.0
-
-	for _iteration in range(nodes.size()):
-		var current := -1
-		var current_distance := 1.0e20
-		for node_index in range(nodes.size()):
-			if not visited[node_index] and distances[node_index] < current_distance:
-				current = node_index
-				current_distance = distances[node_index]
-		if current == -1:
-			break
-		visited[current] = true
-		if current == 1:
-			break
-		for neighbor in range(nodes.size()):
-			if visited[neighbor] or not _navigation_segment_clear(nodes[current], nodes[neighbor]):
-				continue
-			var candidate_distance: float = distances[current] + nodes[current].distance_to(nodes[neighbor])
-			if candidate_distance < distances[neighbor]:
-				distances[neighbor] = candidate_distance
-				previous[neighbor] = current
-
-	if previous[1] == -1:
-		return [destination]
-	var node_path: Array = []
-	var cursor := 1
-	while cursor != -1:
-		node_path.push_front(cursor)
-		cursor = previous[cursor]
-	var result: Array = []
-	for node_index in node_path:
-		if node_index == 0:
-			continue
-		var point: Vector2 = nodes[node_index]
-		result.append(Vector3(point.x, 0.0, point.y))
-	return result
+	return NavigationServiceScript.build_path(start, destination, navigation_obstacles, NAV_PATH_MARGIN, NAV_CORNER_PADDING)
 
 
 func _navigation_segment_clear(from_point: Vector2, to_point: Vector2) -> bool:
-	for obstacle in navigation_obstacles:
-		var blocked: Rect2 = obstacle.grow(NAV_PATH_MARGIN)
-		if blocked.has_point(from_point) or blocked.has_point(to_point):
-			return false
-		var corners: Array = [
-			blocked.position,
-			Vector2(blocked.end.x, blocked.position.y),
-			blocked.end,
-			Vector2(blocked.position.x, blocked.end.y),
-		]
-		for edge_index in range(corners.size()):
-			var edge_start: Vector2 = corners[edge_index]
-			var edge_end: Vector2 = corners[(edge_index + 1) % corners.size()]
-			if Geometry2D.segment_intersects_segment(from_point, to_point, edge_start, edge_end) != null:
-				return false
-	return true
+	return NavigationServiceScript.segment_clear(from_point, to_point, navigation_obstacles, NAV_PATH_MARGIN)
 
 
 func _update_control_points() -> void:
-	for point_id in control_points.keys():
-		var point: Dictionary = control_points[point_id]
-		var player_count := _count_units_in_radius("player", point["position"], point["radius"])
-		var enemy_count := _count_units_in_radius("enemy", point["position"], point["radius"])
-		if player_count == enemy_count:
-			continue
-		var pressure := 5.0 if player_count > enemy_count else -5.0
-		point["capture_progress"] = clamp(float(point["capture_progress"]) + pressure, -100.0, 100.0)
-		if float(point["capture_progress"]) >= 100.0 and point["owner"] != "player":
-			point["owner"] = "player"
-			_emit_event("TerritoryCaptured", {"point_id": point_id, "team": "player", "message": "%s secured." % point["display_name"]})
-		elif float(point["capture_progress"]) <= -100.0 and point["owner"] != "enemy":
-			point["owner"] = "enemy"
-			_emit_event("TerritoryCaptured", {"point_id": point_id, "team": "enemy", "message": "%s lost." % point["display_name"]})
+	_logistics().update_control_points()
 
 
 func _update_forward_staging_states() -> void:
-	var player_connected_ids := _get_connected_supply_source_ids("player")
-	var enemy_connected_ids := _get_connected_supply_source_ids("enemy")
-	for point_id in control_points:
-		var point: Dictionary = control_points[point_id]
-		var owner: String = str(point.get("owner", "neutral"))
-		var active := bool(point.get("supports_staging", false)) and (owner == "player" or owner == "enemy")
-		if active:
-			var connected_ids: Array = player_connected_ids if owner == "player" else enemy_connected_ids
-			active = connected_ids.has(point_id)
-		var was_active := bool(point.get("staging_active", false))
-		var previous_team := str(point.get("staging_team", "neutral"))
-		point["staging_active"] = active
-		point["staging_team"] = owner if active else "neutral"
-		if active and not was_active:
-			_emit_event("ForwardStagingActivated", {
-				"point_id": point_id,
-				"team": owner,
-				"message": "%s is online as a forward staging site." % point["display_name"],
-			})
-		elif not active and was_active:
-			_emit_event("ForwardStagingDeactivated", {
-				"point_id": point_id,
-				"team": previous_team,
-				"message": "%s forward staging site is offline." % point["display_name"],
-			})
-	_update_staging_rallies()
-
-
-func _update_staging_rallies() -> void:
-	for building_id in buildings:
-		var building: Dictionary = buildings[building_id]
-		if str(building.get("rally_mode", "ground")) != "control_point":
-			continue
-		var point_id := str(building.get("rally_point_id", ""))
-		var active := control_points.has(point_id) and _is_forward_staging_active(str(building["team"]), point_id)
-		var suspended := bool(building.get("rally_suspended", false))
-		if active:
-			building["rally_position"] = control_points[point_id]["position"]
-			if suspended:
-				building["rally_suspended"] = false
-				_emit_event("RallyPointRestored", {
-					"building_id": building_id,
-					"control_point_id": point_id,
-					"team": building["team"],
-					"message": "%s staging rally restored at %s." % [building["display_name"], control_points[point_id]["display_name"]],
-				})
-		elif not suspended:
-			building["rally_suspended"] = true
-			var point_name := str(control_points[point_id].get("display_name", "the staging site")) if control_points.has(point_id) else "the staging site"
-			_emit_event("RallyPointSuspended", {
-				"building_id": building_id,
-				"control_point_id": point_id,
-				"team": building["team"],
-				"message": "%s staging rally suspended — %s is not connected." % [building["display_name"], point_name],
-			})
+	_logistics().update_forward_staging_states()
 
 
 func _is_forward_staging_active(team: String, point_id: String) -> bool:
@@ -1670,40 +1359,11 @@ func _active_rally_position(building: Dictionary, exit_position: Vector3) -> Vec
 	return building.get("rally_position", exit_position)
 
 func _update_economy() -> void:
-	_economy_timer += TICK_SECONDS
-	if _economy_timer < 1.0:
-		return
-	_economy_timer -= 1.0
-	var player_income := _income_for_team("player")
-	var enemy_income := _income_for_team("enemy")
-	player_credits += player_income
-	enemy_credits += enemy_income
-	_emit_event("ResourceChanged", {"team": "player", "amount": player_income, "total": player_credits})
+	_logistics().update_economy()
 
 
 func _update_supply_states() -> void:
-	var player_sources: Array = _get_connected_supply_sources("player")
-	var enemy_sources: Array = _get_connected_supply_sources("enemy")
-	for entity_id in units:
-		var unit: Dictionary = units[entity_id]
-		var sources: Array = player_sources if unit["team"] == "player" else enemy_sources
-		var connected := false
-		for source_position in sources:
-			if unit["position"].distance_to(source_position) <= SUPPLY_EFFECT_RADIUS:
-				connected = true
-				break
-		var next_state := "connected" if connected else "unsupplied"
-		var previous_state: String = unit.get("supply_state", "connected")
-		unit["supply_state"] = next_state
-		unit["supply_speed_multiplier"] = 1.0 if connected else UNSUPPLIED_SPEED_MULTIPLIER
-		unit["supply_damage_multiplier"] = 1.0 if connected else UNSUPPLIED_DAMAGE_MULTIPLIER
-		if previous_state != next_state:
-			_emit_event("SupplyStateChanged", {
-				"unit_id": entity_id,
-				"team": unit["team"],
-				"state": next_state,
-				"message": "%s %s." % [unit["display_name"], "resupplied" if connected else "is UNSUPPLIED"],
-			})
+	_logistics().update_supply_states()
 
 
 func _get_connected_supply_source_ids(team: String) -> Array:
@@ -1760,178 +1420,16 @@ func _income_for_team(team: String) -> float:
 	return income
 
 
+func _logistics():
+	if _logistics_system == null:
+		_logistics_system = LogisticsSystemScript.new(self)
+	return _logistics_system
+
+
 func _update_ai() -> void:
-	_ai_timer += TICK_SECONDS
-	if _ai_timer < 2.0:
-		return
-	_ai_timer = 0.0
-	if match_over:
-		return
-	_ai_manage_repairs()
-	_ai_manage_collectors()
-	_ai_manage_research()
-	_ai_manage_technology_construction()
-	_ai_manage_relay()
-	_ai_manage_staging()
-	_ai_manage_production()
-	_ai_manage_combat()
-
-
-
-func _ai_manage_repairs() -> void:
-	var repair_ids: Array = []
-	for entity_id in units:
-		var unit: Dictionary = units[entity_id]
-		if unit["team"] != "enemy" or float(unit["health"]) >= float(unit["max_health"]):
-			continue
-		if _is_repair_station_nearby("enemy", unit["position"]):
-			repair_ids.append(entity_id)
-		elif unit["kind"] != "collector" and float(unit["health"]) <= float(unit["max_health"]) * 0.45 and str(unit.get("attack_target", "")).is_empty():
-			var home_id := _first_building_for_team("enemy", "command_hub")
-			if not home_id.is_empty():
-				issue_command("move", "enemy", {"entity_ids": [entity_id], "position": buildings[home_id]["position"]})
-	if not repair_ids.is_empty() and enemy_credits >= REPAIR_UNIT_COST:
-		issue_command("repair", "enemy", {"entity_ids": repair_ids})
-
-	for building_id in buildings:
-		var building: Dictionary = buildings[building_id]
-		if building["team"] == "enemy" and building["complete"] and float(building["health"]) < float(building["max_health"]) and enemy_credits >= REPAIR_BUILDING_COST:
-			issue_command("repair", "enemy", {"entity_ids": [building_id]})
-			break
-
-func _ai_manage_collectors() -> void:
-	var refinery_id := _first_building_for_team("enemy", "refinery")
-	var ai_config: Dictionary = level_definition.get("ai", {})
-	var collector_source_id := str(ai_config.get("collector_source_id", "south_field"))
-	if refinery_id.is_empty():
-		return
-	var collector_count := 0
-	for entity_id in units:
-		var unit: Dictionary = units[entity_id]
-		if unit["team"] != "enemy" or unit["kind"] != "collector":
-			continue
-		collector_count += 1
-		if str(unit.get("collector_state", "")) == "unassigned" and float(unit.get("collector_cargo", 0.0)) <= 0.0:
-			issue_command("assign_collector", "enemy", {"collector_id": entity_id, "source_id": collector_source_id, "destination_id": refinery_id})
-	if collector_count == 0 and enemy_credits >= unit_definitions["collector"].cost and not _production_queue_contains(refinery_id, "collector"):
-		issue_command("produce", "enemy", {"building_id": refinery_id, "unit_type": "collector"})
-
-
-func _ai_manage_technology_construction() -> void:
-	if not is_level_allowed("allowed_buildings", "tech_centre") or not _first_building_for_team("enemy", "tech_centre").is_empty():
-		return
-	var hub_id := _first_building_for_team("enemy", "command_hub")
-	if hub_id.is_empty() or enemy_credits < building_definitions["tech_centre"].cost:
-		return
-	var hub_position: Vector3 = buildings[hub_id]["position"]
-	issue_command("build", "enemy", {"building_type": "tech_centre", "position": hub_position + Vector3(6.0, 0.0, 3.0), "source_building_id": hub_id})
-
-
-func _ai_manage_research() -> void:
-	if is_technology_unlocked("enemy", "advanced_targeting"):
-		return
-	var tech_centre_id := _first_building_for_team("enemy", "tech_centre")
-	if tech_centre_id.is_empty():
-		return
-	var research_status := get_research_status("enemy")
-	if not str(research_status.get("active_id", "")).is_empty():
-		return
-	var technology = technology_definitions["advanced_targeting"]
-	if enemy_credits >= technology.cost:
-		issue_command("research", "enemy", {"building_id": tech_centre_id, "technology_id": "advanced_targeting"})
-
-
-
-func _ai_manage_relay() -> void:
-	for building_id in buildings:
-		var existing: Dictionary = buildings[building_id]
-		if existing["team"] == "enemy" and existing["kind"] == "relay":
-			return
-	if enemy_credits < building_definitions["relay"].cost:
-		return
-	var ai_config: Dictionary = level_definition.get("ai", {})
-	var relay_position := _level_vector3(ai_config.get("relay_position", Vector3(17.0, 0.0, -5.0)))
-	issue_command("build", "enemy", {"building_type": "relay", "position": relay_position})
-
-
-func _ai_manage_staging() -> void:
-	var ai_config: Dictionary = level_definition.get("ai", {})
-	var point_id := str(ai_config.get("staging_point_id", "east_crossing"))
-	if not control_points.has(point_id):
-		return
-	var assembly_id := _first_building_for_team("enemy", "assembly_bay")
-	if assembly_id.is_empty():
-		return
-	if not _is_forward_staging_active("enemy", point_id):
-		var capture_group: Array = []
-		var player_hq_id := _first_building_for_team("player", "command_hub")
-		var player_hq_position: Vector3 = buildings[player_hq_id]["position"] if not player_hq_id.is_empty() else Vector3.INF
-		for entity_id in units:
-			var unit: Dictionary = units[entity_id]
-			if unit["team"] == "enemy" and unit["kind"] != "collector" and unit["position"].distance_to(player_hq_position) > 20.0 and (unit["order"] == "idle" or unit["order"] == "move" or unit["order"] == "attack_move"):
-				capture_group.append(entity_id)
-		if not capture_group.is_empty():
-			issue_command("move", "enemy", {"entity_ids": capture_group, "position": control_points[point_id]["position"]})
-		return
-	var assembly: Dictionary = buildings[assembly_id]
-	if str(assembly.get("rally_mode", "ground")) != "control_point" or str(assembly.get("rally_point_id", "")) != point_id or bool(assembly.get("rally_suspended", false)):
-		issue_command("set_rally_point", "enemy", {"building_id": assembly_id, "control_point_id": point_id})
-
-
-func _ai_manage_production() -> void:
-	var assembly_id := _first_building_for_team("enemy", "assembly_bay")
-	if assembly_id.is_empty() or not buildings.has(assembly_id):
-		return
-	var assembly: Dictionary = buildings[assembly_id]
-	var queue: Array = assembly.get("queue", [])
-	if queue.size() >= 2:
-		return
-	var unit_type := "bulwark" if is_technology_unlocked("enemy", "advanced_targeting") else "raider"
-	if enemy_credits >= unit_definitions[unit_type].cost:
-		issue_command("produce", "enemy", {"building_id": assembly_id, "unit_type": unit_type})
-
-
-func _ai_manage_combat() -> void:
-	var player_hq := _first_building_for_team("player", "command_hub")
-	var enemy_hq := _first_building_for_team("enemy", "command_hub")
-	if player_hq.is_empty() or enemy_hq.is_empty() or current_tick % 60 != 0:
-		return
-	var ai_config: Dictionary = level_definition.get("ai", {})
-	var opening_attack_delay: int = int(ai_config.get("opening_attack_delay_ticks", 0))
-	if current_tick < opening_attack_delay:
-		return
-	var staging_point_id := str(ai_config.get("staging_point_id", "east_crossing"))
-	var immediate_hq_threat := false
-	var player_hq_position: Vector3 = buildings[player_hq]["position"]
-	for entity_id in units:
-		var candidate: Dictionary = units[entity_id]
-		if candidate["team"] == "enemy" and candidate["kind"] != "collector" and candidate["position"].distance_to(player_hq_position) <= 20.0:
-			immediate_hq_threat = true
-			break
-	if control_points.has(staging_point_id) and not _is_forward_staging_active("enemy", staging_point_id) and not immediate_hq_threat:
-		return
-	var attack_group: Array = []
-	for entity_id in units:
-		var unit: Dictionary = units[entity_id]
-		if unit["team"] == "enemy" and unit["kind"] != "collector" and (unit["order"] == "idle" or unit["order"] == "move" or unit["order"] == "attack_move"):
-			attack_group.append(entity_id)
-	if attack_group.size() < 2:
-		return
-	var target_id := player_hq
-	var enemy_hq_position: Vector3 = buildings[enemy_hq]["position"]
-	var closest_threat := ""
-	var closest_distance := 18.0
-	for entity_id in units:
-		var unit: Dictionary = units[entity_id]
-		if unit["team"] != "player":
-			continue
-		var distance: float = unit["position"].distance_to(enemy_hq_position)
-		if distance < closest_distance:
-			closest_distance = distance
-			closest_threat = entity_id
-	if not closest_threat.is_empty():
-		target_id = closest_threat
-	issue_command("attack", "enemy", {"entity_ids": attack_group, "target_id": target_id})
+	if _ai_controller == null:
+		_ai_controller = AiControllerScript.new(self)
+	_ai_controller.update()
 
 
 func _production_queue_contains(building_id: String, unit_type: String) -> bool:
