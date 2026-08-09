@@ -6,7 +6,7 @@ const SimulationScript = preload("res://src/rts_simulation.gd")
 func _initialize() -> void:
 	var simulation = SimulationScript.new()
 	root.add_child(simulation)
-	simulation.start_match()
+	simulation.start_match("relay_crossroads")
 
 	var failures: Array[String] = []
 	if simulation.units.size() < 6:
@@ -25,7 +25,7 @@ func _initialize() -> void:
 		failures.append("move command should advance a unit")
 
 	var credits_before_build: float = simulation.player_credits
-	simulation.issue_command("build", "player", {"building_type": "relay", "position": Vector3(-18.0, 0.0, 12.0)})
+	simulation.issue_command("build", "player", {"building_type": "relay", "position": Vector3(-30.0, 0.0, 18.0)})
 	_run_ticks(simulation, 2)
 	var relay_id := _find_entity(simulation.buildings, "relay", "player")
 	if relay_id.is_empty():
@@ -38,7 +38,7 @@ func _initialize() -> void:
 
 	var assembly_id := _find_entity(simulation.buildings, "assembly_bay", "player")
 	var unit_count_before_production: int = simulation.units.size()
-	simulation.issue_command("produce", "player", {"building_id": assembly_id, "unit_type": "raider"})
+	simulation.issue_command("produce", "player", {"building_id": assembly_id, "unit_type": "ranger"})
 	_run_ticks(simulation, 45)
 	if simulation.units.size() <= unit_count_before_production:
 		failures.append("production queue should spawn a unit")

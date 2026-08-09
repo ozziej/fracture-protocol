@@ -92,13 +92,52 @@ func _build_visuals() -> void:
 	add_child(body_mesh)
 
 	if kind == "raider" or kind == "bulwark":
-		var nose := BoxMesh.new()
-		nose.size = Vector3(0.9, 0.22, 1.55 if kind == "bulwark" else 1.2)
-		var nose_mesh := MeshInstance3D.new()
-		nose_mesh.mesh = nose
-		nose_mesh.material_override = _material(palette.lightened(0.12))
-		nose_mesh.position = Vector3(0.0, definition_height * 0.78, -0.15)
-		add_child(nose_mesh)
+		var chassis := BoxMesh.new()
+		chassis.size = Vector3(1.05, 0.24, 1.6 if kind == "bulwark" else 1.2)
+		var chassis_mesh := MeshInstance3D.new()
+		chassis_mesh.mesh = chassis
+		chassis_mesh.material_override = _material(palette.lightened(0.12))
+		chassis_mesh.position = Vector3(0.0, definition_height * 0.78, -0.15)
+		add_child(chassis_mesh)
+		if kind == "bulwark":
+			for side in [-0.58, 0.58]:
+				var track := BoxMesh.new()
+				track.size = Vector3(0.32, 0.28, 1.65)
+				var track_mesh := MeshInstance3D.new()
+				track_mesh.mesh = track
+				track_mesh.material_override = _material(Color("#314453"))
+				track_mesh.position = Vector3(side, 0.24, 0.0)
+				add_child(track_mesh)
+			var pod := BoxMesh.new()
+			pod.size = Vector3(0.82, 0.34, 0.68)
+			var pod_mesh := MeshInstance3D.new()
+			pod_mesh.mesh = pod
+			pod_mesh.material_override = _material(Color("#ff9f43"))
+			pod_mesh.position = Vector3(0.0, definition_height + 0.16, 0.12)
+			add_child(pod_mesh)
+	elif kind == "warden":
+		var armour_plate := BoxMesh.new()
+		armour_plate.size = Vector3(1.35, 0.26, 1.0)
+		var armour_mesh := MeshInstance3D.new()
+		armour_mesh.mesh = armour_plate
+		armour_mesh.material_override = _material(palette.lightened(0.08))
+		armour_mesh.position = Vector3(0.0, definition_height * 0.88, 0.0)
+		add_child(armour_mesh)
+		var cannon := BoxMesh.new()
+		cannon.size = Vector3(0.2, 0.2, 1.25)
+		var cannon_mesh := MeshInstance3D.new()
+		cannon_mesh.mesh = cannon
+		cannon_mesh.material_override = _material(Color("#d9fbff"))
+		cannon_mesh.position = Vector3(0.0, definition_height * 1.05, -0.52)
+		add_child(cannon_mesh)
+	elif kind == "ranger":
+		var rifle := BoxMesh.new()
+		rifle.size = Vector3(0.16, 0.16, 1.15)
+		var rifle_mesh := MeshInstance3D.new()
+		rifle_mesh.mesh = rifle
+		rifle_mesh.material_override = _material(Color("#d9fbff"))
+		rifle_mesh.position = Vector3(0.22, definition_height * 0.8, -0.42)
+		add_child(rifle_mesh)
 	elif kind == "collector":
 		var cargo_mesh := BoxMesh.new()
 		cargo_mesh.size = Vector3(0.85, 0.38, 0.72)

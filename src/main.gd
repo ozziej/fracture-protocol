@@ -4,11 +4,13 @@ const SimulationScript = preload("res://src/rts_simulation.gd")
 const UnitViewScript = preload("res://src/rts_unit_view.gd")
 const BuildingViewScript = preload("res://src/rts_building_view.gd")
 const MinimapScript = preload("res://src/minimap.gd")
+const CampaignProgressScript = preload("res://src/campaign_progress.gd")
 
-const MAP_HALF_WIDTH := 60.0
-const MAP_HALF_DEPTH := 40.0
+const MAP_HALF_WIDTH := 80.0
+const MAP_HALF_DEPTH := 55.0
 
 var simulation
+var campaign_progress
 var camera: Camera3D
 var camera_target := Vector3.ZERO
 var camera_distance := 31.0
@@ -50,16 +52,27 @@ var research_button: Button
 var repair_button: Button
 var collector_button: Button
 var minimap
+var mission_one_button: Button
+var mission_two_button: Button
 var combat_effect_sequence := 0
+var objective_target_point_id := ""
+var build_source_id := ""
+var context_actions: Array = []
+var queue_panel: PanelContainer
+var queue_title_label: Label
+var queue_buttons: Array[Button] = []
+var queue_building_id := ""
 
 
 func _ready() -> void:
 	_build_environment()
 	_build_camera()
+	campaign_progress = CampaignProgressScript.new()
 	simulation = SimulationScript.new()
 	add_child(simulation)
 	simulation.simulation_event.connect(_on_simulation_event)
 	simulation.start_match()
+	camera_target = _starting_camera_target()
 	_build_world_shell()
 	_build_ui()
 	_sync_views()
@@ -129,6 +142,10 @@ func _unhandled_input(event: InputEvent) -> void:
 				_begin_collector_assignment()
 			KEY_N:
 				_restart_match()
+			KEY_F1:
+				_load_campaign_level("relay_divide")
+			KEY_F2:
+				_load_campaign_level("relay_crossroads")
 			KEY_V:
 				_queue_bulwark()
 			KEY_T:
@@ -329,19 +346,40 @@ func _build_ui() -> void:
 	force_label = _label("FORCE 4/24", 17, Color("#c3d8df"))
 	top_row.add_child(force_label)
 
-	objective_label = _label("OBJECTIVE: Protect the Collector route, then research Advanced Targeting.", 15, Color("#ffd36a"))
+	objective_label = _label("OBJECTIVE", 15, Color("#ffd36a"))
 	objective_label.position = Vector2(22.0, 98.0)
 	objective_label.size = Vector2(1210.0, 25.0)
 	root.add_child(objective_label)
 
-	status_label = _label("Skirmish online. Secure the relay network.", 16, Color("#c3d8df"))
+	status_label = _label("Awaiting orders.", 16, Color("#c3d8df"))
 	status_label.position = Vector2(22.0, 123.0)
 	status_label.size = Vector2(980.0, 26.0)
 	root.add_child(status_label)
 
-	var help := _label("WASD pan   H focus   F attack-move   X stop   Ctrl/Cmd+1-9 assign   1-9 recall   C collector   U route   Q raider   V bulwark   T research   Y repair   B relay   N restart   Right-click order   Right-click a selected Assembly Bay on an active friendly staging site to set its named rally.   Credits fund production/research/repair; unsupplied units are slower and weaker.", 12, Color("#8ca9b5"))
+	var help := _label("WASD pan · H focus · F attack-move · Q Ranger · C Collector · T Targeting · Y repair · Right-click order", 12, Color("#8ca9b5"))
+	help.name = "ControlsHelp"
 	help.position = Vector2(22.0, 149.0)
 	help.size = Vector2(1230.0, 24.0)
+	var mission_panel := PanelContainer.new()
+	mission_panel.position = Vector2(18.0, 178.0)
+	mission_panel.size = Vector2(270.0, 108.0)
+	mission_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.025, 0.075, 0.1, 0.9), Color(0.18, 0.7, 0.78, 0.55)))
+	root.add_child(mission_panel)
+	var mission_list := VBoxContainer.new()
+	mission_list.add_theme_constant_override("separation", 4)
+	mission_panel.add_child(mission_list)
+	var mission_title := _label("CAMPAIGN DEPLOYMENT", 12, Color("#8cebf3"))
+	mission_list.add_child(mission_title)
+	mission_one_button = Button.new()
+	mission_one_button.text = "LEVEL 1 — RELAY DIVIDE [F1]"
+	mission_one_button.pressed.connect(_load_campaign_level.bind("relay_divide"))
+	mission_list.add_child(mission_one_button)
+	mission_two_button = Button.new()
+	mission_two_button.text = "LEVEL 2 — RELAY CROSSROADS [F2]"
+	mission_two_button.tooltip_text = "Complete Relay Divide to unlock this mission."
+	mission_two_button.pressed.connect(_load_campaign_level.bind("relay_crossroads"))
+	mission_list.add_child(mission_two_button)
+
 	root.add_child(help)
 
 	event_log_label = _label("EVENT LOG\nAwaiting orders...", 14, Color("#abc5cb"))
@@ -374,48 +412,79 @@ func _build_ui() -> void:
 	build_button.text = "DEPLOY RELAY [B]"
 	build_button.custom_minimum_size = Vector2(135.0, 48.0)
 	build_button.tooltip_text = "Place a Forward Relay near a connected friendly structure. Cost: 180 credits."
-	build_button.pressed.connect(_toggle_build_mode)
+	build_button.pressed.connect(_run_context_action.bind(0))
 	bottom_row.add_child(build_button)
 
 	queue_button = Button.new()
 	queue_button.text = "QUEUE RAIDER [Q]"
 	queue_button.custom_minimum_size = Vector2(135.0, 48.0)
 	queue_button.tooltip_text = "Queue a fast attack vehicle at the Assembly Bay. Cost: 105 credits."
-	queue_button.pressed.connect(_queue_strider)
+	queue_button.pressed.connect(_run_context_action.bind(1))
 	bottom_row.add_child(queue_button)
 
 	heavy_queue_button = Button.new()
 	heavy_queue_button.text = "QUEUE BULWARK [V]"
 	heavy_queue_button.custom_minimum_size = Vector2(145.0, 48.0)
 	heavy_queue_button.tooltip_text = "Queue a heavy assault vehicle after Advanced Targeting research. Cost: 160 credits."
-	heavy_queue_button.pressed.connect(_queue_bulwark)
+	heavy_queue_button.pressed.connect(_run_context_action.bind(2))
 	bottom_row.add_child(heavy_queue_button)
 
 	research_button = Button.new()
 	research_button.text = "RESEARCH TARGETING [T]"
 	research_button.custom_minimum_size = Vector2(160.0, 48.0)
 	research_button.tooltip_text = "Research Advanced Targeting at the Assembly Bay. Cost: 300 credits."
-	research_button.pressed.connect(_research_advanced_targeting)
+	research_button.pressed.connect(_run_context_action.bind(3))
 	bottom_row.add_child(research_button)
 
 	repair_button = Button.new()
 	repair_button.text = "REPAIR [Y]"
 	repair_button.custom_minimum_size = Vector2(100.0, 48.0)
 	repair_button.tooltip_text = "Repair selected units near a repair station or selected structures. Cost: 30/45 credits."
-	repair_button.pressed.connect(_repair_selected)
+	repair_button.pressed.connect(_run_context_action.bind(4))
 	bottom_row.add_child(repair_button)
 
 	collector_button = Button.new()
 	collector_button.text = "QUEUE COLLECTOR [C]"
 	collector_button.custom_minimum_size = Vector2(135.0, 48.0)
 	collector_button.tooltip_text = "Queue a Collector at the Assembly Bay. Select one and press U to assign its source and Resource Processor. Cost: 115 credits."
-	collector_button.pressed.connect(_collector_action)
+	collector_button.pressed.connect(_run_context_action.bind(5))
 	bottom_row.add_child(collector_button)
+
+	queue_panel = PanelContainer.new()
+	queue_panel.name = "ProductionQueuePanel"
+	queue_panel.position = Vector2(420.0, 498.0)
+	queue_panel.size = Vector2(600.0, 108.0)
+	queue_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.025, 0.075, 0.1, 0.96), Color(0.96, 0.68, 0.28, 0.72)))
+	var queue_margin := MarginContainer.new()
+	queue_margin.add_theme_constant_override("margin_left", 10)
+	queue_margin.add_theme_constant_override("margin_right", 10)
+	queue_margin.add_theme_constant_override("margin_top", 7)
+	queue_margin.add_theme_constant_override("margin_bottom", 7)
+	queue_panel.add_child(queue_margin)
+	var queue_column := VBoxContainer.new()
+	queue_column.add_theme_constant_override("separation", 4)
+	queue_margin.add_child(queue_column)
+	queue_title_label = _label("PRODUCTION QUEUE — click a job to cancel and refund", 11, Color("#ffd36a"))
+	queue_column.add_child(queue_title_label)
+	var queue_row := HBoxContainer.new()
+	queue_row.add_theme_constant_override("separation", 5)
+	queue_column.add_child(queue_row)
+	for queue_index in range(5):
+		var queue_button := Button.new()
+		queue_button.custom_minimum_size = Vector2(108.0, 55.0)
+		queue_button.visible = false
+		queue_button.pressed.connect(_cancel_queue_slot.bind(queue_index))
+		queue_row.add_child(queue_button)
+		queue_buttons.append(queue_button)
+	root.add_child(queue_panel)
+	queue_panel.visible = false
 
 	minimap = MinimapScript.new()
 	minimap.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	minimap.position = Vector2(1020.0, 500.0)
+	minimap.position = Vector2(-260.0, -220.0)
 	minimap.size = Vector2(242.0, 106.0)
+	var bounds: Vector2 = simulation.get_level_bounds()
+	minimap.map_bounds = Rect2(-bounds.x, -bounds.y, bounds.x * 2.0, bounds.y * 2.0)
 	root.add_child(minimap)
 
 	selection_marquee = ColorRect.new()
@@ -432,7 +501,9 @@ func _finish_left_click() -> void:
 	if build_mode != "":
 		var build_position := _screen_to_ground(pointer_position)
 		if _is_inside_map(build_position):
-			simulation.issue_command("build", "player", {"building_type": build_mode, "position": build_position})
+			simulation.issue_command("build", "player", {"building_type": build_mode, "position": build_position, "source_building_id": build_source_id})
+		else:
+			status_label.text = "Placement is outside the map. Move the preview onto the battlefield."
 		_cancel_build_mode()
 		return
 	var drag_rect := Rect2(drag_start, drag_current - drag_start).abs()
@@ -457,6 +528,20 @@ func _issue_context_order(screen_position: Vector2) -> void:
 	if selected_ids.is_empty():
 		return
 	var clicked_id := _entity_at_screen(screen_position, false)
+	var resource_id := _resource_node_at_screen(screen_position)
+	var collector_ids: Array = []
+	for entity_id in selected_ids:
+		if simulation.units.has(entity_id) and simulation.units[entity_id]["team"] == "player" and simulation.units[entity_id]["kind"] == "collector":
+			collector_ids.append(entity_id)
+	if not resource_id.is_empty() and not collector_ids.is_empty() and collector_ids.size() == selected_ids.size():
+		var destination_id := _nearest_friendly_refinery(resource_id)
+		if destination_id.is_empty():
+			status_label.text = "Build a completed Resource Processor before assigning Collectors."
+			return
+		for collector_id in collector_ids:
+			simulation.issue_command("assign_collector", "player", {"collector_id": collector_id, "source_id": resource_id, "destination_id": destination_id})
+		status_label.text = "Collector route queued to %s." % simulation.resource_nodes[resource_id]["display_name"]
+		return
 	var clicked_enemy: bool = not clicked_id.is_empty() and ((simulation.units.has(clicked_id) and simulation.units[clicked_id]["team"] == "enemy") or (simulation.buildings.has(clicked_id) and simulation.buildings[clicked_id]["team"] == "enemy"))
 	if clicked_enemy:
 		simulation.issue_command("attack", "player", {"entity_ids": selected_ids, "target_id": clicked_id})
@@ -602,24 +687,46 @@ func _toggle_build_mode() -> void:
 
 func _cancel_build_mode() -> void:
 	build_mode = ""
+	build_source_id = ""
 	if build_ghost:
 		build_ghost.queue_free()
 		build_ghost = null
 	if status_label and simulation and not simulation.match_over:
 		status_label.text = "Skirmish online. Secure the relay network."
-
-
 func _create_build_ghost() -> void:
 	if build_ghost:
 		build_ghost.queue_free()
 	build_ghost = Node3D.new()
+	build_ghost.name = "BuildPlacementPreview"
+	var footprint := Vector3(2.5, 2.2, 2.5)
+	if build_mode == "assembly_bay":
+		footprint = Vector3(3.5, 2.0, 3.5)
+	elif build_mode == "tech_centre":
+		footprint = Vector3(3.2, 2.4, 3.2)
+	elif build_mode == "refinery":
+		footprint = Vector3(3.5, 1.8, 3.5)
+	elif build_mode == "storage_silo":
+		footprint = Vector3(2.4, 2.8, 2.4)
 	var mesh := MeshInstance3D.new()
 	var box := BoxMesh.new()
-	box.size = Vector3(2.5, 2.2, 2.5)
+	box.size = footprint
 	mesh.mesh = box
-	mesh.position.y = 1.1
-	mesh.material_override = _material(Color(0.18, 0.86, 0.88, 0.35), 0.65, 0.1)
+	mesh.position.y = footprint.y * 0.5
+	mesh.material_override = _material(Color(0.18, 0.86, 0.88, 0.55), 0.65, 0.1)
 	build_ghost.add_child(mesh)
+	var label := Label3D.new()
+	label.text = "PLACE %s\nLEFT-CLICK TO BUILD" % build_mode.replace("_", " ").to_upper()
+	label.position.y = footprint.y + 1.1
+	label.font_size = 24
+	label.modulate = Color("#d9fbff")
+	label.outline_size = 7
+	label.outline_modulate = Color(0.01, 0.02, 0.04, 0.9)
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.no_depth_test = true
+	build_ghost.add_child(label)
+	if not build_source_id.is_empty() and simulation.buildings.has(build_source_id):
+		var source_position: Vector3 = simulation.buildings[build_source_id]["position"]
+		build_ghost.position = source_position + Vector3(6.0, 0.0, 0.0)
 	add_child(build_ghost)
 
 
@@ -671,12 +778,11 @@ func _selected_collector_id() -> String:
 
 
 func _queue_collector() -> void:
-	var assembly_id := _find_player_assembly_bay()
-	if assembly_id.is_empty():
-		status_label.text = "No Assembly Bay available for Collector production."
+	var refinery_id := _find_player_building("refinery")
+	if refinery_id.is_empty():
+		status_label.text = "Build a Resource Processor before queuing a Collector."
 		return
-	simulation.issue_command("produce", "player", {"building_id": assembly_id, "unit_type": "collector"})
-
+	simulation.issue_command("produce", "player", {"building_id": refinery_id, "unit_type": "collector"})
 
 func _begin_collector_assignment() -> void:
 	var collector_id := _selected_collector_id()
@@ -713,6 +819,21 @@ func _handle_collector_assignment_click() -> void:
 		"destination_id": destination_id,
 	})
 	_cancel_collector_assignment(false)
+
+func _nearest_friendly_refinery(resource_id: String) -> String:
+	if not simulation.resource_nodes.has(resource_id):
+		return ""
+	var source_position: Vector3 = simulation.resource_nodes[resource_id]["position"]
+	var closest_id: String = ""
+	var closest_distance: float = INF
+	for building_id in simulation.buildings:
+		var building: Dictionary = simulation.buildings[building_id]
+		if building["team"] == "player" and building["kind"] == "refinery" and building["complete"]:
+			var distance: float = (building["position"] as Vector3).distance_to(source_position)
+			if distance < closest_distance:
+				closest_distance = distance
+				closest_id = building_id
+	return closest_id
 
 
 func _resource_node_at_screen(screen_position: Vector2) -> String:
@@ -763,15 +884,48 @@ func _cancel_collector_assignment(show_status := true) -> void:
 	collector_assignment_unit_id = ""
 	if show_status and was_active and status_label and simulation and not simulation.match_over:
 		status_label.text = "Collector route assignment cancelled."
+func _begin_build_from_selection(building_type: String) -> void:
+	if selected_ids.size() != 1 or not simulation.buildings.has(selected_ids[0]):
+		status_label.text = "Select the construction source first."
+		return
+	var source_id := str(selected_ids[0])
+	var source: Dictionary = simulation.buildings[source_id]
+	if source["team"] != "player" or not source["complete"]:
+		status_label.text = "Select a completed friendly construction source."
+		return
+	build_source_id = source_id
+	build_mode = building_type
+	attack_move_mode = false
+	_create_build_ghost()
+	var display_name := building_type.replace("_", " ").to_upper()
+	status_label.text = "PLACE %s — move the preview near your base, then LEFT-CLICK. RIGHT-CLICK cancels." % display_name
+	status_label.text = "BUILD %s — click a valid placement." % building_type.replace("_", " ").to_upper()
+
+
+func _run_context_action(slot: int) -> void:
+	if slot < 0 or slot >= context_actions.size():
+		return
+	var action := str(context_actions[slot])
+	if action.begins_with("build:"):
+		_begin_build_from_selection(action.trim_prefix("build:"))
+	elif action.begins_with("produce:") and selected_ids.size() == 1:
+		simulation.issue_command("produce", "player", {"building_id": selected_ids[0], "unit_type": action.trim_prefix("produce:")})
+	elif action == "research" and selected_ids.size() == 1:
+		simulation.issue_command("research", "player", {"building_id": selected_ids[0], "technology_id": "advanced_targeting"})
+	elif action == "upgrade" and selected_ids.size() == 1:
+		simulation.issue_command("upgrade", "player", {"building_id": selected_ids[0]})
+	elif action == "collector_route":
+		_begin_collector_assignment()
+	elif action == "repair":
+		_repair_selected()
 
 
 func _queue_strider() -> void:
 	var assembly_id := _find_player_assembly_bay()
 	if assembly_id.is_empty():
-		status_label.text = "No Assembly Bay available."
+		status_label.text = "Build an Assembly Bay before queuing Rangers."
 		return
-	simulation.issue_command("produce", "player", {"building_id": assembly_id, "unit_type": "raider"})
-
+	simulation.issue_command("produce", "player", {"building_id": assembly_id, "unit_type": "ranger"})
 
 func _queue_bulwark() -> void:
 	var assembly_id := _find_player_assembly_bay()
@@ -782,13 +936,11 @@ func _queue_bulwark() -> void:
 
 
 func _research_advanced_targeting() -> void:
-	var assembly_id := _find_player_assembly_bay()
-	if assembly_id.is_empty():
-		status_label.text = "No Assembly Bay available for research."
+	var tech_centre_id := _find_player_building("tech_centre")
+	if tech_centre_id.is_empty():
+		status_label.text = "Build a Tech Centre before researching Advanced Targeting."
 		return
-	simulation.issue_command("research", "player", {"building_id": assembly_id, "technology_id": "advanced_targeting"})
-
-
+	simulation.issue_command("research", "player", {"building_id": tech_centre_id, "technology_id": "advanced_targeting"})
 func _repair_selected() -> void:
 	if selected_ids.is_empty():
 		status_label.text = "Select a damaged unit or structure before repairing."
@@ -919,6 +1071,26 @@ func _create_control_view(point: Dictionary) -> Node3D:
 	staging_light.omni_range = 8.0
 	staging_light.visible = false
 	root.add_child(staging_light)
+	var objective_beam := MeshInstance3D.new()
+	objective_beam.name = "ObjectiveBeam"
+	var objective_beam_mesh := BoxMesh.new()
+	objective_beam_mesh.size = Vector3(0.15, 5.5, 0.15)
+	objective_beam.mesh = objective_beam_mesh
+	objective_beam.position.y = 2.8
+	objective_beam.material_override = _emissive_material(Color("#ffd36a"), 2.4)
+	objective_beam.visible = false
+	root.add_child(objective_beam)
+	var objective_marker := Label3D.new()
+	objective_marker.name = "ObjectiveMarker"
+	objective_marker.text = "OBJECTIVE"
+	objective_marker.position.y = 6.0
+	objective_marker.font_size = 26
+	objective_marker.outline_size = 7
+	objective_marker.modulate = Color("#ffd36a")
+	objective_marker.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	objective_marker.no_depth_test = true
+	objective_marker.visible = false
+	root.add_child(objective_marker)
 
 	if point["id"] == "central_relay":
 		var halo := MeshInstance3D.new()
@@ -983,6 +1155,13 @@ func _update_control_view(view: Node3D, point: Dictionary) -> void:
 	if staging_light:
 		staging_light.visible = staging_active
 		staging_light.light_color = color.lightened(0.15)
+	var objective_beam := view.get_node_or_null("ObjectiveBeam") as MeshInstance3D
+	var objective_marker := view.get_node_or_null("ObjectiveMarker") as Label3D
+	var is_objective := str(point["id"]) == objective_target_point_id
+	if objective_beam:
+		objective_beam.visible = is_objective
+	if objective_marker:
+		objective_marker.visible = is_objective
 	var core := view.get_node_or_null("RelayCore") as MeshInstance3D
 	var halo := view.get_node_or_null("RelayHalo") as MeshInstance3D
 	if core:
@@ -1016,6 +1195,7 @@ func _create_resource_view(resource: Dictionary) -> Node3D:
 		crystal_mesh.top_radius = 0.2
 		crystal_mesh.bottom_radius = 0.42
 		crystal_mesh.height = 0.8 + float(index % 3) * 0.35
+
 		crystal_mesh.radial_segments = 6
 		crystal.mesh = crystal_mesh
 		crystal.position = Vector3(-1.25 + float(index % 3) * 1.25, crystal_mesh.height * 0.5, -0.7 + float(index / 3) * 1.0)
@@ -1051,7 +1231,6 @@ func _restart_match() -> void:
 	control_groups.clear()
 	event_log_label.text = "EVENT LOG\nAwaiting orders..."
 	status_label.modulate = Color("#c3d8df")
-	camera_target = Vector3.ZERO
 	camera_yaw = 0.0
 	for view in unit_views.values():
 		if is_instance_valid(view):
@@ -1070,9 +1249,49 @@ func _restart_match() -> void:
 	control_views.clear()
 	resource_views.clear()
 	simulation.restart_match()
+	camera_target = _starting_camera_target()
 	_update_selected_visuals()
 	_sync_views()
 	_update_hud()
+
+
+func _load_campaign_level(level_id: String) -> void:
+	if campaign_progress and not campaign_progress.is_unlocked(level_id):
+		status_label.text = "Complete Level 1 to unlock Level 2."
+		return
+	_cancel_build_mode()
+	_cancel_collector_assignment(false)
+	attack_move_mode = false
+	selected_ids.clear()
+	control_groups.clear()
+	for view in unit_views.values():
+		if is_instance_valid(view):
+			view.queue_free()
+	for view in building_views.values():
+		if is_instance_valid(view):
+			view.queue_free()
+	for view in control_views.values():
+		if is_instance_valid(view):
+			view.queue_free()
+	for view in resource_views.values():
+		if is_instance_valid(view):
+			view.queue_free()
+	unit_views.clear()
+	building_views.clear()
+	control_views.clear()
+	resource_views.clear()
+	simulation.start_match(level_id)
+	camera_target = _starting_camera_target()
+	_update_selected_visuals()
+	_sync_views()
+	_update_hud()
+
+func _find_player_building(kind: String) -> String:
+	for building_id in simulation.buildings:
+		var building: Dictionary = simulation.buildings[building_id]
+		if building["team"] == "player" and building["kind"] == kind:
+			return building_id
+	return ""
 
 
 func _find_player_collector() -> String:
@@ -1098,38 +1317,71 @@ func _has_player_staging_rally(point_id: String) -> bool:
 	return false
 
 
+func _starting_camera_target() -> Vector3:
+	for building_id in simulation.buildings:
+		var building: Dictionary = simulation.buildings[building_id]
+		if building["team"] == "player" and building["kind"] == "command_hub":
+			var bounds: Vector2 = simulation.get_level_bounds()
+			var position: Vector3 = building["position"]
+			return Vector3(clamp(position.x, -bounds.x * 0.6, bounds.x * 0.6), 0.0, clamp(position.z, -bounds.y * 0.62, bounds.y * 0.62))
+	return Vector3.ZERO
+
+
+func _mission_text(key: String, values: Dictionary = {}) -> String:
+	var text := str(simulation.get_level_objective_text().get(key, ""))
+	for replacement_key in values:
+		text = text.replace("{%s}" % str(replacement_key), str(values[replacement_key]))
+	return text
+
+
+func _set_objective(key: String, values: Dictionary = {}, target_point_id := "") -> void:
+	objective_target_point_id = target_point_id
+	var text := _mission_text(key, values)
+	objective_label.text = "OBJECTIVE: %s" % text if not text.is_empty() else "OBJECTIVE"
+
+
 func _update_objective() -> void:
 	if not objective_label or not simulation:
 		return
 	if simulation.match_over:
-		objective_label.text = "OBJECTIVE COMPLETE — Match ended. Press N for a fresh skirmish."
+		objective_target_point_id = ""
+		objective_label.text = "OBJECTIVE COMPLETE — %s" % _mission_text("match_complete") if simulation.match_winner == "player" else "OBJECTIVE FAILED"
+		return
+	if _find_player_building("refinery").is_empty():
+		_set_objective("build_processor")
 		return
 	var collector_id := _find_player_collector()
 	if collector_id.is_empty():
-		objective_label.text = "OBJECTIVE: Queue a Collector [C], then assign a resource route [U]."
+		_set_objective("collector_missing")
 		return
 	var collector: Dictionary = simulation.units[collector_id]
 	if str(collector.get("collector_state", "")) == "unassigned":
-		objective_label.text = "OBJECTIVE: Assign the Collector [U] — click an Energy Field, then your Resource Processor."
+		_set_objective("collector_unassigned")
 		return
 	if not _has_player_event("ResourceDelivered"):
-		objective_label.text = "OBJECTIVE: Protect the Collector route until energy reaches the Resource Processor."
+		_set_objective("collector_delivery")
+		return
+	if _find_player_building("assembly_bay").is_empty():
+		_set_objective("build_assembly")
 		return
 	var objectives: Dictionary = simulation.get_level_objectives()
 	var staging_point_id := str(objectives.get("first_staging_point_id", ""))
 	if not staging_point_id.is_empty() and simulation.control_points.has(staging_point_id) and not _has_player_staging_rally(staging_point_id):
 		var staging_point: Dictionary = simulation.control_points[staging_point_id]
 		if not bool(staging_point.get("staging_active", false)) or staging_point["owner"] != "player":
-			objective_label.text = "OBJECTIVE: Secure and connect %s to establish a forward staging site." % staging_point["display_name"]
+			_set_objective("staging_secure", {"point": staging_point["display_name"]}, staging_point_id)
 		else:
-			objective_label.text = "OBJECTIVE: Select the Assembly Bay, then right-click %s to set its staging rally. Damaged units repair there [Y]." % staging_point["display_name"]
+			_set_objective("staging_rally", {"point": staging_point["display_name"]}, staging_point_id)
+		return
+	if _find_player_building("tech_centre").is_empty():
+		_set_objective("build_tech")
 		return
 	var research_status: Dictionary = simulation.get_research_status("player")
 	if not simulation.is_technology_unlocked("player", "advanced_targeting"):
 		if not str(research_status.get("active_id", "")).is_empty():
-			objective_label.text = "OBJECTIVE: Advanced Targeting is researching — defend the Assembly Bay."
+			_set_objective("research_active")
 		else:
-			objective_label.text = "OBJECTIVE: Research Advanced Targeting [T] (300 credits); repairs cost credits too."
+			_set_objective("research_available")
 		return
 	var has_bulwark := false
 	for entity_id in simulation.units:
@@ -1138,10 +1390,9 @@ func _update_objective() -> void:
 			has_bulwark = true
 			break
 	if not has_bulwark:
-		objective_label.text = "OBJECTIVE: Queue a Bulwark [V], secure the Central Relay, then push the enemy HQ."
+		_set_objective("bulwark")
 	else:
-		objective_label.text = "OBJECTIVE: Destroy the enemy Command Hub."
-
+		_set_objective("destroy_hq")
 func _update_hud() -> void:
 	if not simulation:
 		return
@@ -1166,50 +1417,21 @@ func _update_hud() -> void:
 	if targeting_online:
 		technology_label.text = "TECH TARGETING ONLINE"
 		technology_label.modulate = Color("#7cf1ad")
-		research_button.text = "TARGETING ONLINE"
 	elif not active_research_id.is_empty():
 		var research_total: float = max(0.1, float(research_status.get("total", 0.0)))
 		var research_progress: int = int(clamp(1.0 - float(research_status.get("remaining", 0.0)) / research_total, 0.0, 1.0) * 100.0)
 		technology_label.text = "TECH %d%%" % research_progress
 		technology_label.modulate = Color("#ffd36a")
-		research_button.text = "RESEARCHING %d%%" % research_progress
 	else:
 		technology_label.text = "TECH LOCKED"
 		technology_label.modulate = Color("#ffbf6a")
-		research_button.text = "RESEARCH TARGETING [T]"
-	var assembly_id := _find_player_assembly_bay()
-	var has_assembly := not assembly_id.is_empty()
-	var assembly_queue_count := 0
-	if has_assembly:
-		assembly_queue_count = simulation.buildings[assembly_id].get("queue", []).size()
-	var queue_limit: int = int(limits["queue"]["max"])
-	var queue_full := assembly_queue_count >= queue_limit
-	queue_button.text = "QUEUE FULL %d/%d" % [assembly_queue_count, queue_limit] if queue_full else "QUEUE RAIDER [Q]"
-	queue_button.disabled = simulation.player_credits < 105.0 or not has_assembly or queue_full
-	var selected_collector := _selected_collector_id()
-	if collector_assignment_mode:
-		collector_button.text = "CANCEL ROUTE [U]"
-		collector_button.tooltip_text = "Choose a resource field and a friendly Resource Processor. Right-click or U cancels."
-		collector_button.disabled = false
-	elif not selected_collector.is_empty():
-		collector_button.text = "ASSIGN ROUTE [U]"
-		collector_button.tooltip_text = "Assign this Collector to a resource field and a specific Resource Processor."
-		collector_button.disabled = false
-	else:
-		collector_button.text = "QUEUE COLLECTOR [C]"
-		collector_button.tooltip_text = "Queue a Collector at the Assembly Bay. Select one and press U to assign its source and Resource Processor. Cost: 115 credits."
-		collector_button.disabled = simulation.player_credits < 115.0 or not has_assembly or queue_full
-	heavy_queue_button.disabled = simulation.player_credits < 160.0 or not targeting_online or not has_assembly or queue_full
-	research_button.disabled = targeting_online or not active_research_id.is_empty() or simulation.player_credits < 300.0 or not has_assembly
-	repair_button.disabled = simulation.player_credits < 30.0 or not _has_damaged_selection()
-	build_button.disabled = simulation.player_credits < 180.0 and build_mode.is_empty()
+	if mission_one_button:
+		mission_one_button.disabled = simulation.match_over == false and simulation.get_level_id() == "relay_divide"
+	if mission_two_button:
+		var level_two_unlocked: bool = campaign_progress == null or campaign_progress.is_unlocked("relay_crossroads")
+		mission_two_button.disabled = not level_two_unlocked or (simulation.match_over == false and simulation.get_level_id() == "relay_crossroads")
+		mission_two_button.tooltip_text = "Deploy Relay Crossroads" if level_two_unlocked else "Complete Relay Divide to unlock this mission."
 	if simulation.match_over:
-		queue_button.disabled = true
-		heavy_queue_button.disabled = true
-		research_button.disabled = true
-		repair_button.disabled = true
-		collector_button.disabled = true
-		build_button.disabled = true
 		_cancel_build_mode()
 		_cancel_collector_assignment(false)
 
@@ -1220,7 +1442,272 @@ func _update_hud() -> void:
 		if not selected_data.is_empty():
 			selected_text = "%s  x%d\n%s" % [selected_data["display_name"].to_upper(), selected_ids.size(), _selection_detail(selected_data)]
 	selected_label.text = selected_text
+	_update_context_cards()
+	_update_production_queue_ui()
 
+
+func _find_queue_building_for_ui() -> String:
+	if selected_ids.size() == 1:
+		var selected_id := str(selected_ids[0])
+		if simulation.buildings.has(selected_id):
+			var selected_building: Dictionary = simulation.buildings[selected_id]
+			if selected_building["team"] == "player" and not selected_building.get("queue", []).is_empty():
+				return selected_id
+	for building_id in simulation.buildings:
+		var building: Dictionary = simulation.buildings[building_id]
+		if building["team"] == "player" and not building.get("queue", []).is_empty():
+			return str(building_id)
+	return ""
+
+
+func _update_production_queue_ui() -> void:
+	if not queue_panel:
+		return
+	queue_building_id = _find_queue_building_for_ui()
+	if queue_building_id.is_empty() or not simulation.buildings.has(queue_building_id):
+		queue_panel.visible = false
+		for button in queue_buttons:
+			button.visible = false
+		return
+	var building: Dictionary = simulation.buildings[queue_building_id]
+	var queue: Array = building.get("queue", [])
+	queue_panel.visible = not queue.is_empty()
+	queue_title_label.text = "PRODUCTION QUEUE — %s — click to cancel and refund" % str(building["display_name"]).to_upper()
+	for index in range(queue_buttons.size()):
+		var button: Button = queue_buttons[index]
+		if index >= queue.size():
+			button.visible = false
+			continue
+		var job: Dictionary = queue[index]
+		var unit_type := str(job.get("unit_type", "unit"))
+		var definition = simulation.unit_definitions.get(unit_type)
+		var display_name := unit_type.replace("_", " ").to_upper()
+		if definition:
+			display_name = str(definition.display_name).to_upper()
+		var remaining: int = int(ceil(float(job.get("remaining", 0.0))))
+		var total: float = max(0.1, float(job.get("total", definition.build_time if definition else 1.0)))
+		var progress: int = int(clamp(1.0 - float(job.get("remaining", total)) / total, 0.0, 1.0) * 100.0)
+		var refund: int = int(float(job.get("cost", definition.cost if definition else 0.0)))
+		var queue_marker := "▶" if index == 0 else "#%d" % index
+		button.visible = true
+		button.disabled = simulation.match_over
+		button.text = "%s %s\n%d%%  %ds · REFUND %d" % [queue_marker, display_name, progress, remaining, refund]
+		button.tooltip_text = "Cancel %s and refund %d credits." % [display_name, refund]
+
+
+func _cancel_queue_slot(queue_index: int) -> void:
+	if queue_building_id.is_empty() or not simulation.buildings.has(queue_building_id):
+		return
+	simulation.issue_command("cancel_production", "player", {"building_id": queue_building_id, "queue_index": queue_index})
+	status_label.text = "Cancel requested — the queued item will be refunded on the next simulation tick."
+
+
+func _find_player_completed_building(kind: String) -> String:
+	for building_id in simulation.buildings:
+		var building: Dictionary = simulation.buildings[building_id]
+		if building["team"] == "player" and building["kind"] == kind and bool(building.get("complete", false)):
+			return building_id
+	return ""
+
+
+func _building_context_state(kind: String, prerequisite_kind: String = "") -> Dictionary:
+	if not simulation.building_definitions.has(kind) or not simulation.is_team_allowed("player", "buildings", kind):
+		return {"visible": false}
+	if not prerequisite_kind.is_empty() and _find_player_completed_building(prerequisite_kind).is_empty():
+		return {"visible": false}
+	var definition = simulation.building_definitions[kind]
+	var building_summary: Dictionary = simulation.get_limit_summary("player")["buildings"]
+	var by_kind: Dictionary = building_summary.get("by_kind", {})
+	var kind_limit: Dictionary = by_kind.get(kind, {})
+	var current: int = int(kind_limit.get("current", 0))
+	var maximum: int = int(kind_limit.get("max", 1))
+	var disabled := false
+	var reason := ""
+	if current >= maximum:
+		disabled = true
+		reason = "%s limit reached (%d/%d)." % [definition.display_name, current, maximum]
+	elif simulation.player_credits < float(definition.cost):
+		disabled = true
+		reason = "Need %d more credits." % int(float(definition.cost) - simulation.player_credits)
+	return {"visible": true, "disabled": disabled, "reason": reason}
+
+
+func _unit_context_state(unit_type: String, building: Dictionary) -> Dictionary:
+	if not simulation.unit_definitions.has(unit_type) or not simulation.is_team_allowed("player", "units", unit_type):
+		return {"visible": false}
+	var definition = simulation.unit_definitions[unit_type]
+	var limits: Dictionary = simulation.get_limit_summary("player")
+	var unit_summary: Dictionary = limits["units"]
+	var kind_limits: Dictionary = unit_summary.get("by_kind", {})
+	var kind_limit: Dictionary = kind_limits.get(unit_type, {})
+	var current_total: int = int(unit_summary.get("current", 0)) + int(unit_summary.get("queued", 0))
+	var total_maximum: int = int(unit_summary.get("max", 1))
+	var current_kind: int = int(kind_limit.get("current", 0)) + int(kind_limit.get("queued", 0))
+	var kind_maximum: int = int(kind_limit.get("max", total_maximum))
+	var queue: Array = building.get("queue", [])
+	var queue_maximum: int = int(limits["queue"].get("max", 5))
+	var disabled := false
+	var reason := ""
+	if queue.size() >= queue_maximum:
+		disabled = true
+		reason = "Production queue full (%d/%d)." % [queue.size(), queue_maximum]
+	elif current_total >= total_maximum:
+		disabled = true
+		reason = "Force capacity reached (%d/%d)." % [current_total, total_maximum]
+	elif current_kind >= kind_maximum:
+		disabled = true
+		reason = "%s limit reached (%d/%d)." % [definition.display_name, current_kind, kind_maximum]
+	elif unit_type == "collector":
+		var building_limits: Dictionary = limits["buildings"]
+		var storage_limits: Dictionary = building_limits.get("by_kind", {})
+		var storage_count: int = int(storage_limits.get("storage_silo", {}).get("current", 0))
+		var collector_capacity: int = 1 + storage_count
+		if current_kind >= collector_capacity:
+			disabled = true
+			reason = "Build a Storage Silo for another Collector (%d/%d)." % [current_kind, collector_capacity]
+	var required_technology := str(definition.required_technology)
+	if not disabled and not required_technology.is_empty() and not simulation.is_technology_unlocked("player", required_technology):
+		disabled = true
+		var technology_name := required_technology.replace("_", " ").capitalize()
+		if simulation.technology_definitions.has(required_technology):
+			technology_name = simulation.technology_definitions[required_technology].display_name
+		reason = "Requires %s research." % technology_name
+	if not disabled and simulation.player_credits < float(definition.cost):
+		disabled = true
+		reason = "Need %d more credits." % int(float(definition.cost) - simulation.player_credits)
+	return {"visible": true, "disabled": disabled, "reason": reason}
+
+
+func _upgrade_context_state(building: Dictionary) -> Dictionary:
+	var definition = simulation.building_definitions.get(str(building.get("kind", "")))
+	if definition == null or str(definition.upgrade_id).is_empty():
+		return {"visible": false}
+	if bool(building.get("upgrade_complete", false)) or not str(building.get("completed_upgrade_id", "")).is_empty():
+		return {"visible": false}
+	var active_id := str(building.get("upgrade_id", ""))
+	if not active_id.is_empty():
+		var total: float = max(0.1, float(building.get("upgrade_total", definition.upgrade_time)))
+		var remaining: float = float(building.get("upgrade_remaining", total))
+		var progress: int = int(clamp(1.0 - remaining / total, 0.0, 1.0) * 100.0)
+		return {"visible": true, "disabled": true, "reason": "Upgrade in progress (%d%%)." % progress, "label_suffix": "%d%%" % progress}
+	var disabled := false
+	var reason := ""
+	if simulation.player_credits < float(definition.upgrade_cost):
+		disabled = true
+		reason = "Need %d more credits." % int(float(definition.upgrade_cost) - simulation.player_credits)
+	return {"visible": true, "disabled": disabled, "reason": reason}
+
+
+func _research_context_state(building: Dictionary) -> Dictionary:
+	var definition = simulation.building_definitions.get(str(building.get("kind", "")))
+	if definition == null:
+		return {"visible": false}
+	var technology_id := str(definition.can_research)
+	if technology_id.is_empty() or not simulation.technology_definitions.has(technology_id):
+		return {"visible": false}
+	if simulation.is_technology_unlocked("player", technology_id):
+		return {"visible": false}
+	var active_id := str(building.get("research_id", ""))
+	if not active_id.is_empty():
+		var total: float = max(0.1, float(building.get("research_total", 0.0)))
+		var remaining: float = float(building.get("research_remaining", total))
+		var progress: int = int(clamp(1.0 - remaining / total, 0.0, 1.0) * 100.0)
+		return {"visible": true, "disabled": true, "reason": "Research in progress (%d%%)." % progress, "label_suffix": "%d%%" % progress}
+	var technology = simulation.technology_definitions[technology_id]
+	var disabled := false
+	var reason := ""
+	if simulation.player_credits < float(technology.cost):
+		disabled = true
+		reason = "Need %d more credits." % int(float(technology.cost) - simulation.player_credits)
+	return {"visible": true, "disabled": disabled, "reason": reason}
+
+
+func _update_context_cards() -> void:
+	var buttons: Array = [build_button, queue_button, heavy_queue_button, research_button, repair_button, collector_button]
+	context_actions = ["", "", "", "", "", ""]
+	var cards: Array = []
+	for index in range(buttons.size()):
+		cards.append({"action": "", "label": "", "visible": false, "disabled": true, "reason": ""})
+	if selected_ids.size() == 1:
+		var entity_id := str(selected_ids[0])
+		if simulation.buildings.has(entity_id):
+			var building: Dictionary = simulation.buildings[entity_id]
+			match str(building["kind"]):
+				"command_hub":
+					var processor_state := _building_context_state("refinery")
+					if bool(processor_state.get("visible", false)):
+						cards[0] = {"action": "build:refinery", "label": "◈ PROCESSOR\n%d" % int(simulation.building_definitions["refinery"].cost), "visible": true, "disabled": processor_state.get("disabled", false), "reason": processor_state.get("reason", "")}
+					var assembly_state := _building_context_state("assembly_bay", "refinery")
+					if bool(assembly_state.get("visible", false)):
+						cards[1] = {"action": "build:assembly_bay", "label": "◈ ASSEMBLY\n%d" % int(simulation.building_definitions["assembly_bay"].cost), "visible": true, "disabled": assembly_state.get("disabled", false), "reason": assembly_state.get("reason", "")}
+					var tech_state := _building_context_state("tech_centre", "assembly_bay")
+					if bool(tech_state.get("visible", false)):
+						cards[2] = {"action": "build:tech_centre", "label": "◈ TECH CENTRE\n%d" % int(simulation.building_definitions["tech_centre"].cost), "visible": true, "disabled": tech_state.get("disabled", false), "reason": tech_state.get("reason", "")}
+				"refinery":
+					var collector_state := _unit_context_state("collector", building)
+					if bool(collector_state.get("visible", false)):
+						cards[0] = {"action": "produce:collector", "label": "◈ COLLECTOR\n%d" % int(simulation.unit_definitions["collector"].cost), "visible": true, "disabled": collector_state.get("disabled", false), "reason": collector_state.get("reason", "")}
+					var silo_state := _building_context_state("storage_silo", "refinery")
+					if bool(silo_state.get("visible", false)):
+						cards[1] = {"action": "build:storage_silo", "label": "◈ SILO\n%d" % int(simulation.building_definitions["storage_silo"].cost), "visible": true, "disabled": silo_state.get("disabled", false), "reason": silo_state.get("reason", "")}
+					var refining_state := _upgrade_context_state(building)
+					if bool(refining_state.get("visible", false)):
+						var refining_suffix := str(refining_state.get("label_suffix", ""))
+						var refining_label := "▲ REFINING\n%d" % int(simulation.building_definitions["refinery"].upgrade_cost)
+						if not refining_suffix.is_empty():
+							refining_label = "▲ REFINING\n%s" % refining_suffix
+						cards[2] = {"action": "upgrade", "label": refining_label, "visible": true, "disabled": refining_state.get("disabled", false), "reason": refining_state.get("reason", "")}
+				"assembly_bay":
+					var ranger_state := _unit_context_state("ranger", building)
+					if bool(ranger_state.get("visible", false)):
+						cards[0] = {"action": "produce:ranger", "label": "◈ RANGER\n%d" % int(simulation.unit_definitions["ranger"].cost), "visible": true, "disabled": ranger_state.get("disabled", false), "reason": ranger_state.get("reason", "")}
+					var bulwark_state := _unit_context_state("bulwark", building)
+					if bool(bulwark_state.get("visible", false)):
+						var bulwark_reason := str(bulwark_state.get("reason", ""))
+						var bulwark_label := "◈ BULWARK\n%d" % int(simulation.unit_definitions["bulwark"].cost)
+						if not bulwark_reason.is_empty() and bulwark_reason.begins_with("Requires"):
+							bulwark_label = "◈ BULWARK\nRESEARCH"
+						cards[1] = {"action": "produce:bulwark", "label": bulwark_label, "visible": true, "disabled": bulwark_state.get("disabled", false), "reason": bulwark_reason}
+					var warden_state := _unit_context_state("warden", building)
+					if bool(warden_state.get("visible", false)):
+						cards[2] = {"action": "produce:warden", "label": "◈ WARDEN\n%d" % int(simulation.unit_definitions["warden"].cost), "visible": true, "disabled": warden_state.get("disabled", false), "reason": warden_state.get("reason", "")}
+					var fabrication_state := _upgrade_context_state(building)
+					if bool(fabrication_state.get("visible", false)):
+						var fabrication_suffix := str(fabrication_state.get("label_suffix", ""))
+						var fabrication_label := "▲ FABRICATION\n%d" % int(simulation.building_definitions["assembly_bay"].upgrade_cost)
+						if not fabrication_suffix.is_empty():
+							fabrication_label = "▲ FABRICATION\n%s" % fabrication_suffix
+						cards[3] = {"action": "upgrade", "label": fabrication_label, "visible": true, "disabled": fabrication_state.get("disabled", false), "reason": fabrication_state.get("reason", "")}
+				"tech_centre":
+					var research_state := _research_context_state(building)
+					if bool(research_state.get("visible", false)):
+						var research_suffix := str(research_state.get("label_suffix", ""))
+						var research_label := "▲ TARGETING\n%d" % int(simulation.technology_definitions["advanced_targeting"].cost)
+						if not research_suffix.is_empty():
+							research_label = "▲ TARGETING\n%s" % research_suffix
+						cards[0] = {"action": "research", "label": research_label, "visible": true, "disabled": research_state.get("disabled", false), "reason": research_state.get("reason", "")}
+			if bool(_has_damaged_selection()):
+				cards[4] = {"action": "repair", "label": "REPAIR", "visible": true, "disabled": false, "reason": "Repair the selected friendly entity."}
+		elif simulation.units.has(entity_id) and simulation.units[entity_id]["kind"] == "collector":
+			cards[0] = {"action": "collector_route", "label": "ROUTE [U]", "visible": true, "disabled": false, "reason": "Assign this Collector to an Energy Field and Processor."}
+			if bool(_has_damaged_selection()):
+				cards[4] = {"action": "repair", "label": "REPAIR", "visible": true, "disabled": false, "reason": "Repair the selected Collector."}
+	elif not selected_ids.is_empty():
+		cards[0] = {"action": "", "label": "MULTI-UNIT\nORDERS", "visible": true, "disabled": true, "reason": "Use right-click to issue a group order."}
+		if bool(_has_damaged_selection()):
+			cards[4] = {"action": "repair", "label": "REPAIR", "visible": true, "disabled": false, "reason": "Repair damaged selected units."}
+	else:
+		cards[0] = {"action": "", "label": "SELECT\nSTRUCTURE", "visible": true, "disabled": true, "reason": "Select a Command Hub, Processor, Assembly Bay, or Tech Centre."}
+	for index in range(buttons.size()):
+		var button: Button = buttons[index]
+		var card: Dictionary = cards[index]
+		var action := str(card.get("action", ""))
+		context_actions[index] = action
+		button.visible = bool(card.get("visible", false))
+		button.text = str(card.get("label", ""))
+		button.disabled = bool(card.get("disabled", true)) or simulation.match_over
+		var reason := str(card.get("reason", ""))
+		button.tooltip_text = reason if not reason.is_empty() else button.text.replace("\n", " ")
 
 func _selection_detail(data: Dictionary) -> String:
 	var supply_text := ""
@@ -1270,9 +1757,12 @@ func _selection_detail(data: Dictionary) -> String:
 		return "HP %d/%d   ORDER %s%s%s%s%s%s" % [int(data["health"]), int(data["max_health"]), str(data["order"]).to_upper(), supply_text, collector_text, research_text, queue_text, rally_text]
 	return "HP %d/%d   %s%s%s%s%s%s" % [int(data["health"]), int(data["max_health"]), "ONLINE" if data["complete"] else "BUILDING", supply_text, collector_text, research_text, queue_text, rally_text]
 
-
 func _on_simulation_event(event_type: String, payload: Dictionary) -> void:
-	if event_type == "UnitDamaged" or event_type == "BuildingDamaged":
+	if event_type == "ProjectileLaunched":
+		_spawn_missile_arc(payload)
+	elif event_type == "ProjectileImpact":
+		_spawn_combat_impact(payload.get("position", Vector3.ZERO) + Vector3.UP * 0.55, Color("#ff9f43"), "")
+	elif event_type == "UnitDamaged" or event_type == "BuildingDamaged":
 		_spawn_damage_feedback(payload, event_type == "BuildingDamaged")
 	elif event_type == "UnitDestroyed" or event_type == "BuildingDestroyed":
 		_spawn_destruction_feedback(payload)
@@ -1284,6 +1774,10 @@ func _on_simulation_event(event_type: String, payload: Dictionary) -> void:
 	if event_type == "MatchWon" or event_type == "MatchLost":
 		status_label.text = "[ %s ] %s" % ["VICTORY" if event_type == "MatchWon" else "DEFEAT", payload.get("message", "Match complete")]
 		status_label.modulate = Color("#ffd36a") if event_type == "MatchWon" else Color("#ff7b86")
+	if event_type == "MatchWon" and campaign_progress:
+		var unlocked_id: String = campaign_progress.mark_complete(simulation.get_level_id())
+		if not unlocked_id.is_empty():
+			status_label.text = "LEVEL COMPLETE — Level 2 unlocked. Press F2 to deploy."
 	var lines: PackedStringArray = event_log_label.text.split("\n")
 	if not feedback_message.is_empty():
 		lines.append("[%03d] %s" % [int(payload.get("tick", 0)), feedback_message])
@@ -1292,13 +1786,44 @@ func _on_simulation_event(event_type: String, payload: Dictionary) -> void:
 	event_log_label.text = "EVENT LOG\n" + "\n".join(lines.slice(1))
 
 
+func _spawn_missile_arc(payload: Dictionary) -> void:
+	var start: Vector3 = payload.get("launch_position", Vector3.ZERO)
+	var finish: Vector3 = payload.get("impact_position", start)
+	var effect := Node3D.new()
+	combat_effect_sequence += 1
+	effect.name = "MissileArc_%03d" % combat_effect_sequence
+	var segment_count := 8
+	for segment_index in range(segment_count):
+		var t0: float = float(segment_index) / float(segment_count)
+		var t1: float = float(segment_index + 1) / float(segment_count)
+		var height: float = max(2.0, start.distance_to(finish) * 0.12)
+		var point_a: Vector3 = start.lerp(finish, t0) + Vector3.UP * (sin(t0 * PI) * height)
+		var point_b: Vector3 = start.lerp(finish, t1) + Vector3.UP * (sin(t1 * PI) * height)
+		var mesh := BoxMesh.new()
+		mesh.size = Vector3(0.16, 0.16, max(0.2, point_a.distance_to(point_b)))
+		var segment := MeshInstance3D.new()
+		segment.mesh = mesh
+		segment.material_override = _material(Color("#ff9f43"), 0.15, 0.45)
+		segment.position = (point_a + point_b) * 0.5
+		effect.add_child(segment)
+		segment.look_at_from_position(segment.position, point_b, Vector3.UP)
+	add_child(effect)
+	var tween := effect.create_tween()
+	tween.tween_interval(float(payload.get("travel_time", 0.5)))
+	tween.tween_callback(Callable(effect, "queue_free"))
+
+
 func _spawn_damage_feedback(payload: Dictionary, building_hit: bool) -> void:
 	var attacker_position: Vector3 = payload.get("attacker_position", payload.get("target_position", Vector3.ZERO))
 	var target_position: Vector3 = payload.get("target_position", Vector3.ZERO)
 	var effect_color := Color("#ffb347") if building_hit else Color("#ffd36a")
-	_spawn_combat_tracer(attacker_position + Vector3.UP * 0.75, target_position + Vector3.UP * (1.0 if building_hit else 0.55), effect_color)
+	var attacker_id := str(payload.get("attacker_id", ""))
+	var is_missile: bool = simulation.units.has(attacker_id) and str(simulation.units[attacker_id].get("kind", "")) == "bulwark"
+	if not is_missile:
+		_spawn_combat_tracer(attacker_position + Vector3.UP * 0.75, target_position + Vector3.UP * (1.0 if building_hit else 0.55), effect_color)
 	var damage: int = int(round(float(payload.get("damage", 0.0))))
 	_spawn_combat_impact(target_position + Vector3.UP * (1.0 if building_hit else 0.55), effect_color, "-%d" % damage)
+
 
 
 func _spawn_combat_tracer(start: Vector3, finish: Vector3, color: Color) -> void:
@@ -1392,6 +1917,8 @@ func _update_selection_marquee() -> void:
 
 
 func _pointer_over_ui() -> bool:
+	if queue_panel and queue_panel.visible and queue_panel.get_global_rect().has_point(pointer_position):
+		return true
 	return pointer_position.y < 184.0 or pointer_position.y > 605.0 or pointer_position.x > 1000.0
 
 
@@ -1432,4 +1959,3 @@ func _label(text_value: String, font_size: int, color: Color) -> Label:
 	label.add_theme_color_override("font_color", color)
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	return label
-

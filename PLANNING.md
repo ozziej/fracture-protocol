@@ -1,7 +1,7 @@
 # Fracture Protocol — Planning Document
 
-**Status:** Contested Relay Opening implemented; playtest staging-site pressure next
-**Version:** 0.5
+**Status:** Contested Relay Opening and authored-map clarity slice implemented; playtest the longer West Crossing opening next
+**Version:** 0.6
 **Target:** PC  
 **Engine direction:** Godot 4  
 **First playable:** Local skirmish against AI  
@@ -37,6 +37,8 @@ The current Godot 4 prototype has a playable local skirmish foundation:
 - Automated scenario coverage now includes Collector management, AI behavior, rush/turtle/greedy/tech-first/unit-first/Collector-loss/supply-cut paths, clean restart, the focused movement/presentation regression, authored terrain loading, queue limits, rally exits, force caps, and a 100-unit simulation benchmark.
 
 - Supply-connected captured control points now become Forward Staging Sites: they support the existing paid field repairs, provide a named Assembly Bay rally destination, visibly go offline when cut, and restore the saved rally when reconnected. West Crossing teaches the player mechanic while the AI secures East Crossing using the same rules.
+- Relay Divide now has an expanded 160×110 authored battlefield, a player-base opening camera, a visible tactical minimap, and a world-space objective beacon. Mission briefing and objective copy are data-owned in `data/level_data.json`, keeping map/story text out of gameplay scripts.
+
 The next iteration should playtest the authored level and tune staging-site pressure, queue pacing, force caps, rally placement, and Collector risk/reward before adding more units or faction-specific economy. Asset work can proceed selectively around the representative relay corridor rather than replacing the whole graybox at once.
 
 ## 1. Vision

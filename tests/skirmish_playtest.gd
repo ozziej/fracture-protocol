@@ -7,7 +7,7 @@ func _initialize() -> void:
 	var failures: Array[String] = []
 	var simulation = SimulationScript.new()
 	root.add_child(simulation)
-	simulation.start_match()
+	simulation.start_match("relay_crossroads")
 
 	var initial_supply: Dictionary = simulation.get_supply_summary("player")
 	if int(initial_supply["unsupplied_units"]) != 0:
@@ -17,7 +17,7 @@ func _initialize() -> void:
 
 	var economy_sim = SimulationScript.new()
 	root.add_child(economy_sim)
-	economy_sim.start_match()
+	economy_sim.start_match("relay_crossroads")
 	var collector_id := _find_entity(economy_sim.units, "collector", "player")
 	if collector_id.is_empty():
 		failures.append("match should start with a player collector")
@@ -38,7 +38,7 @@ func _initialize() -> void:
 
 	var defense_sim = SimulationScript.new()
 	root.add_child(defense_sim)
-	defense_sim.start_match()
+	defense_sim.start_match("relay_crossroads")
 	var defense_collector_id := _find_entity(defense_sim.units, "collector", "player")
 	var defense_attacker_id := _find_entity(defense_sim.units, "raider", "enemy")
 	if defense_collector_id.is_empty() or defense_attacker_id.is_empty():
@@ -64,7 +64,7 @@ func _initialize() -> void:
 
 	var technology_sim = SimulationScript.new()
 	root.add_child(technology_sim)
-	technology_sim.start_match()
+	technology_sim.start_match("relay_crossroads")
 	var technology_assembly_id := _find_entity(technology_sim.buildings, "assembly_bay", "player")
 	var units_before_gate: int = technology_sim.units.size()
 	if technology_assembly_id.is_empty():
@@ -124,7 +124,7 @@ func _initialize() -> void:
 
 	var navigation_sim = SimulationScript.new()
 	root.add_child(navigation_sim)
-	navigation_sim.start_match()
+	navigation_sim.start_match("relay_crossroads")
 	var navigation_unit_ids: Array = navigation_sim.get_player_unit_ids()
 	var navigation_unit_id: String = str(navigation_unit_ids[0]) if not navigation_unit_ids.is_empty() else ""
 	if navigation_unit_id.is_empty():
@@ -214,7 +214,7 @@ func _initialize() -> void:
 	else:
 		simulation.issue_command("produce", "player", {
 			"building_id": assembly_id,
-			"unit_type": "raider",
+			"unit_type": "ranger",
 		})
 		_run_ticks(simulation, 45)
 		if simulation.units.size() <= unit_count_before_production:
@@ -222,11 +222,11 @@ func _initialize() -> void:
 
 	var combat_sim = SimulationScript.new()
 	root.add_child(combat_sim)
-	combat_sim.start_match()
+	combat_sim.start_match("relay_crossroads")
 	var attacker_id := _find_entity(combat_sim.units, "warden", "player")
 	var target_id := _find_entity(combat_sim.units, "raider", "enemy")
 	if attacker_id.is_empty() or target_id.is_empty():
-		failures.append("combat playtest needs a Warden and a Raider")
+		failures.append("combat playtest needs a Warden and a Ranger")
 	else:
 		combat_sim.units[attacker_id]["position"] = Vector3(-6.0, 0.0, -1.0)
 		combat_sim.units[attacker_id]["target_position"] = combat_sim.units[attacker_id]["position"]

@@ -7,7 +7,7 @@ func _initialize() -> void:
 	var failures: Array[String] = []
 	var simulation = SimulationScript.new()
 	root.add_child(simulation)
-	simulation.start_match()
+	simulation.start_match("relay_crossroads")
 	var collector_id := _find_entity(simulation.units, "collector", "player")
 	var refinery_id := _find_entity(simulation.buildings, "refinery", "player")
 	var assembly_id := _find_entity(simulation.buildings, "assembly_bay", "player")

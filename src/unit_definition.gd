@@ -14,4 +14,9 @@ extends Resource
 @export var vision_range: float = 14.0
 @export var body_scale: Vector3 = Vector3.ONE
 @export var required_technology: String = ""
+@export var armour: float = 0.0
+@export var structure_damage_multiplier: float = 1.0
+@export var splash_radius: float = 0.0
+@export var splash_minimum_multiplier: float = 0.0
+@export var projectile_mode: String = "direct"
 

@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "factions": {
+    "coalition": {"display_name": "Coalition", "team": "player", "unique_unit": "warden"},
+    "frontier": {"display_name": "Frontier", "team": "enemy", "unique_unit": "raider"}
+  },
+  "missions": [
+    {"id": "relay_divide", "display_name": "Level 1 — Relay Divide", "initially_unlocked": true, "unlock_on_complete": "relay_crossroads"},
+    {"id": "relay_crossroads", "display_name": "Level 2 — Relay Crossroads", "initially_unlocked": false}
+  ]
+}

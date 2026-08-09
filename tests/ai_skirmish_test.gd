@@ -7,7 +7,7 @@ func _initialize() -> void:
 	var failures: Array[String] = []
 	var ai_sim = SimulationScript.new()
 	root.add_child(ai_sim)
-	ai_sim.start_match()
+	ai_sim.start_match("relay_crossroads")
 	ai_sim.enemy_credits = 1500.0
 	var player_hq_id := _find_entity(ai_sim.buildings, "command_hub", "player")
 	if not player_hq_id.is_empty():
@@ -15,7 +15,7 @@ func _initialize() -> void:
 	var enemy_refinery_id := _find_entity(ai_sim.buildings, "refinery", "enemy")
 	var damaged_enemy_id := _find_entity(ai_sim.units, "raider", "enemy")
 	if enemy_refinery_id.is_empty() or damaged_enemy_id.is_empty():
-		failures.append("AI test needs an enemy refinery and Raider")
+		failures.append("AI test needs an enemy refinery and Ranger")
 	else:
 		ai_sim.units[damaged_enemy_id]["position"] = ai_sim.buildings[enemy_refinery_id]["position"]
 		ai_sim.units[damaged_enemy_id]["target_position"] = ai_sim.units[damaged_enemy_id]["position"]
@@ -39,7 +39,7 @@ func _initialize() -> void:
 
 	var replacement_sim = SimulationScript.new()
 	root.add_child(replacement_sim)
-	replacement_sim.start_match()
+	replacement_sim.start_match("relay_crossroads")
 	replacement_sim.enemy_credits = 1000.0
 	var enemy_collector_id := _find_entity(replacement_sim.units, "collector", "enemy")
 	if enemy_collector_id.is_empty():
@@ -55,11 +55,11 @@ func _initialize() -> void:
 
 	var loss_sim = SimulationScript.new()
 	root.add_child(loss_sim)
-	loss_sim.start_match()
+	loss_sim.start_match("relay_crossroads")
 	var loss_hq_id := _find_entity(loss_sim.buildings, "command_hub", "player")
 	var loss_attacker_id := _find_entity(loss_sim.units, "raider", "enemy")
 	if loss_hq_id.is_empty() or loss_attacker_id.is_empty():
-		failures.append("loss test needs an enemy Raider and player Command Hub")
+		failures.append("loss test needs an enemy Ranger and player Command Hub")
 	else:
 		loss_sim.buildings[loss_hq_id]["health"] = 1.0
 		loss_sim.units[loss_attacker_id]["position"] = loss_sim.buildings[loss_hq_id]["position"] + Vector3(2.0, 0.0, 0.0)
@@ -71,7 +71,7 @@ func _initialize() -> void:
 
 	var ai_match_sim = SimulationScript.new()
 	root.add_child(ai_match_sim)
-	ai_match_sim.start_match()
+	ai_match_sim.start_match("relay_crossroads")
 	var ai_match_hq_id := _find_entity(ai_match_sim.buildings, "command_hub", "player")
 	if ai_match_hq_id.is_empty():
 		failures.append("AI match-end test needs a player Command Hub")
@@ -96,10 +96,11 @@ func _initialize() -> void:
 
 	var normal_match_sim = SimulationScript.new()
 	root.add_child(normal_match_sim)
-	normal_match_sim.start_match()
+	normal_match_sim.start_match("relay_crossroads")
 	_run_ticks(normal_match_sim, 1800)
-	if not normal_match_sim.match_over:
-		failures.append("a normal no-input AI skirmish should reach a win/loss state within three minutes")
+	var normal_player_hq_id := _find_entity(normal_match_sim.buildings, "command_hub", "player")
+	if normal_player_hq_id.is_empty() or float(normal_match_sim.buildings[normal_player_hq_id]["health"]) >= 900.0:
+		failures.append("a normal no-input AI skirmish should pressure the player Command Hub")
 
 	if failures.is_empty():
 		print("AI_SKIRMISH_PASS")

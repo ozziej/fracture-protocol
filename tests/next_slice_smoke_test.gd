@@ -11,17 +11,17 @@ func _initialize() -> void:
 
 	var authored_sim = SimulationScript.new()
 	root.add_child(authored_sim)
-	authored_sim.start_match()
+	authored_sim.start_match("relay_crossroads")
 	if authored_sim.get_level_id() != "relay_divide":
 		failures.append("the skirmish should load its authored relay_divide level")
-	if authored_sim.get_level_bounds() != Vector2(60.0, 40.0):
+	if authored_sim.get_level_bounds() != Vector2(80.0, 55.0):
 		failures.append("authored level bounds should be applied to the simulation")
 	if authored_sim.get_level_terrain().get("roads", []).size() < 3 or authored_sim.get_level_terrain().get("obstacles", []).size() < 3:
 		failures.append("authored level terrain should expose roads and obstacles")
 
 	var move_sim = SimulationScript.new()
 	root.add_child(move_sim)
-	move_sim.start_match()
+	move_sim.start_match("relay_crossroads")
 	var warden_id := _find_entity(move_sim.units, "warden", "player")
 	var enemy_hq_id := _find_entity(move_sim.buildings, "command_hub", "enemy")
 	if warden_id.is_empty() or enemy_hq_id.is_empty():
@@ -144,7 +144,7 @@ func _initialize() -> void:
 
 	var production_sim = SimulationScript.new()
 	root.add_child(production_sim)
-	production_sim.start_match()
+	production_sim.start_match("relay_crossroads")
 	var production_assembly_id := _find_entity(production_sim.buildings, "assembly_bay", "player")
 	var production_building: Dictionary = production_sim.buildings[production_assembly_id]
 	var rally_position: Vector3 = production_building["position"] + Vector3(10.0, 0.0, -1.0)
@@ -153,23 +153,23 @@ func _initialize() -> void:
 	if production_sim.buildings[production_assembly_id]["rally_position"].distance_to(rally_position) > 0.05:
 		failures.append("a rally command should update the Assembly Bay destination")
 	var units_before_production: int = production_sim.units.size()
-	production_sim.issue_command("produce", "player", {"building_id": production_assembly_id, "unit_type": "raider"})
+	production_sim.issue_command("produce", "player", {"building_id": production_assembly_id, "unit_type": "ranger"})
 	_step(production_sim, 45)
-	var produced_raider_id := _find_entity(production_sim.units, "raider", "player")
-	if production_sim.units.size() <= units_before_production or produced_raider_id.is_empty():
-		failures.append("production should complete a Raider in the paced window")
+	var produced_ranger_id := _find_entity(production_sim.units, "ranger", "player")
+	if production_sim.units.size() <= units_before_production or produced_ranger_id.is_empty():
+		failures.append("production should complete a Ranger in the paced window")
 	else:
-		if production_sim.units[produced_raider_id]["position"].distance_to(production_building["position"]) < 3.0:
+		if production_sim.units[produced_ranger_id]["position"].distance_to(production_building["position"]) < 3.0:
 			failures.append("a completed unit should exit the Assembly Bay before rallying")
-		if not _has_event(production_sim, "ProductionCompleted", "unit_type", "raider"):
+		if not _has_event(production_sim, "ProductionCompleted", "unit_type", "ranger"):
 			failures.append("unit exit should emit a ProductionCompleted event")
 
 	var queue_sim = SimulationScript.new()
 	root.add_child(queue_sim)
-	queue_sim.start_match()
+	queue_sim.start_match("relay_crossroads")
 	var queue_assembly_id := _find_entity(queue_sim.buildings, "assembly_bay", "player")
 	for _index in range(6):
-		queue_sim.issue_command("produce", "player", {"building_id": queue_assembly_id, "unit_type": "raider"})
+		queue_sim.issue_command("produce", "player", {"building_id": queue_assembly_id, "unit_type": "ranger"})
 	_step(queue_sim, 1)
 	var queue_items: Array = queue_sim.buildings[queue_assembly_id]["queue"]
 	if queue_items.size() != 5:
@@ -179,18 +179,18 @@ func _initialize() -> void:
 
 	var unit_cap_sim = SimulationScript.new()
 	root.add_child(unit_cap_sim)
-	unit_cap_sim.start_match()
+	unit_cap_sim.start_match("relay_crossroads")
 	for _index in range(20):
 		unit_cap_sim._add_unit("player", "raider", Vector3.ZERO)
 	var cap_assembly_id := _find_entity(unit_cap_sim.buildings, "assembly_bay", "player")
-	unit_cap_sim.issue_command("produce", "player", {"building_id": cap_assembly_id, "unit_type": "raider"})
+	unit_cap_sim.issue_command("produce", "player", {"building_id": cap_assembly_id, "unit_type": "ranger"})
 	_step(unit_cap_sim, 1)
 	if not unit_cap_sim.buildings[cap_assembly_id]["queue"].is_empty() or not _has_reason(unit_cap_sim, "capacity"):
 		failures.append("the authored total force cap should reject production")
 
 	var building_cap_sim = SimulationScript.new()
 	root.add_child(building_cap_sim)
-	building_cap_sim.start_match()
+	building_cap_sim.start_match("relay_crossroads")
 	for _index in range(4):
 		building_cap_sim._add_building("player", "relay", Vector3.ZERO)
 	var buildings_before_cap: int = building_cap_sim.buildings.size()

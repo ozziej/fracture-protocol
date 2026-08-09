@@ -5,14 +5,14 @@
     "relay_divide_base": {
       "display_name": "Relay Divide",
       "map_bounds": {
-        "half_width": 60,
-        "half_depth": 40
+        "half_width": 115,
+        "half_depth": 75
       },
       "terrain": {
         "ground_size": {
-          "x": 120,
+          "x": 230,
           "y": 0.25,
-          "z": 80
+          "z": 150
         },
         "ground_position": {
           "x": 0,
@@ -28,7 +28,7 @@
               "z": -1
             },
             "size": {
-              "x": 106,
+              "x": 205,
               "y": 0.03,
               "z": 3.2
             },
@@ -43,18 +43,18 @@
             "size": {
               "x": 3.2,
               "y": 0.03,
-              "z": 68
+              "z": 125
             },
             "kind": "crossing"
           },
           {
             "position": {
-              "x": -34,
+              "x": -79,
               "y": 0.01,
-              "z": 15
+              "z": 31
             },
             "size": {
-              "x": 20,
+              "x": 34,
               "y": 0.03,
               "z": 2.6
             },
@@ -62,12 +62,12 @@
           },
           {
             "position": {
-              "x": 34,
+              "x": 79,
               "y": 0.01,
-              "z": -15
+              "z": -31
             },
             "size": {
-              "x": 20,
+              "x": 34,
               "y": 0.03,
               "z": 2.6
             },
@@ -77,6 +77,27 @@
         "lane_markers": [
           {
             "position": {
+              "x": -77,
+              "y": 0.06,
+              "z": -1
+            }
+          },
+          {
+            "position": {
+              "x": -67,
+              "y": 0.06,
+              "z": -1
+            }
+          },
+          {
+            "position": {
+              "x": -58,
+              "y": 0.06,
+              "z": -1
+            }
+          },
+          {
+            "position": {
               "x": -48,
               "y": 0.06,
               "z": -1
@@ -84,49 +105,28 @@
           },
           {
             "position": {
-              "x": -42,
+              "x": -38,
               "y": 0.06,
               "z": -1
             }
           },
           {
             "position": {
-              "x": -36,
+              "x": -29,
               "y": 0.06,
               "z": -1
             }
           },
           {
             "position": {
-              "x": -30,
+              "x": -19,
               "y": 0.06,
               "z": -1
             }
           },
           {
             "position": {
-              "x": -24,
-              "y": 0.06,
-              "z": -1
-            }
-          },
-          {
-            "position": {
-              "x": -18,
-              "y": 0.06,
-              "z": -1
-            }
-          },
-          {
-            "position": {
-              "x": -12,
-              "y": 0.06,
-              "z": -1
-            }
-          },
-          {
-            "position": {
-              "x": -6,
+              "x": -10,
               "y": 0.06,
               "z": -1
             }
@@ -140,49 +140,28 @@
           },
           {
             "position": {
-              "x": 6,
+              "x": 10,
               "y": 0.06,
               "z": -1
             }
           },
           {
             "position": {
-              "x": 12,
+              "x": 19,
               "y": 0.06,
               "z": -1
             }
           },
           {
             "position": {
-              "x": 18,
+              "x": 29,
               "y": 0.06,
               "z": -1
             }
           },
           {
             "position": {
-              "x": 24,
-              "y": 0.06,
-              "z": -1
-            }
-          },
-          {
-            "position": {
-              "x": 30,
-              "y": 0.06,
-              "z": -1
-            }
-          },
-          {
-            "position": {
-              "x": 36,
-              "y": 0.06,
-              "z": -1
-            }
-          },
-          {
-            "position": {
-              "x": 42,
+              "x": 38,
               "y": 0.06,
               "z": -1
             }
@@ -190,6 +169,27 @@
           {
             "position": {
               "x": 48,
+              "y": 0.06,
+              "z": -1
+            }
+          },
+          {
+            "position": {
+              "x": 58,
+              "y": 0.06,
+              "z": -1
+            }
+          },
+          {
+            "position": {
+              "x": 67,
+              "y": 0.06,
+              "z": -1
+            }
+          },
+          {
+            "position": {
+              "x": 77,
               "y": 0.06,
               "z": -1
             }
@@ -292,9 +292,9 @@
           },
           {
             "position": {
-              "x": -13,
+              "x": -48,
               "y": 0.04,
-              "z": 6
+              "z": 20
             },
             "size": {
               "x": 10,
@@ -306,9 +306,9 @@
           },
           {
             "position": {
-              "x": 17,
+              "x": 48,
               "y": 0.04,
-              "z": -9
+              "z": -20
             },
             "size": {
               "x": 10,
@@ -325,9 +325,9 @@
           "id": "north_field",
           "display_name": "Northern Energy Field",
           "position": {
-            "x": -15,
+            "x": -66,
             "y": 0,
-            "z": -1
+            "z": 15
           },
           "faction_hint": 1,
           "remaining": 5000
@@ -336,9 +336,9 @@
           "id": "south_field",
           "display_name": "Southern Energy Field",
           "position": {
-            "x": 17,
+            "x": 66,
             "y": 0,
-            "z": 3
+            "z": -15
           },
           "faction_hint": -1,
           "remaining": 5000
@@ -360,9 +360,9 @@
           "id": "east_crossing",
           "display_name": "East Crossing",
           "position": {
-            "x": 23,
+            "x": 48,
             "y": 0,
-            "z": -13
+            "z": -20
           },
           "radius": 4.5,
           "supports_staging": true
@@ -371,9 +371,9 @@
           "id": "west_crossing",
           "display_name": "West Crossing",
           "position": {
-            "x": -23,
+            "x": -48,
             "y": 0,
-            "z": 12
+            "z": 20
           },
           "radius": 4.5,
           "supports_staging": true
@@ -386,6 +386,20 @@
       "base_map_id": "relay_divide_base",
       "objectives": {
         "first_staging_point_id": "west_crossing"
+      },
+      "briefing": "Level One: establish a field base, secure West Crossing, then break the Frontier command network.",
+      "objective_text": {
+        "build_processor": "Select the Command Hub and build a Resource Processor.",
+        "collector_missing": "Select the Resource Processor and queue a Collector.",
+        "collector_unassigned": "Select the Collector and right-click an Energy Field to assign its route.",
+        "collector_delivery": "Protect the Collector route until energy reaches the Resource Processor.",
+        "build_assembly": "Select the Command Hub and build an Assembly Bay.",
+        "staging_secure": "Secure and connect {point} to establish a forward staging site.",
+        "build_tech": "Build a Tech Centre from the Command Hub.",
+        "research_available": "Select the Tech Centre and research Advanced Targeting.",
+        "bulwark": "Select the Assembly Bay and queue a Bulwark.",
+        "destroy_hq": "Destroy the enemy Command Hub.",
+        "match_complete": "Level complete. Your campaign progress has been saved."
       },
       "rules": {
         "max_queue": 5,
@@ -409,11 +423,6 @@
         "production_time_multiplier": 1.2,
         "collector_production_time_multiplier": 1.35
       },
-      "ai": {
-        "collector_source_id": "south_field",
-        "relay_position": {"x": 17, "y": 0, "z": -5},
-        "staging_point_id": "east_crossing"
-      },
       "spawns": {
         "player": {
           "buildings": [
@@ -421,27 +430,9 @@
               "id": "player_hq",
               "kind": "command_hub",
               "position": {
-                "x": -30,
+                "x": -82,
                 "y": 0,
-                "z": 15
-              }
-            },
-            {
-              "id": "player_refinery",
-              "kind": "refinery",
-              "position": {
-                "x": -24,
-                "y": 0,
-                "z": 15
-              }
-            },
-            {
-              "id": "player_assembly",
-              "kind": "assembly_bay",
-              "position": {
-                "x": -30,
-                "y": 0,
-                "z": 9
+                "z": 32
               }
             }
           ],
@@ -449,37 +440,18 @@
             {
               "kind": "ranger",
               "position": {
-                "x": -22,
+                "x": -72,
                 "y": 0,
-                "z": 9
+                "z": 24
               }
             },
             {
               "kind": "ranger",
               "position": {
-                "x": -20,
+                "x": -75,
                 "y": 0,
-                "z": 11
+                "z": 22
               }
-            },
-            {
-              "kind": "warden",
-              "position": {
-                "x": -23,
-                "y": 0,
-                "z": 7
-              }
-            },
-            {
-              "kind": "collector",
-              "position": {
-                "x": -24,
-                "y": 0,
-                "z": 15
-              },
-              "source_id": "north_field",
-              "destination_id": "player_refinery",
-              "home_id": "player_hq"
             }
           ]
         },
@@ -489,27 +461,27 @@
               "id": "enemy_hq",
               "kind": "command_hub",
               "position": {
-                "x": 30,
+                "x": 82,
                 "y": 0,
-                "z": -15
+                "z": -32
               }
             },
             {
               "id": "enemy_refinery",
               "kind": "refinery",
               "position": {
-                "x": 24,
+                "x": 75,
                 "y": 0,
-                "z": -15
+                "z": -32
               }
             },
             {
               "id": "enemy_assembly",
               "kind": "assembly_bay",
               "position": {
-                "x": 30,
+                "x": 82,
                 "y": 0,
-                "z": -9
+                "z": -24
               }
             }
           ],
@@ -517,33 +489,33 @@
             {
               "kind": "raider",
               "position": {
-                "x": 22,
+                "x": 72,
                 "y": 0,
-                "z": -9
+                "z": -24
               }
             },
             {
               "kind": "raider",
               "position": {
-                "x": 20,
+                "x": 75,
                 "y": 0,
-                "z": -11
+                "z": -22
               }
             },
             {
               "kind": "bulwark",
               "position": {
-                "x": 23,
+                "x": 78,
                 "y": 0,
-                "z": -7
+                "z": -20
               }
             },
             {
               "kind": "collector",
               "position": {
-                "x": 24,
+                "x": 75,
                 "y": 0,
-                "z": -15
+                "z": -32
               },
               "source_id": "south_field",
               "destination_id": "enemy_refinery",
@@ -555,11 +527,233 @@
       "ai": {
         "collector_source_id": "south_field",
         "relay_position": {
-          "x": 17,
+          "x": 64,
           "y": 0,
-          "z": -5
+          "z": -26
+        },
+        "staging_point_id": "east_crossing",
+        "opening_attack_delay_ticks": 1800
+      },
+      "allowed_buildings": [
+        "refinery",
+        "assembly_bay",
+        "tech_centre",
+        "storage_silo"
+      ],
+      "allowed_player_units": [
+        "ranger",
+        "bulwark",
+        "collector"
+      ],
+      "allowed_enemy_units": [
+        "raider",
+        "bulwark",
+        "collector"
+      ],
+      "allowed_enemy_buildings": [
+        "refinery",
+        "assembly_bay",
+        "tech_centre",
+        "storage_silo",
+        "relay"
+      ]
+    },
+    "relay_crossroads": {
+      "base_map_id": "relay_divide_base",
+      "objectives": {
+        "first_staging_point_id": "west_crossing"
+      },
+      "briefing": "Level Two: use Wardens and Forward Relays to take the Crossroads.",
+      "objective_text": {
+        "build_processor": "Select the Command Hub and build a Resource Processor.",
+        "collector_missing": "Select the Resource Processor and queue a Collector.",
+        "collector_unassigned": "Select the Collector and right-click an Energy Field to assign its route.",
+        "collector_delivery": "Protect the Collector route until energy reaches the Resource Processor.",
+        "build_assembly": "Select the Command Hub and build an Assembly Bay.",
+        "staging_secure": "Secure and connect {point} to establish a forward staging site.",
+        "build_tech": "Build a Tech Centre from the Command Hub.",
+        "research_available": "Select the Tech Centre and research Advanced Targeting.",
+        "bulwark": "Select the Assembly Bay and queue a Bulwark.",
+        "destroy_hq": "Destroy the enemy Command Hub.",
+        "match_complete": "Level complete. Your campaign progress has been saved."
+      },
+      "rules": {
+        "max_queue": 5,
+        "max_units_total": 24,
+        "max_buildings_total": 8,
+        "max_units_by_kind": {
+          "ranger": 8,
+          "warden": 4,
+          "raider": 10,
+          "bulwark": 6,
+          "collector": 3
+        },
+        "max_buildings_by_kind": {
+          "command_hub": 1,
+          "refinery": 3,
+          "assembly_bay": 2,
+          "relay": 4
+        },
+        "collector_speed_multiplier": 0.78,
+        "collector_load_seconds": 2.5,
+        "production_time_multiplier": 1.2,
+        "collector_production_time_multiplier": 1.35
+      },
+      "spawns": {
+        "player": {
+          "buildings": [
+            {
+              "id": "player_hq",
+              "kind": "command_hub",
+              "position": {
+                "x": -82,
+                "y": 0,
+                "z": 32
+              }
+            },
+            {
+              "id": "player_refinery",
+              "kind": "refinery",
+              "position": {
+                "x": -75,
+                "y": 0,
+                "z": 32
+              }
+            },
+            {
+              "id": "player_assembly",
+              "kind": "assembly_bay",
+              "position": {
+                "x": -82,
+                "y": 0,
+                "z": 24
+              }
+            }
+          ],
+          "units": [
+            {
+              "kind": "ranger",
+              "position": {
+                "x": -72,
+                "y": 0,
+                "z": 24
+              }
+            },
+            {
+              "kind": "warden",
+              "position": {
+                "x": -75,
+                "y": 0,
+                "z": 22
+              }
+            }
+          ]
+        },
+        "enemy": {
+          "buildings": [
+            {
+              "id": "enemy_hq",
+              "kind": "command_hub",
+              "position": {
+                "x": 82,
+                "y": 0,
+                "z": -32
+              }
+            },
+            {
+              "id": "enemy_refinery",
+              "kind": "refinery",
+              "position": {
+                "x": 75,
+                "y": 0,
+                "z": -32
+              }
+            },
+            {
+              "id": "enemy_assembly",
+              "kind": "assembly_bay",
+              "position": {
+                "x": 82,
+                "y": 0,
+                "z": -24
+              }
+            }
+          ],
+          "units": [
+            {
+              "kind": "raider",
+              "position": {
+                "x": 72,
+                "y": 0,
+                "z": -24
+              }
+            },
+            {
+              "kind": "raider",
+              "position": {
+                "x": 75,
+                "y": 0,
+                "z": -22
+              }
+            },
+            {
+              "kind": "bulwark",
+              "position": {
+                "x": 78,
+                "y": 0,
+                "z": -20
+              }
+            },
+            {
+              "kind": "collector",
+              "position": {
+                "x": 75,
+                "y": 0,
+                "z": -32
+              },
+              "source_id": "south_field",
+              "destination_id": "enemy_refinery",
+              "home_id": "enemy_hq"
+            }
+          ]
         }
-      }
+      },
+      "ai": {
+        "collector_source_id": "south_field",
+        "relay_position": {
+          "x": 64,
+          "y": 0,
+          "z": -26
+        },
+        "staging_point_id": "east_crossing",
+        "opening_attack_delay_ticks": 1800
+      },
+      "allowed_buildings": [
+        "refinery",
+        "assembly_bay",
+        "tech_centre",
+        "storage_silo",
+        "relay"
+      ],
+      "display_name": "Relay Crossroads",
+      "allowed_player_units": [
+        "ranger",
+        "bulwark",
+        "warden",
+        "collector"
+      ],
+      "allowed_enemy_units": [
+        "raider",
+        "bulwark",
+        "collector"
+      ],
+      "allowed_enemy_buildings": [
+        "refinery",
+        "assembly_bay",
+        "tech_centre",
+        "storage_silo",
+        "relay"
+      ]
     }
   }
 }

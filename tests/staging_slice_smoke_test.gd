@@ -7,7 +7,7 @@ func _initialize() -> void:
 	var failures: Array[String] = []
 	var simulation = SimulationScript.new()
 	root.add_child(simulation)
-	simulation.start_match()
+	simulation.start_match("relay_crossroads")
 	var assembly_id := _find_entity(simulation.buildings, "assembly_bay", "player")
 	var ranger_id := _find_entity(simulation.units, "ranger", "player")
 	if assembly_id.is_empty() or ranger_id.is_empty():
@@ -36,12 +36,12 @@ func _initialize() -> void:
 			if not bool(simulation.buildings[assembly_id].get("rally_suspended", false)):
 				failures.append("losing a staging point should suspend, rather than erase, its named rally")
 			var units_before: int = simulation.units.size()
-			simulation.issue_command("produce", "player", {"building_id": assembly_id, "unit_type": "raider"})
+			simulation.issue_command("produce", "player", {"building_id": assembly_id, "unit_type": "ranger"})
 			_step_without_ai(simulation, 45)
 			if simulation.units.size() <= units_before:
 				failures.append("production should continue while a staging rally is suspended")
 			else:
-				var produced_id := _latest_unit_of_kind(simulation.units, "raider", "player")
+				var produced_id := _latest_unit_of_kind(simulation.units, "ranger", "player")
 				var exit_position := simulation._production_exit_position(simulation.buildings[assembly_id])
 				if produced_id.is_empty() or simulation.units[produced_id]["target_position"].distance_to(exit_position) > 0.15:
 					failures.append("a suspended staging rally should leave produced units at the Assembly Bay exit")
@@ -53,7 +53,7 @@ func _initialize() -> void:
 
 	var generic_sim = SimulationScript.new()
 	root.add_child(generic_sim)
-	generic_sim.start_match()
+	generic_sim.start_match("relay_crossroads")
 	var generic_assembly_id := _find_entity(generic_sim.buildings, "assembly_bay", "player")
 	var ground_rally := Vector3(-12.0, 0.0, 8.0)
 	generic_sim.issue_command("set_rally_point", "player", {"building_id": generic_assembly_id, "position": ground_rally})
@@ -67,7 +67,7 @@ func _initialize() -> void:
 
 	var ai_sim = SimulationScript.new()
 	root.add_child(ai_sim)
-	ai_sim.start_match()
+	ai_sim.start_match("relay_crossroads")
 	ai_sim.enemy_credits = 1500.0
 	for entity_id in ai_sim.units:
 		if ai_sim.units[entity_id]["team"] == "player":

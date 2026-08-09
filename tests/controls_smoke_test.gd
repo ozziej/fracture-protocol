@@ -13,7 +13,24 @@ func _initialize() -> void:
 		failures.append("HUD should show an actionable first-minute objective")
 	if main.collector_button.text != "QUEUE COLLECTOR [C]":
 		failures.append("HUD should expose Collector production before a Collector is selected")
+	var minimap_rect: Rect2 = main.minimap.get_global_rect()
+	var viewport_rect: Rect2 = main.get_viewport().get_visible_rect()
+	if minimap_rect.position.x < 0.0 or minimap_rect.position.y < 0.0 or minimap_rect.end.x > viewport_rect.end.x or minimap_rect.end.y > viewport_rect.end.y:
+		failures.append("minimap should be visible inside the tactical HUD")
+	if main.minimap.map_bounds != Rect2(-80.0, -55.0, 160.0, 110.0):
+		failures.append("minimap should use the authored level bounds")
+	var help: Label = main.find_child("ControlsHelp", true, false) as Label
+	if help == null or help.get_global_rect().end.x > viewport_rect.end.x:
+		failures.append("controls help should fit inside the HUD")
+	if main.simulation.control_points["west_crossing"]["owner"] != "neutral":
+		failures.append("West Crossing should begin neutral, outside the opening force")
 
+	main.simulation.event_history.append({"event_type": "ResourceDelivered", "team": "player"})
+	main._update_objective()
+	main._sync_views()
+	var west_objective_beam := main.control_views["west_crossing"].get_node_or_null("ObjectiveBeam") as MeshInstance3D
+	if main.objective_target_point_id != "west_crossing" or west_objective_beam == null or not west_objective_beam.visible:
+		failures.append("level-data staging objective should mark West Crossing in the world")
 	if not main.control_views.has("central_relay") or main.control_views["central_relay"].get_node_or_null("RelayCore") == null:
 		failures.append("central relay should expose the representative signal core visual")
 
@@ -48,7 +65,11 @@ func _initialize() -> void:
 		main._unhandled_input(_key_event(KEY_H))
 		if main.selected_ids != selected_before_focus:
 			failures.append("camera focus should not change the selected group")
-		if main.camera_target.distance_to(Vector3(-21.67, 0.0, 9.0)) > 8.0:
+		var expected_center := Vector3.ZERO
+		for entity_id in player_ids:
+			expected_center += main.simulation.units[entity_id]["position"]
+		expected_center /= float(player_ids.size())
+		if main.camera_target.distance_to(expected_center) > 8.0:
 			failures.append("H should focus the camera on the selected force")
 
 		main.simulation.issue_command("move", "player", {

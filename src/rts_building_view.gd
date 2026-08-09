@@ -65,6 +65,10 @@ func _build_visuals() -> void:
 		body_size = Vector3(2.5, 2.2, 2.5)
 	elif kind == "assembly_bay":
 		body_size = Vector3(3.6, 2.0, 3.1)
+	elif kind == "tech_centre":
+		body_size = Vector3(3.1, 2.4, 3.1)
+	elif kind == "storage_silo":
+		body_size = Vector3(2.2, 2.8, 2.2)
 
 	visual_body_height = body_size.y
 	var body := BoxMesh.new()

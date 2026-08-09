@@ -6,7 +6,7 @@ const SimulationScript = preload("res://src/rts_simulation.gd")
 func _initialize() -> void:
 	var simulation = SimulationScript.new()
 	root.add_child(simulation)
-	simulation.start_match()
+	simulation.start_match("relay_crossroads")
 	var unit_types: Array[String] = ["ranger", "warden", "raider", "bulwark"]
 	for index in range(100):
 		var team := "player" if index % 2 == 0 else "enemy"

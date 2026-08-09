@@ -9,7 +9,7 @@ func _initialize() -> void:
 	# Greedy opener: the starting Collector should pay back the opening economy.
 	var greedy_sim = SimulationScript.new()
 	root.add_child(greedy_sim)
-	greedy_sim.start_match()
+	greedy_sim.start_match("relay_crossroads")
 	var greedy_collector_id := _find_entity(greedy_sim.units, "collector", "player")
 	var greedy_refinery_id := _find_entity(greedy_sim.buildings, "refinery", "player")
 	_run_ticks(greedy_sim, 65)
@@ -32,7 +32,7 @@ func _initialize() -> void:
 	# Collector killed: replacing and reassigning the worker should recover the economy.
 	var collector_loss_sim = SimulationScript.new()
 	root.add_child(collector_loss_sim)
-	collector_loss_sim.start_match()
+	collector_loss_sim.start_match("relay_crossroads")
 	var lost_collector_id := _find_entity(collector_loss_sim.units, "collector", "player")
 	if lost_collector_id.is_empty():
 		failures.append("collector-loss scenario needs a player Collector")
@@ -57,7 +57,7 @@ func _initialize() -> void:
 	# Tech-first and unit-first openings are both valid paths.
 	var tech_sim = SimulationScript.new()
 	root.add_child(tech_sim)
-	tech_sim.start_match()
+	tech_sim.start_match("relay_crossroads")
 	var tech_assembly_id := _find_entity(tech_sim.buildings, "assembly_bay", "player")
 	tech_sim.issue_command("research", "player", {"building_id": tech_assembly_id, "technology_id": "advanced_targeting"})
 	_run_ticks(tech_sim, 1)
@@ -73,17 +73,17 @@ func _initialize() -> void:
 
 	var unit_first_sim = SimulationScript.new()
 	root.add_child(unit_first_sim)
-	unit_first_sim.start_match()
+	unit_first_sim.start_match("relay_crossroads")
 	var unit_first_assembly_id := _find_entity(unit_first_sim.buildings, "assembly_bay", "player")
-	unit_first_sim.issue_command("produce", "player", {"building_id": unit_first_assembly_id, "unit_type": "raider"})
+	unit_first_sim.issue_command("produce", "player", {"building_id": unit_first_assembly_id, "unit_type": "ranger"})
 	_run_ticks(unit_first_sim, 45)
-	if _find_entity(unit_first_sim.units, "raider", "player").is_empty():
-		failures.append("unit-first opening should produce a Raider")
+	if _find_entity(unit_first_sim.units, "ranger", "player").is_empty():
+		failures.append("unit-first opening should produce a Ranger")
 
 	# Supply cut and recovery should be legible and reversible.
 	var supply_sim = SimulationScript.new()
 	root.add_child(supply_sim)
-	supply_sim.start_match()
+	supply_sim.start_match("relay_crossroads")
 	var supply_unit_id := _find_entity(supply_sim.units, "ranger", "player")
 	var supply_hub_id := _find_entity(supply_sim.buildings, "command_hub", "player")
 	if supply_unit_id.is_empty() or supply_hub_id.is_empty():
@@ -102,7 +102,7 @@ func _initialize() -> void:
 	# Turtle posture: a damaged structure can be held with a paid repair.
 	var turtle_sim = SimulationScript.new()
 	root.add_child(turtle_sim)
-	turtle_sim.start_match()
+	turtle_sim.start_match("relay_crossroads")
 	var turtle_refinery_id := _find_entity(turtle_sim.buildings, "refinery", "player")
 	if turtle_refinery_id.is_empty():
 		failures.append("turtle scenario needs a player Resource Processor")
@@ -117,7 +117,7 @@ func _initialize() -> void:
 	# Rush posture: decisive HQ damage should resolve the MVP victory condition.
 	var rush_sim = SimulationScript.new()
 	root.add_child(rush_sim)
-	rush_sim.start_match()
+	rush_sim.start_match("relay_crossroads")
 	var rush_hq_id := _find_entity(rush_sim.buildings, "command_hub", "enemy")
 	var rush_unit_id := _find_entity(rush_sim.units, "warden", "player")
 	if rush_hq_id.is_empty() or rush_unit_id.is_empty():
