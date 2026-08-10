@@ -5,6 +5,7 @@ const DefinitionCatalogScript = preload("res://src/simulation/rts_definition_cat
 const NavigationServiceScript = preload("res://src/simulation/rts_navigation_service.gd")
 const AiControllerScript = preload("res://src/simulation/rts_ai_controller.gd")
 const LogisticsSystemScript = preload("res://src/simulation/rts_logistics_system.gd")
+const ForceCapacityScript = preload("res://src/simulation/rts_force_capacity.gd")
 
 signal simulation_event(event_type: String, payload: Dictionary)
 
@@ -365,12 +366,16 @@ func get_supply_summary(team: String) -> Dictionary:
 
 
 func get_limit_summary(team: String) -> Dictionary:
+	var current_force: int = _count_force(team, false)
+	var queued_force: int = _count_force(team, true) - current_force
 	var unit_by_kind: Dictionary = {}
 	for kind in unit_definitions:
 		unit_by_kind[kind] = {
 			"current": _count_units(team, kind),
 			"queued": _count_queued_units(team, kind),
-			"max": _unit_limit(team, kind),
+			"force_slots": _force_slots_for_kind(kind),
+			"force_current": _count_force(team, false, kind),
+			"force_queued": _count_force(team, true, kind) - _count_force(team, false, kind),
 		}
 	var building_by_kind: Dictionary = {}
 	for kind in building_definitions:
@@ -380,9 +385,11 @@ func get_limit_summary(team: String) -> Dictionary:
 		}
 	return {
 		"units": {
-			"current": _count_units(team),
-			"queued": _count_queued_units(team),
+			"current": current_force,
+			"queued": queued_force,
 			"max": _max_units_total(),
+			"current_count": _count_units(team),
+			"queued_count": _count_queued_units(team),
 			"by_kind": unit_by_kind,
 		},
 		"buildings": {
@@ -910,7 +917,7 @@ func _update_upgrades() -> void:
 	for building_id in buildings:
 		var building: Dictionary = buildings[building_id]
 		var upgrade_id := str(building.get("upgrade_id", ""))
-		if upgrade_id.is_empty() or not building["complete"]:
+		if upgrade_id.is_empty() or not building["complete"] or bool(building.get("upgrade_complete", false)):
 			continue
 		building["upgrade_remaining"] = max(0.0, float(building["upgrade_remaining"]) - TICK_SECONDS)
 		if float(building["upgrade_remaining"]) > 0.0:
@@ -1514,16 +1521,16 @@ func _count_units_in_radius(team: String, position: Vector3, radius: float) -> i
 
 
 func _max_units_total() -> int:
-	return max(1, int(level_rules.get("max_units_total", 9999)))
+	return ForceCapacityScript.capacity(level_rules)
 
 
 func _max_buildings_total() -> int:
 	return max(1, int(level_rules.get("max_buildings_total", 9999)))
 
 
-func _unit_limit(_team: String, kind: String) -> int:
-	var limits: Dictionary = level_rules.get("max_units_by_kind", {})
-	return max(1, int(limits.get(kind, _max_units_total())))
+func _unit_limit(_team: String, _kind: String) -> int:
+	# Compatibility façade: force capacity is global; unit types have no separate cap.
+	return _max_units_total()
 
 
 func _building_limit(_team: String, kind: String) -> int:
@@ -1552,6 +1559,15 @@ func _count_queued_units(team: String, kind: String = "") -> int:
 	return count
 
 
+func _count_force(team: String, include_queued: bool = true, kind: String = "") -> int:
+	return ForceCapacityScript.occupied(unit_definitions, units, buildings, team, include_queued, kind)
+
+
+func _force_slots_for_kind(kind: String) -> int:
+	return ForceCapacityScript.slots_for_kind(unit_definitions, kind)
+
+
+
 func _count_buildings(team: String, kind: String = "") -> int:
 	var count := 0
 	for entity_id in buildings:
@@ -1562,12 +1578,7 @@ func _count_buildings(team: String, kind: String = "") -> int:
 
 
 func _unit_queue_limit_reason(team: String, kind: String) -> String:
-	if _count_units(team) + _count_queued_units(team) >= _max_units_total():
-		return "Unit capacity reached (%d/%d)." % [_count_units(team) + _count_queued_units(team), _max_units_total()]
-	var current_kind := _count_units(team, kind) + _count_queued_units(team, kind)
-	if current_kind >= _unit_limit(team, kind):
-		return "%s limit reached (%d/%d)." % [unit_definitions[kind].display_name, current_kind, _unit_limit(team, kind)]
-	return ""
+	return ForceCapacityScript.queue_limit_reason(unit_definitions, units, buildings, level_rules, team, kind)
 
 
 func _building_limit_reason(team: String, kind: String) -> String:

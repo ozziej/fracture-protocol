@@ -1156,6 +1156,7 @@ func _update_production_queue_ui() -> void:
 		var display_name := unit_type.replace("_", " ").to_upper()
 		if definition:
 			display_name = str(definition.display_name).to_upper()
+			display_name = "%s [%dF]" % [display_name, max(1, int(definition.force_slots))]
 		var remaining: int = int(ceil(float(job.get("remaining", 0.0))))
 		var total: float = max(0.1, float(job.get("total", definition.build_time if definition else 1.0)))
 		var progress: int = int(clamp(1.0 - float(job.get("remaining", total)) / total, 0.0, 1.0) * 100.0)
@@ -1215,7 +1216,7 @@ func _unit_context_state(unit_type: String, building: Dictionary) -> Dictionary:
 	var current_total: int = int(unit_summary.get("current", 0)) + int(unit_summary.get("queued", 0))
 	var total_maximum: int = int(unit_summary.get("max", 1))
 	var current_kind: int = int(kind_limit.get("current", 0)) + int(kind_limit.get("queued", 0))
-	var kind_maximum: int = int(kind_limit.get("max", total_maximum))
+	var required_force: int = max(1, int(definition.force_slots))
 	var queue: Array = building.get("queue", [])
 	var queue_maximum: int = int(limits["queue"].get("max", 5))
 	var disabled := false
@@ -1223,12 +1224,9 @@ func _unit_context_state(unit_type: String, building: Dictionary) -> Dictionary:
 	if queue.size() >= queue_maximum:
 		disabled = true
 		reason = "Production queue full (%d/%d)." % [queue.size(), queue_maximum]
-	elif current_total >= total_maximum:
+	elif current_total + required_force > total_maximum:
 		disabled = true
-		reason = "Force capacity reached (%d/%d)." % [current_total, total_maximum]
-	elif current_kind >= kind_maximum:
-		disabled = true
-		reason = "%s limit reached (%d/%d)." % [definition.display_name, current_kind, kind_maximum]
+		reason = "Force capacity reached (%d/%d); %s requires %d force." % [current_total, total_maximum, definition.display_name, required_force]
 	elif unit_type == "collector":
 		var building_limits: Dictionary = limits["buildings"]
 		var storage_limits: Dictionary = building_limits.get("by_kind", {})
@@ -1248,6 +1246,16 @@ func _unit_context_state(unit_type: String, building: Dictionary) -> Dictionary:
 		disabled = true
 		reason = "Need %d more credits." % int(float(definition.cost) - simulation.player_credits)
 	return {"visible": true, "disabled": disabled, "reason": reason}
+
+
+func _unit_card_label(unit_type: String, value_text: String) -> String:
+	var display_name := unit_type.replace("_", " ").to_upper()
+	var force_slots := 1
+	if simulation.unit_definitions.has(unit_type):
+		var definition = simulation.unit_definitions[unit_type]
+		display_name = str(definition.display_name).to_upper()
+		force_slots = max(1, int(definition.force_slots))
+	return "◈ %s [%dF]\n%s" % [display_name, force_slots, value_text]
 
 
 func _upgrade_context_state(building: Dictionary) -> Dictionary:
@@ -1318,7 +1326,7 @@ func _update_context_cards() -> void:
 				"refinery":
 					var collector_state := _unit_context_state("collector", building)
 					if bool(collector_state.get("visible", false)):
-						cards[0] = {"action": "produce:collector", "label": "◈ COLLECTOR\n%d" % int(simulation.unit_definitions["collector"].cost), "visible": true, "disabled": collector_state.get("disabled", false), "reason": collector_state.get("reason", "")}
+						cards[0] = {"action": "produce:collector", "label": _unit_card_label("collector", "%d" % int(simulation.unit_definitions["collector"].cost)), "visible": true, "disabled": collector_state.get("disabled", false), "reason": collector_state.get("reason", "")}
 					var silo_state := _building_context_state("storage_silo", "refinery")
 					if bool(silo_state.get("visible", false)):
 						cards[1] = {"action": "build:storage_silo", "label": "◈ SILO\n%d" % int(simulation.building_definitions["storage_silo"].cost), "visible": true, "disabled": silo_state.get("disabled", false), "reason": silo_state.get("reason", "")}
@@ -1332,17 +1340,17 @@ func _update_context_cards() -> void:
 				"assembly_bay":
 					var ranger_state := _unit_context_state("ranger", building)
 					if bool(ranger_state.get("visible", false)):
-						cards[0] = {"action": "produce:ranger", "label": "◈ RANGER\n%d" % int(simulation.unit_definitions["ranger"].cost), "visible": true, "disabled": ranger_state.get("disabled", false), "reason": ranger_state.get("reason", "")}
+						cards[0] = {"action": "produce:ranger", "label": _unit_card_label("ranger", "%d" % int(simulation.unit_definitions["ranger"].cost)), "visible": true, "disabled": ranger_state.get("disabled", false), "reason": ranger_state.get("reason", "")}
 					var bulwark_state := _unit_context_state("bulwark", building)
 					if bool(bulwark_state.get("visible", false)):
 						var bulwark_reason := str(bulwark_state.get("reason", ""))
-						var bulwark_label := "◈ BULWARK\n%d" % int(simulation.unit_definitions["bulwark"].cost)
+						var bulwark_label := _unit_card_label("bulwark", "%d" % int(simulation.unit_definitions["bulwark"].cost))
 						if not bulwark_reason.is_empty() and bulwark_reason.begins_with("Requires"):
-							bulwark_label = "◈ BULWARK\nRESEARCH"
+							bulwark_label = _unit_card_label("bulwark", "RESEARCH")
 						cards[1] = {"action": "produce:bulwark", "label": bulwark_label, "visible": true, "disabled": bulwark_state.get("disabled", false), "reason": bulwark_reason}
 					var warden_state := _unit_context_state("warden", building)
 					if bool(warden_state.get("visible", false)):
-						cards[2] = {"action": "produce:warden", "label": "◈ WARDEN\n%d" % int(simulation.unit_definitions["warden"].cost), "visible": true, "disabled": warden_state.get("disabled", false), "reason": warden_state.get("reason", "")}
+						cards[2] = {"action": "produce:warden", "label": _unit_card_label("warden", "%d" % int(simulation.unit_definitions["warden"].cost)), "visible": true, "disabled": warden_state.get("disabled", false), "reason": warden_state.get("reason", "")}
 					var fabrication_state := _upgrade_context_state(building)
 					if bool(fabrication_state.get("visible", false)):
 						var fabrication_suffix := str(fabrication_state.get("label_suffix", ""))
@@ -1385,6 +1393,10 @@ func _selection_detail(data: Dictionary) -> String:
 	var supply_text := ""
 	if data.has("supply_state"):
 		supply_text = "   SUPPLY %s" % str(data["supply_state"]).to_upper()
+	var force_text := ""
+	if data.has("kind") and simulation.unit_definitions.has(str(data["kind"])):
+		var selected_definition = simulation.unit_definitions[str(data["kind"])]
+		force_text = "   FORCE %d" % max(1, int(selected_definition.force_slots))
 	var collector_text := ""
 	if not str(data.get("collector_state", "")).is_empty():
 		var collector_route_label := str(data["collector_state"]).replace("_", "-").to_upper()
@@ -1426,8 +1438,8 @@ func _selection_detail(data: Dictionary) -> String:
 		else:
 			rally_text = "   RALLY SET"
 	if data.has("order"):
-		return "HP %d/%d   ORDER %s%s%s%s%s%s" % [int(data["health"]), int(data["max_health"]), str(data["order"]).to_upper(), supply_text, collector_text, research_text, queue_text, rally_text]
-	return "HP %d/%d   %s%s%s%s%s%s" % [int(data["health"]), int(data["max_health"]), "ONLINE" if data["complete"] else "BUILDING", supply_text, collector_text, research_text, queue_text, rally_text]
+		return "HP %d/%d   ORDER %s%s%s%s%s%s%s" % [int(data["health"]), int(data["max_health"]), str(data["order"]).to_upper(), force_text, supply_text, collector_text, research_text, queue_text, rally_text]
+	return "HP %d/%d   %s%s%s%s%s%s%s" % [int(data["health"]), int(data["max_health"]), "ONLINE" if data["complete"] else "BUILDING", force_text, supply_text, collector_text, research_text, queue_text, rally_text]
 
 func _on_simulation_event(event_type: String, payload: Dictionary) -> void:
 	if combat_effects:

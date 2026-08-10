@@ -180,8 +180,8 @@ func _initialize() -> void:
 	var unit_cap_sim = SimulationScript.new()
 	root.add_child(unit_cap_sim)
 	unit_cap_sim.start_match("relay_crossroads")
-	for _index in range(20):
-		unit_cap_sim._add_unit("player", "raider", Vector3.ZERO)
+	for _index in range(12):
+		unit_cap_sim._add_unit("player", "bulwark", Vector3.ZERO)
 	var cap_assembly_id := _find_entity(unit_cap_sim.buildings, "assembly_bay", "player")
 	unit_cap_sim.issue_command("produce", "player", {"building_id": cap_assembly_id, "unit_type": "ranger"})
 	_step(unit_cap_sim, 1)

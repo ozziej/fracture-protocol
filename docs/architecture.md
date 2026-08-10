@@ -15,6 +15,8 @@ The simulation delegates isolated responsibilities to collaborators:
   obstacle-aware routes.
 - `simulation/rts_ai_controller.gd` is an enemy policy that can only use the
   same public commands as the player; it has no hidden resource or combat path.
+- `simulation/rts_force_capacity.gd` is a stateless force-accounting service;
+  unit slot weights and queued reservations are evaluated consistently.
 
 `main.gd` remains the Godot scene entry point and input composition root. It
 contains only player input, selection, camera state, campaign flow, and the

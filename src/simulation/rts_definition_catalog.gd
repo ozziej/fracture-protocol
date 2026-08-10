@@ -28,6 +28,7 @@ static func populate(unit_definitions: Dictionary, building_definitions: Diction
 	ranger.display_name = "Ranger"
 	ranger.role = "general infantry"
 	ranger.cost = 80
+	ranger.force_slots = 1
 	ranger.build_time = 2.2
 	ranger.max_health = 75.0
 	ranger.speed = 6.0
@@ -44,6 +45,7 @@ static func populate(unit_definitions: Dictionary, building_definitions: Diction
 	warden.display_name = "Warden"
 	warden.role = "armoured line vehicle"
 	warden.cost = 145
+	warden.force_slots = 2
 	warden.build_time = 4.2
 	warden.max_health = 190.0
 	warden.speed = 3.7
@@ -60,6 +62,7 @@ static func populate(unit_definitions: Dictionary, building_definitions: Diction
 	raider.display_name = "Raider"
 	raider.role = "fast attack vehicle"
 	raider.cost = 105
+	raider.force_slots = 1
 	raider.build_time = 3.0
 	raider.max_health = 125.0
 	raider.speed = 6.4
@@ -75,6 +78,7 @@ static func populate(unit_definitions: Dictionary, building_definitions: Diction
 	bulwark.display_name = "Bulwark"
 	bulwark.role = "siege vehicle"
 	bulwark.cost = 210
+	bulwark.force_slots = 2
 	bulwark.build_time = 6.5
 	bulwark.max_health = 210.0
 	bulwark.speed = 2.6
@@ -96,6 +100,7 @@ static func populate(unit_definitions: Dictionary, building_definitions: Diction
 	collector.display_name = "Collector"
 	collector.role = "resource hauler"
 	collector.cost = 115
+	collector.force_slots = 1
 	collector.build_time = 3.5
 	collector.max_health = 150.0
 	collector.speed = 4.8

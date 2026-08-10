@@ -89,6 +89,33 @@ func _initialize() -> void:
 	if credits_after_start <= credits_after_queue:
 		failures.append("Queueing a Warden should reserve its cost before cancellation")
 
+	var force_sim = SimulationScript.new()
+	root.add_child(force_sim)
+	force_sim.start_match("relay_crossroads")
+	for _index in range(10):
+		force_sim._add_unit("player", "bulwark", Vector3.ZERO)
+	force_sim._add_unit("player", "ranger", Vector3.ZERO)
+	var force_summary: Dictionary = force_sim.get_limit_summary("player")["units"]
+	if int(force_summary["current"]) != 24 or int(force_summary["max"]) != 24:
+		failures.append("force summary should count Bulwarks as two slots")
+	var force_assembly_id := _find_building(force_sim, "player", "assembly_bay")
+	force_sim.issue_command("produce", "player", {"building_id": force_assembly_id, "unit_type": "ranger"})
+	_step(force_sim, 1)
+	if not force_sim.buildings[force_assembly_id]["queue"].is_empty() or not _has_rejection(force_sim, "Force capacity"):
+		failures.append("force capacity should reject production only when occupied slots are full")
+	var upgrade_sim = SimulationScript.new()
+	root.add_child(upgrade_sim)
+	upgrade_sim.start_match("relay_crossroads")
+	var upgrade_assembly_id := _find_building(upgrade_sim, "player", "assembly_bay")
+	upgrade_sim.issue_command("upgrade", "player", {"building_id": upgrade_assembly_id})
+	_step(upgrade_sim, 80)
+	var upgrade_completion_count := 0
+	for event in upgrade_sim.event_history:
+		if str(event.get("event_type", "")) == "UpgradeCompleted":
+			upgrade_completion_count += 1
+	if upgrade_completion_count != 1:
+		failures.append("an upgrade should emit exactly one completion event")
+
 	var game = MainScript.new()
 	root.add_child(game)
 	await process_frame

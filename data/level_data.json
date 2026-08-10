@@ -405,13 +405,6 @@
         "max_queue": 5,
         "max_units_total": 24,
         "max_buildings_total": 8,
-        "max_units_by_kind": {
-          "ranger": 8,
-          "warden": 4,
-          "raider": 10,
-          "bulwark": 6,
-          "collector": 3
-        },
         "max_buildings_by_kind": {
           "command_hub": 1,
           "refinery": 3,
@@ -420,8 +413,8 @@
         },
         "collector_speed_multiplier": 0.78,
         "collector_load_seconds": 2.5,
-        "production_time_multiplier": 1.2,
-        "collector_production_time_multiplier": 1.35
+        "production_time_multiplier": 1.5,
+        "collector_production_time_multiplier": 1.6
       },
       "spawns": {
         "player": {
@@ -581,13 +574,6 @@
         "max_queue": 5,
         "max_units_total": 24,
         "max_buildings_total": 8,
-        "max_units_by_kind": {
-          "ranger": 8,
-          "warden": 4,
-          "raider": 10,
-          "bulwark": 6,
-          "collector": 3
-        },
         "max_buildings_by_kind": {
           "command_hub": 1,
           "refinery": 3,
@@ -596,8 +582,8 @@
         },
         "collector_speed_multiplier": 0.78,
         "collector_load_seconds": 2.5,
-        "production_time_multiplier": 1.2,
-        "collector_production_time_multiplier": 1.35
+        "production_time_multiplier": 1.5,
+        "collector_production_time_multiplier": 1.6
       },
       "spawns": {
         "player": {

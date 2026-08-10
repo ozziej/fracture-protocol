@@ -5,6 +5,7 @@ extends Resource
 @export var display_name: String = "Unit"
 @export var role: String = "general"
 @export var cost: int = 100
+@export var force_slots: int = 1
 @export var build_time: float = 3.0
 @export var max_health: float = 100.0
 @export var speed: float = 5.0
