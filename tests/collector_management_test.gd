@@ -8,11 +8,14 @@ func _initialize() -> void:
 	var simulation = SimulationScript.new()
 	root.add_child(simulation)
 	simulation.start_match("relay_crossroads")
-	var collector_id := _find_entity(simulation.units, "collector", "player")
 	var refinery_id := _find_entity(simulation.buildings, "refinery", "player")
 	var assembly_id := _find_entity(simulation.buildings, "assembly_bay", "player")
+	var hub_id := _find_entity(simulation.buildings, "command_hub", "player")
+	var collector_id: String = ""
+	if not refinery_id.is_empty() and not hub_id.is_empty():
+		collector_id = simulation._add_collector("player", "north_field", refinery_id, hub_id, simulation.buildings[refinery_id]["position"])
 	if collector_id.is_empty() or refinery_id.is_empty() or assembly_id.is_empty():
-		failures.append("collector management needs a starting Collector, Resource Processor, and Assembly Bay")
+		failures.append("collector management needs a Resource Processor, Assembly Bay, and Collector fixture")
 	else:
 		simulation.issue_command("assign_collector", "player", {
 			"collector_id": collector_id,
@@ -26,9 +29,10 @@ func _initialize() -> void:
 		if not _has_event(simulation, "CollectorAssigned", "unit_id", collector_id):
 			failures.append("manual Collector assignment should emit CollectorAssigned")
 
+		simulation.units.erase(collector_id)
 		var units_before_queue: int = simulation.units.size()
-		simulation.issue_command("produce", "player", {"building_id": assembly_id, "unit_type": "collector"})
-		_run_ticks(simulation, 60)
+		simulation.issue_command("produce", "player", {"building_id": refinery_id, "unit_type": "collector"})
+		_run_ticks(simulation, 100)
 		if simulation.units.size() <= units_before_queue:
 			failures.append("Assembly Bay should produce a replacement Collector")
 		else:
@@ -48,8 +52,8 @@ func _initialize() -> void:
 		simulation.restart_match()
 		if simulation.current_tick != 0 or simulation.match_over or simulation.player_credits != 850.0:
 			failures.append("simulation restart should restore a fresh playable match")
-		if _count_entities(simulation.units, "collector", "player") != 1:
-			failures.append("simulation restart should restore exactly one starting player Collector")
+		if _count_entities(simulation.units, "collector", "player") != 0:
+			failures.append("Level 2 restart should restore its authored no-Collector opening")
 
 	if failures.is_empty():
 		print("COLLECTOR_MANAGEMENT_PASS")

@@ -14,12 +14,27 @@ func _initialize() -> void:
 		failures.append("Level 1 should begin with only the Command Hub")
 	if simulation.get_level_bounds() != Vector2(115.0, 75.0):
 		failures.append("Relay Divide should use the expanded opening map")
+	var level_two_map_sim = SimulationScript.new()
+	root.add_child(level_two_map_sim)
+	level_two_map_sim.start_match("relay_crossroads")
+	if level_two_map_sim.get_level_id() != "relay_crossroads":
+		failures.append("Relay Crossroads should load as its own authored mission")
+	if level_two_map_sim.get_level_bounds() != Vector2(140.0, 92.0):
+		failures.append("Relay Crossroads should use its larger authored battlefield")
+	var level_two_terrain: Dictionary = level_two_map_sim.get_level_terrain()
+	if level_two_terrain.get("roads", []).size() < 5 or level_two_terrain.get("obstacles", []).size() < 8:
+		failures.append("Relay Crossroads should expose distinct roads and obstacles")
+	if not level_two_map_sim.resource_nodes.has("crossroads_field"):
+		failures.append("Relay Crossroads should expose its contested energy field")
+	var level_two_hq_id := _find_building(level_two_map_sim, "enemy", "command_hub")
+	if level_two_hq_id.is_empty() or level_two_map_sim.buildings[level_two_hq_id]["position"] != Vector3(96.0, 0.0, -58.0):
+		failures.append("Relay Crossroads should use its distinct enemy deployment")
 	var opening_sim = SimulationScript.new()
 	root.add_child(opening_sim)
 	opening_sim.start_match("relay_divide")
-	_step(opening_sim, 1799)
+	_step(opening_sim, 2399)
 	if _has_enemy_attack_order(opening_sim):
-		failures.append("The enemy must not launch its HQ attack before the opening staging window")
+		failures.append("The enemy must not launch its HQ attack before the four-minute opening window")
 
 	var hub_id := _find_building(simulation, "player", "command_hub")
 	simulation.issue_command("build", "player", {"building_type": "assembly_bay", "position": Vector3(-82.0, 0.0, 24.0), "source_building_id": hub_id})
@@ -182,6 +197,33 @@ func _initialize() -> void:
 		failures.append("Winning Level 1 should persist the Level 2 unlock")
 	if FileAccess.file_exists(progress_path):
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(progress_path))
+	var loss_progress_path := "user://progression_loss_test.json"
+	if FileAccess.file_exists(loss_progress_path):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(loss_progress_path))
+	var loss_progress = CampaignProgressScript.new(loss_progress_path)
+	var loss_sim = SimulationScript.new()
+	root.add_child(loss_sim)
+	loss_sim.start_match("relay_divide")
+	var loss_hq_id := _find_building(loss_sim, "player", "command_hub")
+	var loss_attacker_id := _find_entity(loss_sim.units, "raider", "enemy")
+	if loss_hq_id.is_empty() or loss_attacker_id.is_empty():
+		failures.append("campaign loss verification needs the Level 1 Command Hub and Raider")
+	else:
+		loss_sim.buildings[loss_hq_id]["health"] = 1.0
+		loss_sim.units[loss_attacker_id]["position"] = loss_sim.buildings[loss_hq_id]["position"] + Vector3(2.0, 0.0, 0.0)
+		loss_sim.units[loss_attacker_id]["target_position"] = loss_sim.units[loss_attacker_id]["position"]
+		loss_sim.issue_command("attack", "enemy", {"entity_ids": [loss_attacker_id], "target_id": loss_hq_id})
+		_step(loss_sim, 3)
+		if not loss_sim.match_over or loss_sim.match_winner != "enemy":
+			failures.append("losing Level 1 should not be treated as campaign completion")
+		var after_loss = CampaignProgressScript.new(loss_progress_path)
+		if after_loss.is_unlocked("relay_crossroads"):
+			failures.append("a Level 1 loss must not unlock Level 2")
+		loss_sim.restart_match()
+		if loss_sim.match_over or loss_sim.current_tick != 0 or loss_sim.get_level_id() != "relay_divide":
+			failures.append("restarting after a loss should create a clean Level 1 match")
+	if FileAccess.file_exists(loss_progress_path):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(loss_progress_path))
 
 	if failures.is_empty():
 		print("PROGRESSION_COMBAT_PASS")
@@ -204,6 +246,14 @@ func _find_building(simulation, team: String, kind: String) -> String:
 		var building: Dictionary = simulation.buildings[building_id]
 		if building["team"] == team and building["kind"] == kind:
 			return building_id
+	return ""
+
+
+func _find_entity(entities: Dictionary, kind: String, team: String) -> String:
+	for entity_id in entities:
+		var entity: Dictionary = entities[entity_id]
+		if entity["team"] == team and entity["kind"] == kind:
+			return entity_id
 	return ""
 
 

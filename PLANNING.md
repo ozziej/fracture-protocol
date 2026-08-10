@@ -1,7 +1,7 @@
 # Fracture Protocol — Planning Document
 
-**Status:** Contested Relay Opening and authored-map clarity slice implemented; playtest the longer West Crossing opening next
-**Version:** 0.6
+**Status:** Level 1 opening, Ranger/Raider balance, and authored Level 2 battlefield implemented; playtest both campaign missions next
+**Version:** 0.8
 **Target:** PC  
 **Engine direction:** Godot 4  
 **First playable:** Local skirmish against AI  
@@ -17,6 +17,7 @@ The current Godot 4 prototype has a playable local skirmish foundation:
 - Drag selection, context-sensitive move/attack orders, production queue input, relay placement, a minimap, and event feedback.
 - A fixed-step simulation with commands, events, serialisable dictionaries, base structures, units, capture points, resource income, production, combat, and a basic AI opponent.
 - Obstacle-aware movement around the authored graybox map, attack-move orders that resume after contact, and a stop order that clears the current route.
+- Shift-right-click appends serialisable movement waypoints, while `P` patrols between the current position and a chosen destination.
 - Control groups with keyboard focus support, plus visible destination markers and order labels for selected units.
 - Damage events now produce procedural combat tracers, impact flashes, damage readouts, and destruction bursts without requiring final assets.
 - A connected supply network that begins at the Command Hub and can extend through completed Forward Relays and owned control points.
@@ -28,18 +29,21 @@ The current Godot 4 prototype has a playable local skirmish foundation:
 - The HUD now gives first-minute objective guidance, explains the credit/supply/research/repair tradeoffs, exposes production queue status, and gives explicit Collector route controls.
 - The central relay corridor has a first code-native visual slice: signal core, pulsing halo/light, and readable road markers that can later receive final assets.
 - Explicit Move orders now override attack pursuit while still allowing fire against remembered or newly detected enemies that remain in range.
+- Ranger and Raider now share first-pass health, armour, range, damage, and fire cadence; Raider identity remains speed/vision rather than raw combat superiority. Level 1 begins without an enemy Bulwark and the AI waits for a three-unit attack group.
+- The campaign opening is regression-covered as a Hub-only Level 1: loss does not unlock Level 2, restart clears match state, and a Level 1 win persists the Level 2 unlock.
+- Relay Crossroads now uses its own 280×184 authored battlefield with separate roads, obstacles, energy placement, deployment coordinates, and relay approach lanes. Switching missions rebuilds the authored world shell and minimap bounds from the selected level data.
 - Unit presentation interpolates between fixed simulation positions, while destination markers continue to track the authoritative simulation target.
 - Collector loading now fills over a readable 2.5-second interval and exposes a distinct cargo progress bar below its health bar.
 - Construction visuals remain grounded at every progress value: the body grows upward from the terrain and its cap, antenna, health bar, and label follow the current top.
 - Production now uses a five-item queue cap, slower authored build pacing, explicit exit anchors, selectable Assembly Bay rally points, and visible queue/force-limit feedback.
 - The authored `data/level_data.json` schema now drives the first skirmish's bounds, roads, lane markers, obstacles, accents, resource fields, capture points, player/enemy spawns, AI coordinates, and per-level caps/timing rules.
 - Unit and building health fills are aligned to their backgrounds at full health; Collector cargo remains a separate progressive bar.
-- Automated scenario coverage now includes Collector management, AI behavior, rush/turtle/greedy/tech-first/unit-first/Collector-loss/supply-cut paths, clean restart, the focused movement/presentation regression, authored terrain loading, queue limits, rally exits, force caps, and a 100-unit simulation benchmark.
+- Automated scenario coverage now includes Collector management, AI behavior, rush/turtle/greedy/tech-first/unit-first/Collector-loss/supply-cut paths, clean restart, the focused movement/presentation regression, authored terrain loading, queue limits, rally exits, force caps, Ranger-Raider parity, queued waypoints, patrol looping, and a 100-unit simulation benchmark.
 
 - Supply-connected captured control points now become Forward Staging Sites: they support the existing paid field repairs, provide a named Assembly Bay rally destination, visibly go offline when cut, and restore the saved rally when reconnected. West Crossing teaches the player mechanic while the AI secures East Crossing using the same rules.
 - Relay Divide now has an expanded 160×110 authored battlefield, a player-base opening camera, a visible tactical minimap, and a world-space objective beacon. Mission briefing and objective copy are data-owned in `data/level_data.json`, keeping map/story text out of gameplay scripts.
 
-The next iteration should playtest the authored level and tune staging-site pressure, queue pacing, force caps, rally placement, and Collector risk/reward before adding more units or faction-specific economy. Asset work can proceed selectively around the representative relay corridor rather than replacing the whole graybox at once.
+The next iteration should playtest both authored campaign missions, verify Ranger-Raider parity under real combat pressure, and tune staging-site pressure, queue pacing, force caps, rally placement, Collector risk/reward, and AI attack timing before adding more units or faction-specific economy. Asset work can proceed selectively around the representative relay corridor rather than replacing the whole graybox at once.
 
 ## 1. Vision
 
@@ -529,4 +533,3 @@ After the local skirmish is proven, the likely order is:
 3. Add faction-specific economic and logistics decisions only after the shared loop remains legible under balance pressure.
 4. Expand the representative relay-corridor visual slice with authored materials, animation, audio, and VFX while preserving the current silhouettes and feedback.
 5. Repeat the 100-unit benchmark with the visual slice active on the chosen PC baseline, then begin campaign/multiplayer feasibility work only after the local skirmish is stable.
-

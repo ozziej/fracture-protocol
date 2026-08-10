@@ -13,6 +13,11 @@ func _initialize() -> void:
 	if assembly_id.is_empty() or ranger_id.is_empty():
 		failures.append("staging test needs a player Assembly Bay and Ranger")
 	else:
+		simulation.issue_command("build", "player", {
+			"building_type": "relay",
+			"position": Vector3(-82.0, 0.0, 46.0),
+		})
+		_step_without_ai(simulation, 60)
 		var west: Dictionary = simulation.control_points["west_crossing"]
 		simulation.units[ranger_id]["position"] = west["position"]
 		simulation.units[ranger_id]["target_position"] = west["position"]

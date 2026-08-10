@@ -25,7 +25,7 @@ func _initialize() -> void:
 		failures.append("move command should advance a unit")
 
 	var credits_before_build: float = simulation.player_credits
-	simulation.issue_command("build", "player", {"building_type": "relay", "position": Vector3(-30.0, 0.0, 18.0)})
+	simulation.issue_command("build", "player", {"building_type": "relay", "position": Vector3(-82.0, 0.0, 46.0)})
 	_run_ticks(simulation, 2)
 	var relay_id := _find_entity(simulation.buildings, "relay", "player")
 	if relay_id.is_empty():
@@ -63,4 +63,3 @@ func _find_entity(entities: Dictionary, kind: String, team: String) -> String:
 		if entities[entity_id]["kind"] == kind and entities[entity_id]["team"] == team:
 			return entity_id
 	return ""
-

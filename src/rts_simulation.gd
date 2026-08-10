@@ -451,6 +451,10 @@ func _process_commands() -> void:
 		match command_type:
 			"move":
 				_apply_move_command(issuer, payload)
+			"queue_move":
+				_apply_queue_move_command(issuer, payload)
+			"patrol":
+				_apply_patrol_command(issuer, payload)
 			"attack":
 				_apply_attack_command(issuer, payload)
 			"attack_move":
@@ -485,6 +489,9 @@ func _apply_move_command(issuer: String, payload: Dictionary) -> void:
 		if not units.has(entity_id) or units[entity_id]["team"] != issuer:
 			continue
 		var unit: Dictionary = units[entity_id]
+		unit["command_waypoints"] = []
+		unit["patrol_points"] = []
+		unit["patrol_index"] = 0
 		var target_position: Vector3 = destination + _formation_offset(accepted, entity_ids.size())
 		unit["target_position"] = target_position
 		unit["waypoints"] = _build_navigation_path(unit["position"], target_position)
@@ -502,6 +509,99 @@ func _apply_move_command(issuer: String, payload: Dictionary) -> void:
 		})
 
 
+func _apply_queue_move_command(issuer: String, payload: Dictionary) -> void:
+	var destination: Vector3 = payload.get("position", Vector3.ZERO)
+	var queued_order := "attack_move" if bool(payload.get("attack_move", false)) else "move"
+	var entity_ids: Array = payload.get("entity_ids", [])
+	var accepted := 0
+	for entity_id in entity_ids:
+		if not units.has(entity_id) or units[entity_id]["team"] != issuer or units[entity_id]["kind"] == "collector":
+			continue
+		var unit: Dictionary = units[entity_id]
+		var target_position: Vector3 = destination + _formation_offset(accepted, entity_ids.size())
+		var queued_orders: Array = unit.get("command_waypoints", [])
+		queued_orders.append({"position": target_position, "order": queued_order})
+		unit["command_waypoints"] = queued_orders
+		if str(unit.get("order", "idle")) == "patrol":
+			unit["patrol_points"] = []
+			unit["patrol_index"] = 0
+			unit["attack_target"] = ""
+			unit["move_fire_target"] = ""
+			unit["order"] = "idle"
+			_start_next_queued_order(unit)
+		elif str(unit.get("order", "idle")) == "idle":
+			_start_next_queued_order(unit)
+		accepted += 1
+	if accepted > 0:
+		_emit_event("OrderIssued", {
+			"order": "queue_move",
+			"team": issuer,
+			"count": accepted,
+			"position": destination,
+			"queued_order": queued_order,
+			"message": "Queued waypoint for %d unit%s." % [accepted, "" if accepted == 1 else "s"],
+		})
+
+
+func _apply_patrol_command(issuer: String, payload: Dictionary) -> void:
+	var destination: Vector3 = payload.get("position", Vector3.ZERO)
+	var entity_ids: Array = payload.get("entity_ids", [])
+	var accepted := 0
+	for entity_id in entity_ids:
+		if not units.has(entity_id) or units[entity_id]["team"] != issuer or units[entity_id]["kind"] == "collector":
+			continue
+		var unit: Dictionary = units[entity_id]
+		var start_position: Vector3 = unit["position"]
+		var target_position: Vector3 = destination + _formation_offset(accepted, entity_ids.size())
+		unit["command_waypoints"] = []
+		unit["patrol_points"] = [start_position, target_position]
+		unit["patrol_index"] = 1
+		unit["attack_target"] = ""
+		unit["move_fire_target"] = ""
+		_set_unit_route(unit, target_position, "patrol")
+		accepted += 1
+	if accepted > 0:
+		_emit_event("OrderIssued", {
+			"order": "patrol",
+			"team": issuer,
+			"count": accepted,
+			"position": destination,
+			"message": "Patrol order issued to %d unit%s." % [accepted, "" if accepted == 1 else "s"],
+		})
+
+
+func _set_unit_route(unit: Dictionary, destination: Vector3, order: String) -> void:
+	unit["target_position"] = destination
+	unit["waypoints"] = _build_navigation_path(unit["position"], destination)
+	unit["order"] = order
+
+
+func _start_next_queued_order(unit: Dictionary) -> bool:
+	var queued_orders: Array = unit.get("command_waypoints", [])
+	if queued_orders.is_empty():
+		return false
+	var next_order: Dictionary = queued_orders.pop_front()
+	unit["command_waypoints"] = queued_orders
+	unit["patrol_points"] = []
+	unit["patrol_index"] = 0
+	unit["attack_target"] = ""
+	unit["move_fire_target"] = ""
+	_set_unit_route(unit, next_order.get("position", unit["position"]), str(next_order.get("order", "move")))
+	return true
+
+
+func _finish_movement_route(unit: Dictionary) -> bool:
+	if str(unit.get("order", "")) == "patrol":
+		var patrol_points: Array = unit.get("patrol_points", [])
+		if patrol_points.size() < 2:
+			return false
+		var next_index := (int(unit.get("patrol_index", 0)) + 1) % patrol_points.size()
+		unit["patrol_index"] = next_index
+		_set_unit_route(unit, patrol_points[next_index], "patrol")
+		return true
+	return _start_next_queued_order(unit)
+
+
 func _apply_attack_move_command(issuer: String, payload: Dictionary) -> void:
 	var destination: Vector3 = payload.get("position", Vector3.ZERO)
 	var entity_ids: Array = payload.get("entity_ids", [])
@@ -510,6 +610,9 @@ func _apply_attack_move_command(issuer: String, payload: Dictionary) -> void:
 		if not units.has(entity_id) or units[entity_id]["team"] != issuer:
 			continue
 		var unit: Dictionary = units[entity_id]
+		unit["command_waypoints"] = []
+		unit["patrol_points"] = []
+		unit["patrol_index"] = 0
 		var target_position: Vector3 = destination + _formation_offset(accepted, entity_ids.size())
 		unit["target_position"] = target_position
 		unit["waypoints"] = _build_navigation_path(unit["position"], target_position)
@@ -538,6 +641,9 @@ func _apply_attack_command(issuer: String, payload: Dictionary) -> void:
 		if not units.has(entity_id) or units[entity_id]["team"] != issuer:
 			continue
 		var unit: Dictionary = units[entity_id]
+		unit["command_waypoints"] = []
+		unit["patrol_points"] = []
+		unit["patrol_index"] = 0
 		unit["move_fire_target"] = ""
 		unit["attack_target"] = target_id
 		unit["waypoints"] = []
@@ -558,6 +664,9 @@ func _apply_stop_command(issuer: String, payload: Dictionary) -> void:
 	for entity_id in payload.get("entity_ids", []):
 		if units.has(entity_id) and units[entity_id]["team"] == issuer:
 			var unit: Dictionary = units[entity_id]
+			unit["command_waypoints"] = []
+			unit["patrol_points"] = []
+			unit["patrol_index"] = 0
 			unit["order"] = "idle"
 			unit["move_fire_target"] = ""
 			unit["attack_target"] = ""
@@ -1099,6 +1208,8 @@ func _update_units() -> void:
 		if not attack_target.is_empty() and not _entity_exists(attack_target):
 			unit["attack_target"] = ""
 			attack_target = ""
+			if str(unit.get("order", "")) == "attack" and not _start_next_queued_order(unit):
+				unit["order"] = "idle"
 
 		var speed_multiplier: float = float(unit.get("supply_speed_multiplier", 1.0))
 		var damage_multiplier: float = float(unit.get("supply_damage_multiplier", 1.0))
@@ -1122,9 +1233,10 @@ func _update_units() -> void:
 						_fire_weapon(unit, fire_target, damage_multiplier)
 						unit["cooldown"] = definition.attack_cooldown
 			if unit["waypoints"].is_empty() and unit["position"].distance_to(unit["target_position"]) <= 0.15:
-				unit["order"] = "idle"
-				unit["attack_target"] = ""
-				unit["move_fire_target"] = ""
+				if not _finish_movement_route(unit):
+					unit["order"] = "idle"
+					unit["attack_target"] = ""
+					unit["move_fire_target"] = ""
 				continue
 			var moving_nearby_target := _find_nearby_enemy(unit["team"], unit["position"], definition.vision_range)
 			if not moving_nearby_target.is_empty() and fire_target.is_empty():
@@ -1141,7 +1253,7 @@ func _update_units() -> void:
 					unit["cooldown"] = definition.attack_cooldown
 			continue
 
-		if unit["order"] == "move" or unit["order"] == "attack_move":
+		if unit["order"] == "move" or unit["order"] == "attack_move" or unit["order"] == "patrol":
 			var waypoints: Array = unit.get("waypoints", [])
 			while not waypoints.is_empty() and unit["position"].distance_to(waypoints[0]) <= 0.25:
 				unit["position"] = waypoints[0]
@@ -1150,7 +1262,10 @@ func _update_units() -> void:
 			var destination: Vector3 = unit["target_position"]
 			if waypoints.is_empty() and unit["position"].distance_to(destination) <= 0.15:
 				unit["position"] = destination
-				unit["order"] = "idle"
+				if not _finish_movement_route(unit):
+					unit["order"] = "idle"
+					unit["attack_target"] = ""
+					unit["move_fire_target"] = ""
 			else:
 				var next_position: Vector3 = destination
 				if not waypoints.is_empty():
@@ -1615,6 +1730,9 @@ func _add_unit(team: String, kind: String, position: Vector3) -> String:
 		"position": Vector3(position.x, 0.0, position.z),
 		"target_position": Vector3(position.x, 0.0, position.z),
 		"waypoints": [],
+		"command_waypoints": [],
+		"patrol_points": [],
+		"patrol_index": 0,
 		"attack_target": "",
 		"move_fire_target": "",
 		"collector_state": "unassigned" if kind == "collector" else "",

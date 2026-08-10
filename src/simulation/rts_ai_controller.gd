@@ -146,8 +146,6 @@ func _manage_combat() -> void:
 		return
 	var ai_config: Dictionary = simulation.level_definition.get("ai", {})
 	var opening_attack_delay: int = int(ai_config.get("opening_attack_delay_ticks", 0))
-	if simulation.current_tick < opening_attack_delay:
-		return
 	var staging_point_id := str(ai_config.get("staging_point_id", "east_crossing"))
 	var immediate_hq_threat := false
 	var player_hq_position: Vector3 = simulation.buildings[player_hq]["position"]
@@ -156,6 +154,8 @@ func _manage_combat() -> void:
 		if candidate["team"] == "enemy" and candidate["kind"] != "collector" and candidate["position"].distance_to(player_hq_position) <= 20.0:
 			immediate_hq_threat = true
 			break
+	if simulation.current_tick < opening_attack_delay and not immediate_hq_threat:
+		return
 	if simulation.control_points.has(staging_point_id) and not simulation._is_forward_staging_active("enemy", staging_point_id) and not immediate_hq_threat:
 		return
 	var attack_group: Array = []
@@ -163,7 +163,8 @@ func _manage_combat() -> void:
 		var unit: Dictionary = simulation.units[entity_id]
 		if unit["team"] == "enemy" and unit["kind"] != "collector" and (unit["order"] == "idle" or unit["order"] == "move" or unit["order"] == "attack_move"):
 			attack_group.append(entity_id)
-	if attack_group.size() < 2:
+	var minimum_attack_group_size: int = max(2, int(ai_config.get("minimum_attack_group_size", 2)))
+	if attack_group.size() < minimum_attack_group_size:
 		return
 	var target_id: String = player_hq
 	var enemy_hq_position: Vector3 = simulation.buildings[enemy_hq]["position"]

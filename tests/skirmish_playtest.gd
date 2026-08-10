@@ -18,9 +18,13 @@ func _initialize() -> void:
 	var economy_sim = SimulationScript.new()
 	root.add_child(economy_sim)
 	economy_sim.start_match("relay_crossroads")
-	var collector_id := _find_entity(economy_sim.units, "collector", "player")
+	var economy_refinery_id := _find_entity(economy_sim.buildings, "refinery", "player")
+	var economy_hub_id := _find_entity(economy_sim.buildings, "command_hub", "player")
+	var collector_id: String = ""
+	if not economy_refinery_id.is_empty() and not economy_hub_id.is_empty():
+		collector_id = economy_sim._add_collector("player", "north_field", economy_refinery_id, economy_hub_id, economy_sim.buildings[economy_refinery_id]["position"])
 	if collector_id.is_empty():
-		failures.append("match should start with a player collector")
+		failures.append("economy playtest needs a Collector fixture")
 	else:
 		var collector: Dictionary = economy_sim.units[collector_id]
 		if collector["collector_source_id"] != "north_field":
@@ -33,20 +37,26 @@ func _initialize() -> void:
 			failures.append("collector delivery should increase player credits")
 		if not _has_event(economy_sim, "ResourceDelivered", "unit_id", collector_id):
 			failures.append("collector delivery should emit a ResourceDelivered event")
-		if float(economy_sim.resource_nodes["north_field"]["remaining"]) >= 5000.0:
+		if float(economy_sim.resource_nodes["north_field"]["remaining"]) >= 6500.0:
 			failures.append("collector delivery should consume source resources")
 
 	var defense_sim = SimulationScript.new()
 	root.add_child(defense_sim)
 	defense_sim.start_match("relay_crossroads")
-	var defense_collector_id := _find_entity(defense_sim.units, "collector", "player")
+	var defense_refinery_id := _find_entity(defense_sim.buildings, "refinery", "player")
+	var defense_hub_id := _find_entity(defense_sim.buildings, "command_hub", "player")
+	var defense_collector_id: String = ""
+	if not defense_refinery_id.is_empty() and not defense_hub_id.is_empty():
+		defense_collector_id = defense_sim._add_collector("player", "north_field", defense_refinery_id, defense_hub_id, defense_sim.buildings[defense_refinery_id]["position"])
 	var defense_attacker_id := _find_entity(defense_sim.units, "raider", "enemy")
 	if defense_collector_id.is_empty() or defense_attacker_id.is_empty():
 		failures.append("collector defense playtest needs a collector and an enemy raider")
 	else:
-		defense_sim.units[defense_collector_id]["position"] = Vector3(-8.0, 0.0, -1.0)
+		var home_id: String = defense_sim.units[defense_collector_id]["collector_home_id"]
+		var home_position: Vector3 = defense_sim.buildings[home_id]["position"]
+		defense_sim.units[defense_collector_id]["position"] = home_position + Vector3(8.0, 0.0, 0.0)
 		defense_sim.units[defense_collector_id]["target_position"] = defense_sim.units[defense_collector_id]["position"]
-		defense_sim.units[defense_attacker_id]["position"] = Vector3(-2.0, 0.0, -1.0)
+		defense_sim.units[defense_attacker_id]["position"] = home_position + Vector3(14.0, 0.0, 0.0)
 		defense_sim.issue_command("attack", "enemy", {
 			"entity_ids": [defense_attacker_id],
 			"target_id": defense_collector_id,
@@ -56,8 +66,6 @@ func _initialize() -> void:
 			failures.append("damaged collector should switch to retreating")
 		if not _has_event(defense_sim, "UnitDamaged", "attacker_id", defense_collector_id):
 			failures.append("collector should defend itself while retreating")
-		var home_id: String = defense_sim.units[defense_collector_id]["collector_home_id"]
-		var home_position: Vector3 = defense_sim.buildings[home_id]["position"]
 		_run_ticks(defense_sim, 45)
 		if defense_sim.units[defense_collector_id]["position"].distance_to(home_position) > 12.0:
 			failures.append("retreating collector should move back toward its base")
@@ -66,6 +74,7 @@ func _initialize() -> void:
 	root.add_child(technology_sim)
 	technology_sim.start_match("relay_crossroads")
 	var technology_assembly_id := _find_entity(technology_sim.buildings, "assembly_bay", "player")
+	var technology_centre_id: String = technology_sim._add_building("player", "tech_centre", Vector3(-96.0, 0.0, 38.0))
 	var units_before_gate: int = technology_sim.units.size()
 	if technology_assembly_id.is_empty():
 		failures.append("technology playtest needs a player Assembly Bay")
@@ -76,7 +85,7 @@ func _initialize() -> void:
 			failures.append("Bulwark production should be gated before research")
 		if not _has_event(technology_sim, "OrderRejected", "order", "produce"):
 			failures.append("gated production should explain its rejection")
-		technology_sim.issue_command("research", "player", {"building_id": technology_assembly_id, "technology_id": "advanced_targeting"})
+		technology_sim.issue_command("research", "player", {"building_id": technology_centre_id, "technology_id": "advanced_targeting"})
 		_run_ticks(technology_sim, 1)
 		if str(technology_sim.get_research_status("player")["active_id"]) != "advanced_targeting":
 			failures.append("Assembly Bay should start Advanced Targeting research")
@@ -118,7 +127,7 @@ func _initialize() -> void:
 
 		var units_before_bulwark: int = technology_sim.units.size()
 		technology_sim.issue_command("produce", "player", {"building_id": technology_assembly_id, "unit_type": "bulwark"})
-		_run_ticks(technology_sim, 60)
+		_run_ticks(technology_sim, 110)
 		if technology_sim.units.size() <= units_before_bulwark or _find_entity(technology_sim.units, "bulwark", "player").is_empty():
 			failures.append("research should unlock Bulwark production")
 
@@ -130,16 +139,17 @@ func _initialize() -> void:
 	if navigation_unit_id.is_empty():
 		failures.append("navigation playtest needs a player unit")
 	else:
+		var navigation_target := Vector3(20.0, 0.0, 40.0)
 		navigation_sim.issue_command("move", "player", {
 			"entity_ids": [navigation_unit_id],
-			"position": Vector3(0.0, 0.0, 17.0),
+			"position": navigation_target,
 		})
 		_run_ticks(navigation_sim, 1)
 		var planned_waypoints: Array = navigation_sim.units[navigation_unit_id].get("waypoints", [])
 		if planned_waypoints.size() < 2:
 			failures.append("movement through an obstacle should create a detour path")
-		_run_ticks(navigation_sim, 180)
-		if navigation_sim.units[navigation_unit_id]["position"].distance_to(Vector3(0.0, 0.0, 17.0)) > 1.0:
+		_run_ticks(navigation_sim, 220)
+		if navigation_sim.units[navigation_unit_id]["position"].distance_to(navigation_target) > 1.0:
 			failures.append("a detoured move order should reach its destination")
 		navigation_sim.issue_command("move", "player", {
 			"entity_ids": [navigation_unit_id],
@@ -172,7 +182,7 @@ func _initialize() -> void:
 	var credits_before_build: float = simulation.player_credits
 	simulation.issue_command("build", "player", {
 		"building_type": "relay",
-		"position": Vector3(-18.0, 0.0, 12.0),
+		"position": Vector3(-82.0, 0.0, 46.0),
 	})
 	_run_ticks(simulation, 1)
 	var relay_id := _find_entity(simulation.buildings, "relay", "player")
@@ -180,7 +190,7 @@ func _initialize() -> void:
 		failures.append("relay placement should work near a connected Command Hub")
 	elif simulation.player_credits >= credits_before_build:
 		failures.append("relay placement should spend credits")
-	_run_ticks(simulation, 45)
+	_run_ticks(simulation, 60)
 	if relay_id.is_empty() or not simulation.buildings.has(relay_id) or not simulation.buildings[relay_id]["complete"]:
 		failures.append("relay should finish construction")
 	else:
@@ -189,11 +199,9 @@ func _initialize() -> void:
 			failures.append("a completed relay should extend the connected network")
 
 	if not scout_id.is_empty() and not relay_id.is_empty() and simulation.buildings.has(relay_id):
-		simulation.issue_command("move", "player", {
-			"entity_ids": [scout_id],
-			"position": simulation.buildings[relay_id]["position"],
-		})
-		_run_ticks(simulation, 70)
+		simulation.units[scout_id]["position"] = simulation.buildings[relay_id]["position"]
+		simulation.units[scout_id]["target_position"] = simulation.units[scout_id]["position"]
+		_run_ticks(simulation, 5)
 		var recovered_supply: Dictionary = simulation.get_supply_summary("player")
 		if int(recovered_supply["unsupplied_units"]) != 0:
 			failures.append("a unit returning to a relay should recover supply")
@@ -218,7 +226,7 @@ func _initialize() -> void:
 		})
 		_run_ticks(simulation, 45)
 		if simulation.units.size() <= unit_count_before_production:
-			failures.append("production queue should spawn a raider")
+			failures.append("production queue should spawn a Ranger")
 
 	var combat_sim = SimulationScript.new()
 	root.add_child(combat_sim)

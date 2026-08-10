@@ -11,13 +11,13 @@ func _initialize() -> void:
 
 	if not main.objective_label.text.begins_with("OBJECTIVE"):
 		failures.append("HUD should show an actionable first-minute objective")
-	if main.collector_button.text != "QUEUE COLLECTOR [C]":
-		failures.append("HUD should expose Collector production before a Collector is selected")
+	if main.collector_button.visible:
+		failures.append("Level 1 should hide Collector production until a Resource Processor is selected")
 	var minimap_rect: Rect2 = main.minimap.get_global_rect()
 	var viewport_rect: Rect2 = main.get_viewport().get_visible_rect()
 	if minimap_rect.position.x < 0.0 or minimap_rect.position.y < 0.0 or minimap_rect.end.x > viewport_rect.end.x or minimap_rect.end.y > viewport_rect.end.y:
 		failures.append("minimap should be visible inside the tactical HUD")
-	if main.minimap.map_bounds != Rect2(-80.0, -55.0, 160.0, 110.0):
+	if main.minimap.map_bounds != Rect2(-115.0, -75.0, 230.0, 150.0):
 		failures.append("minimap should use the authored level bounds")
 	var help: Label = main.find_child("ControlsHelp", true, false) as Label
 	if help == null or help.get_global_rect().end.x > viewport_rect.end.x:
@@ -25,6 +25,14 @@ func _initialize() -> void:
 	if main.simulation.control_points["west_crossing"]["owner"] != "neutral":
 		failures.append("West Crossing should begin neutral, outside the opening force")
 
+	main.campaign_progress.mark_complete("relay_divide")
+	main._load_campaign_level("relay_crossroads")
+	var level_two_bounds := Rect2(-140.0, -92.0, 280.0, 184.0)
+	if main.minimap.map_bounds != level_two_bounds:
+		failures.append("switching to Level 2 should rebuild the minimap bounds")
+	var level_two_refinery_id := _find_entity(main.simulation.buildings, "refinery", "player")
+	var level_two_hub_id := _find_entity(main.simulation.buildings, "command_hub", "player")
+	var level_two_collector_id: String = main.simulation._add_collector("player", "north_field", level_two_refinery_id, level_two_hub_id, main.simulation.buildings[level_two_refinery_id]["position"])
 	main.simulation.event_history.append({"event_type": "ResourceDelivered", "team": "player"})
 	main._update_objective()
 	main._sync_views()
@@ -33,6 +41,8 @@ func _initialize() -> void:
 		failures.append("level-data staging objective should mark West Crossing in the world")
 	if not main.control_views.has("central_relay") or main.control_views["central_relay"].get_node_or_null("RelayCore") == null:
 		failures.append("central relay should expose the representative signal core visual")
+	var tech_centre_id: String = main.simulation._add_building("player", "tech_centre", Vector3(-96.0, 0.0, 38.0))
+	main._sync_views()
 
 	main._on_simulation_event("UnitDamaged", {
 		"attacker_position": Vector3(-4.0, 0.0, 0.0),
@@ -114,7 +124,7 @@ func _initialize() -> void:
 			if main.simulation.units[repair_unit_id]["health"] <= 25.0:
 				failures.append("Y should repair a damaged unit near base")
 
-	var collector_id := _find_entity(main.simulation.units, "collector", "player")
+	var collector_id: String = level_two_collector_id
 	if collector_id.is_empty():
 		failures.append("controls smoke test needs a player Collector")
 	else:
@@ -141,7 +151,7 @@ func _initialize() -> void:
 		failures.append("S should pan the camera toward positive world Z")
 
 	main._unhandled_input(_key_event(KEY_N))
-	if main.simulation.current_tick != 0 or main.simulation.match_over or main.simulation.units.size() < 8:
+	if main.simulation.current_tick != 0 or main.simulation.match_over or main.simulation.units.size() != 6:
 		failures.append("N should restart the match without stale state")
 
 	if failures.is_empty():

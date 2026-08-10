@@ -17,6 +17,8 @@ The simulation delegates isolated responsibilities to collaborators:
   same public commands as the player; it has no hidden resource or combat path.
 - `simulation/rts_force_capacity.gd` is a stateless force-accounting service;
   unit slot weights and queued reservations are evaluated consistently.
+- Queue and patrol orders remain serialisable unit state, with direct Move, Attack, Stop, and Collector commands explicitly clearing stale route plans.
+- Mission changes reload the selected simulation definition and rebuild the presentation world shell and minimap bounds from authored level data, keeping map geometry aligned with simulation state.
 
 `main.gd` remains the Godot scene entry point and input composition root. It
 contains only player input, selection, camera state, campaign flow, and the

@@ -11,10 +11,13 @@ const WorldViewSynchronizerScript = preload("res://src/presentation/rts_world_vi
 
 const MAP_HALF_WIDTH := 80.0
 const MAP_HALF_DEPTH := 55.0
+const CAMERA_TARGET_X_FACTOR := 0.78
+const CAMERA_TARGET_Z_FACTOR := 0.78
 
 var simulation
 var campaign_progress
 var camera: Camera3D
+var world_shell: Node3D
 var camera_target := Vector3.ZERO
 var camera_distance := 31.0
 var camera_yaw := 0.0
@@ -34,6 +37,7 @@ var drag_current := Vector2.ZERO
 var selection_marquee: ColorRect
 var build_mode := ""
 var attack_move_mode := false
+var patrol_mode := false
 var build_ghost: Node3D
 var collector_assignment_mode := false
 var collector_assignment_source_id := ""
@@ -126,7 +130,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				_cancel_collector_assignment()
 				return
 			_cancel_build_mode()
-			_issue_context_order(event.position)
+			_issue_context_order(event.position, event.shift_pressed)
 		return
 	if event is InputEventKey and event.pressed and not event.echo:
 		if event.keycode >= KEY_0 and event.keycode <= KEY_9:
@@ -137,6 +141,8 @@ func _unhandled_input(event: InputEvent) -> void:
 				_toggle_build_mode()
 			KEY_F:
 				_toggle_attack_move_mode()
+			KEY_P:
+				_toggle_patrol_mode()
 			KEY_X:
 				_stop_selected_units()
 			KEY_Q:
@@ -167,6 +173,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				_cancel_build_mode()
 				_cancel_collector_assignment()
 				attack_move_mode = false
+				patrol_mode = false
 				selected_ids.clear()
 				_update_selected_visuals()
 			KEY_SPACE:
@@ -182,7 +189,12 @@ func _build_camera() -> void:
 
 
 func _build_world_shell() -> void:
-	WorldBuilderScript.build_world_shell(self, simulation)
+	if world_shell and is_instance_valid(world_shell):
+		world_shell.free()
+	world_shell = Node3D.new()
+	world_shell.name = "AuthoredWorldShell"
+	add_child(world_shell)
+	WorldBuilderScript.build_world_shell(world_shell, simulation)
 
 
 func _build_ui() -> void:
@@ -232,7 +244,7 @@ func _build_ui() -> void:
 	status_label.size = Vector2(980.0, 26.0)
 	root.add_child(status_label)
 
-	var help := _label("WASD pan · H focus · F attack-move · Q Ranger · C Collector · T Targeting · Y repair · Right-click order", 12, Color("#8ca9b5"))
+	var help := _label("WASD pan · H focus · F attack-move · P patrol · Shift+RMB queue · RMB order · Q Ranger · C Collector · T tech · Y repair", 12, Color("#8ca9b5"))
 	help.name = "ControlsHelp"
 	help.position = Vector2(22.0, 149.0)
 	help.size = Vector2(1230.0, 24.0)
@@ -400,8 +412,15 @@ func _finish_left_click() -> void:
 	_update_selected_visuals()
 
 
-func _issue_context_order(screen_position: Vector2) -> void:
+func _issue_context_order(screen_position: Vector2, queue_order := false) -> void:
 	if selected_ids.is_empty():
+		return
+	if patrol_mode:
+		var patrol_destination := _screen_to_ground(screen_position)
+		if _is_inside_map(patrol_destination):
+			simulation.issue_command("patrol", "player", {"entity_ids": selected_ids, "position": patrol_destination})
+			patrol_mode = false
+			status_label.text = "Patrol route queued — units will shuttle between their current position and the destination."
 		return
 	var clicked_id := _entity_at_screen(screen_position, false)
 	var resource_id := _resource_node_at_screen(screen_position)
@@ -435,11 +454,19 @@ func _issue_context_order(screen_position: Vector2) -> void:
 			status_label.text = "Ground rally order queued for the selected Assembly Bay."
 		return
 	if _is_inside_map(destination):
+		var command_type := "queue_move" if queue_order else "move"
+		var command_payload := {"entity_ids": selected_ids, "position": destination}
 		if attack_move_mode:
-			simulation.issue_command("attack_move", "player", {"entity_ids": selected_ids, "position": destination})
+			if queue_order:
+				command_payload["attack_move"] = true
+			else:
+				command_type = "attack_move"
+			simulation.issue_command(command_type, "player", command_payload)
 			attack_move_mode = false
 		else:
-			simulation.issue_command("move", "player", {"entity_ids": selected_ids, "position": destination})
+			simulation.issue_command(command_type, "player", command_payload)
+		if queue_order:
+			status_label.text = "Waypoint queued for the selected force."
 
 func _handle_control_group(group_index: int, assign: bool) -> void:
 	var group_key := str(group_index)
@@ -487,7 +514,7 @@ func _focus_selection(show_status := true) -> void:
 		return
 	center /= float(count)
 	var bounds: Vector2 = simulation.get_level_bounds()
-	camera_target = Vector3(clamp(center.x, -bounds.x * 0.6, bounds.x * 0.6), 0.0, clamp(center.z, -bounds.y * 0.62, bounds.y * 0.62))
+	camera_target = Vector3(clamp(center.x, -bounds.x * CAMERA_TARGET_X_FACTOR, bounds.x * CAMERA_TARGET_X_FACTOR), 0.0, clamp(center.z, -bounds.y * CAMERA_TARGET_Z_FACTOR, bounds.y * CAMERA_TARGET_Z_FACTOR))
 	if show_status:
 		status_label.text = "Camera focused on %d selected entities." % count
 
@@ -539,14 +566,35 @@ func _toggle_attack_move_mode() -> void:
 		status_label.text = "Attack-move mode cancelled."
 		return
 	_cancel_build_mode()
+	patrol_mode = false
 	attack_move_mode = true
 	status_label.text = "ATTACK-MOVE MODE — right-click a destination. Units engage enemies on the route."
+
+
+func _toggle_patrol_mode() -> void:
+	var combat_unit_count := 0
+	for entity_id in selected_ids:
+		if simulation.units.has(entity_id) and simulation.units[entity_id]["team"] == "player" and simulation.units[entity_id]["kind"] != "collector":
+			combat_unit_count += 1
+	if combat_unit_count == 0:
+		status_label.text = "Select one or more combat units before issuing a patrol order."
+		return
+	if patrol_mode:
+		patrol_mode = false
+		status_label.text = "Patrol mode cancelled."
+		return
+	_cancel_build_mode()
+	_cancel_collector_assignment(false)
+	attack_move_mode = false
+	patrol_mode = true
+	status_label.text = "PATROL MODE — right-click a destination. Units will shuttle between here and there."
 
 
 func _stop_selected_units() -> void:
 	if selected_ids.is_empty():
 		return
 	attack_move_mode = false
+	patrol_mode = false
 	simulation.issue_command("stop", "player", {"entity_ids": selected_ids})
 	status_label.text = "Stop order queued."
 
@@ -556,6 +604,7 @@ func _toggle_build_mode() -> void:
 		_cancel_build_mode()
 		return
 	attack_move_mode = false
+	patrol_mode = false
 	build_mode = "relay"
 	status_label.text = "BUILD MODE — click near your network to place a Forward Relay. Right-click cancels."
 	_create_build_ghost()
@@ -667,6 +716,7 @@ func _begin_collector_assignment() -> void:
 		return
 	_cancel_build_mode()
 	attack_move_mode = false
+	patrol_mode = false
 	collector_assignment_mode = true
 	collector_assignment_source_id = ""
 	collector_assignment_unit_id = collector_id
@@ -772,6 +822,7 @@ func _begin_build_from_selection(building_type: String) -> void:
 	build_source_id = source_id
 	build_mode = building_type
 	attack_move_mode = false
+	patrol_mode = false
 	_create_build_ghost()
 	var display_name := building_type.replace("_", " ").to_upper()
 	status_label.text = "PLACE %s — move the preview near your base, then LEFT-CLICK. RIGHT-CLICK cancels." % display_name
@@ -857,8 +908,8 @@ func _process_camera_input(delta: float) -> void:
 	elif pointer_position.y > get_viewport().size.y - 12.0:
 		camera_target.z += delta * 18.0
 	var bounds: Vector2 = simulation.get_level_bounds() if simulation else Vector2(MAP_HALF_WIDTH, MAP_HALF_DEPTH)
-	camera_target.x = clamp(camera_target.x, -bounds.x * 0.6, bounds.x * 0.6)
-	camera_target.z = clamp(camera_target.z, -bounds.y * 0.62, bounds.y * 0.62)
+	camera_target.x = clamp(camera_target.x, -bounds.x * CAMERA_TARGET_X_FACTOR, bounds.x * CAMERA_TARGET_X_FACTOR)
+	camera_target.z = clamp(camera_target.z, -bounds.y * CAMERA_TARGET_Z_FACTOR, bounds.y * CAMERA_TARGET_Z_FACTOR)
 
 
 
@@ -899,6 +950,7 @@ func _restart_match() -> void:
 	_cancel_build_mode()
 	_cancel_collector_assignment(false)
 	attack_move_mode = false
+	patrol_mode = false
 	selected_ids.clear()
 	control_groups.clear()
 	event_log_label.text = "EVENT LOG\nAwaiting orders..."
@@ -934,6 +986,7 @@ func _load_campaign_level(level_id: String) -> void:
 	_cancel_build_mode()
 	_cancel_collector_assignment(false)
 	attack_move_mode = false
+	patrol_mode = false
 	selected_ids.clear()
 	control_groups.clear()
 	for view in unit_views.values():
@@ -954,6 +1007,10 @@ func _load_campaign_level(level_id: String) -> void:
 	resource_views.clear()
 	simulation.start_match(level_id)
 	camera_target = _starting_camera_target()
+	_build_world_shell()
+	if minimap:
+		var bounds: Vector2 = simulation.get_level_bounds()
+		minimap.map_bounds = Rect2(-bounds.x, -bounds.y, bounds.x * 2.0, bounds.y * 2.0)
 	_update_selected_visuals()
 	_sync_views()
 	_update_hud()
@@ -995,7 +1052,7 @@ func _starting_camera_target() -> Vector3:
 		if building["team"] == "player" and building["kind"] == "command_hub":
 			var bounds: Vector2 = simulation.get_level_bounds()
 			var position: Vector3 = building["position"]
-			return Vector3(clamp(position.x, -bounds.x * 0.6, bounds.x * 0.6), 0.0, clamp(position.z, -bounds.y * 0.62, bounds.y * 0.62))
+			return Vector3(clamp(position.x, -bounds.x * CAMERA_TARGET_X_FACTOR, bounds.x * CAMERA_TARGET_X_FACTOR), 0.0, clamp(position.z, -bounds.y * CAMERA_TARGET_Z_FACTOR, bounds.y * CAMERA_TARGET_Z_FACTOR))
 	return Vector3.ZERO
 
 
@@ -1397,6 +1454,9 @@ func _selection_detail(data: Dictionary) -> String:
 	if data.has("kind") and simulation.unit_definitions.has(str(data["kind"])):
 		var selected_definition = simulation.unit_definitions[str(data["kind"])]
 		force_text = "   FORCE %d" % max(1, int(selected_definition.force_slots))
+		var waypoint_count: int = data.get("command_waypoints", []).size()
+		if waypoint_count > 0:
+			force_text += "   WAYPOINTS %d" % waypoint_count
 	var collector_text := ""
 	if not str(data.get("collector_state", "")).is_empty():
 		var collector_route_label := str(data["collector_state"]).replace("_", "-").to_upper()

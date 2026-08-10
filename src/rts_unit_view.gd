@@ -33,7 +33,7 @@ func sync(data: Dictionary, selected: bool, frame_delta: float = 0.0) -> void:
 	else:
 		var position_blend: float = 1.0 - exp(-frame_delta * 24.0)
 		global_position = global_position.lerp(desired_position, position_blend)
-	var movement_order: bool = data["order"] == "move" or data["order"] == "attack_move"
+	var movement_order: bool = data["order"] == "move" or data["order"] == "attack_move" or data["order"] == "patrol"
 	if movement_order and data["target_position"].distance_to(desired_position) > 0.2:
 		var previous_rotation := rotation
 		look_at(Vector3(data["target_position"].x, global_position.y, data["target_position"].z), Vector3.UP)
@@ -57,6 +57,9 @@ func sync(data: Dictionary, selected: bool, frame_delta: float = 0.0) -> void:
 	var label_text: String = data["display_name"]
 	if order != "idle":
 		label_text += "\n" + order.replace("_", "-").to_upper()
+	var queued_waypoint_count: int = data.get("command_waypoints", []).size()
+	if queued_waypoint_count > 0:
+		label_text += "\nQUEUE " + str(queued_waypoint_count)
 	if supply_state == "unsupplied":
 		label_text += "\n! UNSUPPLIED"
 	var collector_state: String = str(data.get("collector_state", ""))
@@ -206,7 +209,7 @@ func _build_visuals() -> void:
 
 func _update_order_marker(data: Dictionary, selected: bool) -> void:
 	var order: String = str(data.get("order", "idle"))
-	var show_marker := selected and (order == "move" or order == "attack_move")
+	var show_marker := selected and (order == "move" or order == "attack_move" or order == "patrol")
 	if not show_marker:
 		order_line.visible = false
 		order_target.visible = false

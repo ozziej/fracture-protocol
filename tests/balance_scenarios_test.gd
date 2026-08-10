@@ -10,9 +10,12 @@ func _initialize() -> void:
 	var greedy_sim = SimulationScript.new()
 	root.add_child(greedy_sim)
 	greedy_sim.start_match("relay_crossroads")
-	var greedy_collector_id := _find_entity(greedy_sim.units, "collector", "player")
 	var greedy_refinery_id := _find_entity(greedy_sim.buildings, "refinery", "player")
-	_run_ticks(greedy_sim, 65)
+	var greedy_hub_id := _find_entity(greedy_sim.buildings, "command_hub", "player")
+	var greedy_collector_id: String = ""
+	if not greedy_refinery_id.is_empty() and not greedy_hub_id.is_empty():
+		greedy_collector_id = greedy_sim._add_collector("player", "north_field", greedy_refinery_id, greedy_hub_id, greedy_sim.buildings[greedy_refinery_id]["position"])
+	_run_ticks(greedy_sim, 40)
 	if greedy_collector_id.is_empty() or greedy_refinery_id.is_empty():
 		failures.append("Collector should visibly travel from its resource source toward its assigned refinery")
 	else:
@@ -33,7 +36,11 @@ func _initialize() -> void:
 	var collector_loss_sim = SimulationScript.new()
 	root.add_child(collector_loss_sim)
 	collector_loss_sim.start_match("relay_crossroads")
-	var lost_collector_id := _find_entity(collector_loss_sim.units, "collector", "player")
+	var loss_refinery_id := _find_entity(collector_loss_sim.buildings, "refinery", "player")
+	var loss_hub_id := _find_entity(collector_loss_sim.buildings, "command_hub", "player")
+	var lost_collector_id: String = ""
+	if not loss_refinery_id.is_empty() and not loss_hub_id.is_empty():
+		lost_collector_id = collector_loss_sim._add_collector("player", "north_field", loss_refinery_id, loss_hub_id, collector_loss_sim.buildings[loss_refinery_id]["position"])
 	if lost_collector_id.is_empty():
 		failures.append("collector-loss scenario needs a player Collector")
 	else:
@@ -42,9 +49,9 @@ func _initialize() -> void:
 		if _has_team_event(collector_loss_sim, "ResourceDelivered", "player"):
 			failures.append("a destroyed Collector should stop resource delivery")
 		var assembly_id := _find_entity(collector_loss_sim.buildings, "assembly_bay", "player")
-		var refinery_id := _find_entity(collector_loss_sim.buildings, "refinery", "player")
-		collector_loss_sim.issue_command("produce", "player", {"building_id": assembly_id, "unit_type": "collector"})
-		_run_ticks(collector_loss_sim, 60)
+		var refinery_id := loss_refinery_id
+		collector_loss_sim.issue_command("produce", "player", {"building_id": refinery_id, "unit_type": "collector"})
+		_run_ticks(collector_loss_sim, 100)
 		var replacement_id := _find_entity(collector_loss_sim.units, "collector", "player")
 		if replacement_id.is_empty():
 			failures.append("collector-loss scenario should support replacement production")
@@ -59,7 +66,8 @@ func _initialize() -> void:
 	root.add_child(tech_sim)
 	tech_sim.start_match("relay_crossroads")
 	var tech_assembly_id := _find_entity(tech_sim.buildings, "assembly_bay", "player")
-	tech_sim.issue_command("research", "player", {"building_id": tech_assembly_id, "technology_id": "advanced_targeting"})
+	var tech_centre_id: String = tech_sim._add_building("player", "tech_centre", Vector3(-96.0, 0.0, 38.0))
+	tech_sim.issue_command("research", "player", {"building_id": tech_centre_id, "technology_id": "advanced_targeting"})
 	_run_ticks(tech_sim, 1)
 	if tech_sim.player_credits != 550.0:
 		failures.append("tech-first opening should pay the research cost")
@@ -67,7 +75,7 @@ func _initialize() -> void:
 	if not tech_sim.is_technology_unlocked("player", "advanced_targeting"):
 		failures.append("tech-first opening should unlock Advanced Targeting")
 	tech_sim.issue_command("produce", "player", {"building_id": tech_assembly_id, "unit_type": "bulwark"})
-	_run_ticks(tech_sim, 60)
+	_run_ticks(tech_sim, 110)
 	if _find_entity(tech_sim.units, "bulwark", "player").is_empty():
 		failures.append("tech-first opening should produce a Bulwark after research")
 

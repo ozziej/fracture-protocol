@@ -12,10 +12,10 @@ func _initialize() -> void:
 	var authored_sim = SimulationScript.new()
 	root.add_child(authored_sim)
 	authored_sim.start_match("relay_crossroads")
-	if authored_sim.get_level_id() != "relay_divide":
-		failures.append("the skirmish should load its authored relay_divide level")
-	if authored_sim.get_level_bounds() != Vector2(80.0, 55.0):
-		failures.append("authored level bounds should be applied to the simulation")
+	if authored_sim.get_level_id() != "relay_crossroads":
+		failures.append("the skirmish should load its authored relay_crossroads level")
+	if authored_sim.get_level_bounds() != Vector2(140.0, 92.0):
+		failures.append("authored Level 2 bounds should be applied to the simulation")
 	if authored_sim.get_level_terrain().get("roads", []).size() < 3 or authored_sim.get_level_terrain().get("obstacles", []).size() < 3:
 		failures.append("authored level terrain should expose roads and obstacles")
 
