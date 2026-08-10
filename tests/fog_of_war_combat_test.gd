@@ -78,6 +78,21 @@ func _initialize() -> void:
 		failures.append("Graphical match should create and populate the fog-of-war overlay")
 	if game.minimap.snapshot.get("visibility", {}).get("hidden_cells", PackedVector3Array()).is_empty():
 		failures.append("Minimap snapshot should carry the same hidden-cell state")
+	var hidden_scenery: Node3D
+	for child in game.world_shell.get_children():
+		if child is Node3D and child.has_meta("fog_sensitive_scenery") and not game.simulation.is_position_explored_by_team("player", child.position):
+			hidden_scenery = child
+			break
+	if hidden_scenery == null:
+		failures.append("Fog regression needs authored scenery outside opening vision")
+	elif hidden_scenery.visible:
+		failures.append("Authored scenery must not render through undiscovered fog")
+	else:
+		game.simulation._add_unit("player", "ranger", hidden_scenery.position)
+		game.simulation._visibility_system.invalidate()
+		game._sync_views()
+		if not hidden_scenery.visible:
+			failures.append("Authored scenery should appear when a scout reveals its cell")
 	var graphical_enemy_hq_id := _find_building(game.simulation, "enemy", "command_hub")
 	if game.building_views.has(graphical_enemy_hq_id) or game.minimap.snapshot["buildings"].has(graphical_enemy_hq_id):
 		failures.append("Hidden enemy buildings should not be present in world or minimap presentation")

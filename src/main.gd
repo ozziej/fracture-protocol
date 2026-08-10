@@ -1011,6 +1011,8 @@ func _sync_views(frame_delta: float = 0.0) -> void:
 	if not state["resource_nodes"].has(selected_resource_id):
 		selected_resource_id = ""
 	WorldViewSynchronizerScript.sync(self, state, selected_ids, unit_views, building_views, control_views, resource_views, selected_resource_id, objective_target_point_id, minimap, frame_delta)
+	if world_shell:
+		WorldBuilderScript.sync_scenery_visibility(world_shell, state.get("visibility", {}))
 	if fog_view:
 		fog_view.sync(state.get("visibility", {}))
 	if minimap:
@@ -1035,10 +1037,6 @@ func _create_control_view(point: Dictionary) -> Node3D:
 
 func _update_control_view(view: Node3D, point: Dictionary) -> void:
 	WorldViewSynchronizerScript.update_control_view(view, point, objective_target_point_id)
-
-
-func _create_resource_view(resource: Dictionary) -> Node3D:
-	return WorldViewSynchronizerScript.create_resource_view(self, resource)
 
 
 func _update_selected_visuals() -> void:

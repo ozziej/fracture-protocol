@@ -1,0 +1,94 @@
+{
+  "pack": {
+    "name": "Kenney Space Kit",
+    "version": "2.0",
+    "license": "CC0",
+    "license_source": "https://kenney.nl/support",
+    "source_directory": "kenney_space-kit/Models",
+    "pipeline": "tools/blender_asset_pipeline.py",
+    "blend_source": "art/fracture_protocol_kitbash.blend",
+    "runtime_directory": "art/fracture_protocol_assets",
+    "material_policy": "Preserve original Kenney face-to-material assignments and colours; apply faction identity only through small presentation markers."
+  },
+  "assets": {
+    "collector": {
+      "runtime_scene": "art/fracture_protocol_assets/unit_collector.glb",
+      "source_parts": ["craft_miner.glb", "machine_barrel.glb"],
+      "role": "resource collection and light utility combat"
+    },
+    "ranger": {
+      "runtime_scene": "art/fracture_protocol_assets/unit_ranger.glb",
+      "source_parts": ["craft_speederB.glb", "turret_single.glb", "weapon_rifle.glb"],
+      "role": "fast light hover scout"
+    },
+    "raider": {
+      "runtime_scene": "art/fracture_protocol_assets/unit_raider.glb",
+      "source_parts": ["craft_speederA.glb", "weapon_gun.glb"],
+      "role": "fast frontier raider"
+    },
+    "warden": {
+      "runtime_scene": "art/fracture_protocol_assets/unit_warden.glb",
+      "source_parts": ["rover.glb", "turret_double.glb", "machine_generator.glb"],
+      "role": "armoured coalition gun platform"
+    },
+    "bulwark": {
+      "runtime_scene": "art/fracture_protocol_assets/unit_bulwark.glb",
+      "source_parts": ["craft_cargoB.glb", "turret_double.glb", "rocket_fuelB.glb"],
+      "role": "slow heavy missile platform"
+    },
+    "command_hub": {
+      "runtime_scene": "art/fracture_protocol_assets/building_command_hub.glb",
+      "upgraded_runtime_scene": "art/fracture_protocol_assets/building_command_hub_upgraded.glb",
+      "source_parts": ["platform_large.glb", "hangar_smallA.glb", "hangar_smallB.glb", "satelliteDish.glb", "pipe_ringHigh.glb"],
+      "upgraded_source_parts": ["platform_large.glb", "hangar_smallA.glb", "hangar_smallB.glb", "satelliteDish_detailed.glb", "pipe_ringHigh.glb"],
+      "role": "modular command headquarters with an upgrade-readable communications annex"
+    },
+    "refinery": {
+      "runtime_scene": "art/fracture_protocol_assets/building_resource_processor.glb",
+      "source_parts": ["platform_large.glb", "hangar_roundA.glb", "machine_generatorLarge.glb", "pipe_straight.glb"],
+      "role": "resource processing and collector production"
+    },
+    "assembly_bay": {
+      "runtime_scene": "art/fracture_protocol_assets/building_assembly_bay.glb",
+      "source_parts": ["platform_large.glb", "hangar_largeA.glb", "gate_complex.glb", "rocket_topA.glb"],
+      "role": "combat unit production"
+    },
+    "tech_centre": {
+      "runtime_scene": "art/fracture_protocol_assets/building_tech_centre.glb",
+      "source_parts": ["platform_large.glb", "machine_wireless.glb", "machine_wirelessCable.glb", "pipe_ringHigh.glb"],
+      "role": "research and technology progression"
+    },
+    "storage_silo": {
+      "runtime_scene": "art/fracture_protocol_assets/building_storage_silo.glb",
+      "upgraded_runtime_scene": "art/fracture_protocol_assets/building_storage_silo_upgraded.glb",
+      "source_parts": ["platform_small.glb", "machine_barrel.glb"],
+      "upgraded_source_parts": ["platform_small.glb", "machine_barrelLarge.glb", "pipe_ringHighEnd.glb"],
+      "role": "collector capacity add-on"
+    },
+    "relay": {
+      "runtime_scene": "art/fracture_protocol_assets/building_forward_relay.glb",
+      "source_parts": ["platform_small.glb", "supports_high.glb", "satelliteDish_detailed.glb", "pipe_ring.glb"],
+      "role": "territory control and forward staging"
+    },
+    "resource_cluster_a": {
+      "runtime_scene": "art/fracture_protocol_assets/resource_cluster_a.glb",
+      "source_parts": ["rock_crystalsLargeA.glb"],
+      "role": "depletion-aware resource-field cluster"
+    },
+    "resource_cluster_b": {
+      "runtime_scene": "art/fracture_protocol_assets/resource_cluster_b.glb",
+      "source_parts": ["rock_crystalsLargeB.glb"],
+      "role": "depletion-aware resource-field cluster"
+    },
+    "scenery_rock_a": {
+      "runtime_scene": "art/fracture_protocol_assets/scenery_rock_a.glb",
+      "source_parts": ["rock_largeA.glb"],
+      "role": "non-colliding background scenery"
+    },
+    "scenery_rock_b": {
+      "runtime_scene": "art/fracture_protocol_assets/scenery_rock_b.glb",
+      "source_parts": ["rock_largeB.glb"],
+      "role": "non-colliding background scenery"
+    }
+  }
+}

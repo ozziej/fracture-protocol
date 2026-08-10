@@ -23,8 +23,8 @@ func configure(bounds: Vector2, next_tile_size: float) -> void:
 	fog_surface.mesh = fog_mesh
 	fog_surface.position.y = 0.08
 	add_child(fog_surface)
-	hidden_material = _fog_material(Color(0.008, 0.018, 0.03, 0.84))
-	explored_material = _fog_material(Color(0.02, 0.055, 0.075, 0.38))
+	hidden_material = _fog_material(Color(0.008, 0.009, 0.01, 0.91))
+	explored_material = _fog_material(Color(0.055, 0.06, 0.06, 0.48))
 
 
 func sync(visibility: Dictionary) -> void:

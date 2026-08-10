@@ -1,6 +1,8 @@
 class_name RtsUnitView
 extends Node3D
 
+const AssetLibraryScript = preload("res://src/presentation/rts_asset_library.gd")
+
 var entity_id := ""
 var team := "neutral"
 var kind := ""
@@ -14,7 +16,10 @@ var health_front: MeshInstance3D
 var cargo_back: MeshInstance3D
 var cargo_front: MeshInstance3D
 var name_label: Label3D
+var asset_visual: Node3D
+var team_marker: MeshInstance3D
 var visual_initialized := false
+var last_authoritative_position := Vector3.ZERO
 
 
 func setup(data: Dictionary) -> void:
@@ -27,22 +32,21 @@ func setup(data: Dictionary) -> void:
 
 func sync(data: Dictionary, selected: bool, frame_delta: float = 0.0) -> void:
 	var desired_position: Vector3 = data["position"]
-	if not visual_initialized or frame_delta <= 0.0 or global_position.distance_to(desired_position) > 8.0:
+	var was_initialized := visual_initialized
+	var travel_direction := desired_position - last_authoritative_position if was_initialized else Vector3.ZERO
+	travel_direction.y = 0.0
+	if not was_initialized or frame_delta <= 0.0 or global_position.distance_to(desired_position) > 8.0:
 		global_position = desired_position
 		visual_initialized = true
 	else:
 		var position_blend: float = 1.0 - exp(-frame_delta * 24.0)
 		global_position = global_position.lerp(desired_position, position_blend)
 	var movement_order: bool = data["order"] == "move" or data["order"] == "attack_move" or data["order"] == "patrol"
-	if movement_order and data["target_position"].distance_to(desired_position) > 0.2:
-		var previous_rotation := rotation
-		look_at(Vector3(data["target_position"].x, global_position.y, data["target_position"].z), Vector3.UP)
-		var desired_yaw := rotation.y
-		rotation = previous_rotation
-		if frame_delta <= 0.0:
-			rotation.y = desired_yaw
-		else:
-			rotation.y = lerp_angle(previous_rotation.y, desired_yaw, 1.0 - exp(-frame_delta * 20.0))
+	if travel_direction.length_squared() <= 0.0004 and movement_order:
+		travel_direction = data["target_position"] - desired_position
+		travel_direction.y = 0.0
+	_update_facing(travel_direction, frame_delta)
+	last_authoritative_position = desired_position
 	selection_disc.visible = selected
 	var health_ratio: float = clamp(float(data["health"]) / max(1.0, float(data["max_health"])), 0.0, 1.0)
 	_set_progress_bar(health_front, health_ratio, 1.35, 1.35)
@@ -150,15 +154,31 @@ func _build_visuals() -> void:
 		cargo_instance.position = Vector3(0.0, definition_height * 0.78, 0.0)
 		add_child(cargo_instance)
 
-	var disc := CylinderMesh.new()
-	disc.top_radius = 0.9
-	disc.bottom_radius = 0.9
-	disc.height = 0.035
-	disc.radial_segments = 24
+	_attach_asset_visual()
+	var marker_mesh := BoxMesh.new()
+	var marker_width := 0.48 if kind == "warden" or kind == "bulwark" else 0.34
+	marker_mesh.size = Vector3(marker_width, 0.075, marker_width * 0.62)
+	team_marker = MeshInstance3D.new()
+	team_marker.name = "TeamMarker"
+	team_marker.mesh = marker_mesh
+	team_marker.material_override = _material(palette)
+	var marker_height := 0.92
+	if kind == "warden":
+		marker_height = 1.18
+	elif kind == "bulwark":
+		marker_height = 1.31
+	team_marker.position = Vector3(0.0, marker_height, 0.12)
+	add_child(team_marker)
+
+	var disc := TorusMesh.new()
+	disc.inner_radius = 0.70
+	disc.outer_radius = 0.88
+	disc.rings = 24
+	disc.ring_segments = 8
 	selection_disc = MeshInstance3D.new()
 	selection_disc.mesh = disc
-	selection_disc.material_override = _material(Color(0.38, 0.92, 1.0, 0.8))
-	selection_disc.position.y = 0.03
+	selection_disc.material_override = _material(Color(0.22, 0.68, 0.78, 0.62))
+	selection_disc.position.y = 0.06
 	selection_disc.visible = false
 	add_child(selection_disc)
 
@@ -205,6 +225,32 @@ func _build_visuals() -> void:
 	name_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	name_label.no_depth_test = true
 	add_child(name_label)
+
+
+func _attach_asset_visual() -> void:
+	asset_visual = AssetLibraryScript.attach_asset(self, kind, team)
+	if asset_visual == null:
+		return
+	# Keep the procedural meshes in the node as a deterministic fallback and
+	# preserve their references for smoke tests, but let the authored asset own
+	# the visible silhouette when its export is available.
+	for child in get_children():
+		if child is MeshInstance3D:
+			child.visible = false
+
+
+func _update_facing(direction: Vector3, frame_delta: float) -> void:
+	if direction.length_squared() <= 0.0004:
+		return
+	var previous_rotation := rotation
+	var look_target := global_position + direction.normalized()
+	look_at(Vector3(look_target.x, global_position.y, look_target.z), Vector3.UP)
+	var desired_yaw := rotation.y
+	rotation = previous_rotation
+	if frame_delta <= 0.0:
+		rotation.y = desired_yaw
+	else:
+		rotation.y = lerp_angle(previous_rotation.y, desired_yaw, 1.0 - exp(-frame_delta * 20.0))
 
 
 func _update_order_marker(data: Dictionary, selected: bool) -> void:
@@ -257,8 +303,7 @@ func _material(color: Color) -> StandardMaterial3D:
 
 func _team_palette(team_name: String) -> Color:
 	if team_name == "player":
-		return Color("#2ec8e6")
+		return Color("#2aa8b8")
 	if team_name == "enemy":
-		return Color("#f05c67")
+		return Color("#c95764")
 	return Color("#a7b7c8")
-

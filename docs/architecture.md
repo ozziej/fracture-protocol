@@ -42,8 +42,40 @@ It delegates non-interactive presentation work to:
   roads, obstacles, and authored terrain accents.
 - `presentation/rts_world_view_synchronizer.gd` for simulation snapshots to
   unit, building, resource, control-point, and minimap views.
+- `presentation/rts_resource_view.gd` for depletion-aware crystal clusters,
+  resource labels, and resource selection feedback.
 - `presentation/rts_combat_effects.gd` for event-driven tracers, missiles,
   impact feedback, and destruction feedback.
+- `presentation/rts_asset_library.gd` for the presentation-only mapping from
+  simulation kinds to the Kenney-based GLB exports. Unit and building views
+  retain their procedural geometry as a fallback, so an art import failure
+  cannot remove gameplay UI or simulation state.
+
+## Art pipeline
+
+The current visual slice uses only the imported Kenney Space Kit. Blender
+kitbashes the supplied pieces into role-readable units, buildings, resource
+clusters, and scenery, applies the Fracture Protocol material palette, and exports runtime GLBs under
+`art/fracture_protocol_assets/`. The source scene and the exact component
+choices are recorded in `data/art_asset_manifest.json`; the source pack is
+CC0 and may be replaced or extended without changing simulation definitions.
+
+The Blender pipeline preserves the original Kenney face-to-material indices
+and its white, orange, grey, stone, and crystal colours. Team colour is
+deliberately reserved for a small presentation marker, world-space labels, and
+thin selection/staging rings. Authored scenery is tagged by the world builder
+and hidden while its visibility-grid cell remains undiscovered. Movement facing comes from measured
+simulation displacement in `rts_unit_view.gd`, so pursuit, retreat, harvesting,
+and explicit movement all use the same presentation rule.
+
+New art should follow this boundary:
+
+1. assemble or modify a source asset in Blender;
+2. export a self-contained GLB into the runtime asset directory;
+3. register its simulation-kind mapping in `rts_asset_library.gd` and its
+   source parts in the manifest;
+4. keep selection, health, cargo, construction, and faction tint overlays in
+   Godot presentation views rather than baking gameplay state into the model.
 
 ## Dependency direction
 

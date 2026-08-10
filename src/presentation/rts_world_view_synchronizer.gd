@@ -3,6 +3,7 @@ extends RefCounted
 
 const UnitViewScript = preload("res://src/rts_unit_view.gd")
 const BuildingViewScript = preload("res://src/rts_building_view.gd")
+const ResourceViewScript = preload("res://src/presentation/rts_resource_view.gd")
 
 ## Translates immutable-ish simulation snapshots into scene nodes. This is the
 ## presentation boundary: it may create or tween nodes, but cannot issue rules.
@@ -37,8 +38,11 @@ static func sync(parent: Node3D, state: Dictionary, selected_ids: Array, unit_vi
 		update_control_view(control_views[point_id], state["control_points"][point_id], objective_target_point_id)
 	for node_id in state["resource_nodes"]:
 		if not resource_views.has(node_id):
-			resource_views[node_id] = create_resource_view(parent, state["resource_nodes"][node_id])
-		update_resource_view(resource_views[node_id], state["resource_nodes"][node_id], str(node_id) == selected_resource_id)
+			var resource_view = ResourceViewScript.new()
+			parent.add_child(resource_view)
+			resource_view.setup(state["resource_nodes"][node_id])
+			resource_views[node_id] = resource_view
+		resource_views[node_id].sync(state["resource_nodes"][node_id], str(node_id) == selected_resource_id)
 	for node_id in resource_views.keys():
 		if not state["resource_nodes"].has(node_id):
 			resource_views[node_id].queue_free()
@@ -70,11 +74,11 @@ static func create_control_view(parent: Node3D, point: Dictionary) -> Node3D:
 	root.add_child(beacon)
 	var staging_ring := MeshInstance3D.new()
 	staging_ring.name = "StagingRing"
-	var staging_mesh := CylinderMesh.new()
-	staging_mesh.top_radius = float(point["radius"]) * 0.92
-	staging_mesh.bottom_radius = float(point["radius"]) * 0.92
-	staging_mesh.height = 0.05
-	staging_mesh.radial_segments = 36
+	var staging_mesh := TorusMesh.new()
+	staging_mesh.inner_radius = float(point["radius"]) * 0.76
+	staging_mesh.outer_radius = float(point["radius"]) * 0.90
+	staging_mesh.rings = 36
+	staging_mesh.ring_segments = 8
 	staging_ring.mesh = staging_mesh
 	staging_ring.position.y = 0.17
 	staging_ring.visible = false
@@ -82,8 +86,8 @@ static func create_control_view(parent: Node3D, point: Dictionary) -> Node3D:
 	var staging_light := OmniLight3D.new()
 	staging_light.name = "StagingLight"
 	staging_light.position.y = 1.0
-	staging_light.light_energy = 1.1
-	staging_light.omni_range = 8.0
+	staging_light.light_energy = 0.28
+	staging_light.omni_range = 6.0
 	staging_light.visible = false
 	root.add_child(staging_light)
 	var objective_beam := MeshInstance3D.new()
@@ -110,14 +114,14 @@ static func create_control_view(parent: Node3D, point: Dictionary) -> Node3D:
 	if point["id"] == "central_relay":
 		var halo := MeshInstance3D.new()
 		halo.name = "RelayHalo"
-		var halo_mesh := CylinderMesh.new()
-		halo_mesh.top_radius = 4.2
-		halo_mesh.bottom_radius = 4.2
-		halo_mesh.height = 0.06
-		halo_mesh.radial_segments = 40
+		var halo_mesh := TorusMesh.new()
+		halo_mesh.inner_radius = 3.82
+		halo_mesh.outer_radius = 4.16
+		halo_mesh.rings = 40
+		halo_mesh.ring_segments = 8
 		halo.mesh = halo_mesh
 		halo.position.y = 0.12
-		halo.material_override = _emissive_material(Color("#1cc6d7"), 1.6)
+		halo.material_override = _material(Color(0.10, 0.42, 0.48, 0.46), 0.45, 0.08)
 		root.add_child(halo)
 		var core := MeshInstance3D.new()
 		core.name = "RelayCore"
@@ -128,14 +132,14 @@ static func create_control_view(parent: Node3D, point: Dictionary) -> Node3D:
 		core_mesh.rings = 10
 		core.mesh = core_mesh
 		core.position.y = 2.35
-		core.material_override = _emissive_material(Color("#a9fbff"), 2.0)
+		core.material_override = _emissive_material(Color("#76aeb6"), 0.75)
 		root.add_child(core)
 		var relay_light := OmniLight3D.new()
 		relay_light.name = "RelayLight"
 		relay_light.position.y = 1.7
 		relay_light.light_color = Color("#3ae2ef")
-		relay_light.light_energy = 1.8
-		relay_light.omni_range = 11.0
+		relay_light.light_energy = 0.42
+		relay_light.omni_range = 7.0
 		root.add_child(relay_light)
 
 	var label := Label3D.new()
@@ -155,22 +159,22 @@ static func update_control_view(view: Node3D, point: Dictionary, objective_targe
 	view.visible = visibility_state != "hidden"
 	if not view.visible:
 		return
-	var color := Color("#a7b7c8")
+	var color := Color("#7f8d95")
 	if point["owner"] == "player":
-		color = Color("#2ec8e6")
+		color = Color("#2a879a")
 	elif point["owner"] == "enemy":
-		color = Color("#f05c67")
+		color = Color("#a84658")
 	var pad: MeshInstance3D = view.get_child(0)
 	var beacon: MeshInstance3D = view.get_child(1)
-	pad.material_override = _material(color.darkened(0.28), 0.6, 0.1)
-	beacon.material_override = _material(color.lightened(0.2), 0.45, 0.2)
+	pad.material_override = _material(Color("#27353a"), 0.72, 0.08)
+	beacon.material_override = _material(color, 0.48, 0.18)
 	var staging_active := bool(point.get("staging_active", false))
 	var staging_ring := view.get_node_or_null("StagingRing") as MeshInstance3D
 	var staging_light := view.get_node_or_null("StagingLight") as OmniLight3D
 	if staging_ring:
 		staging_ring.visible = staging_active
 		if staging_active:
-			staging_ring.material_override = _emissive_material(color.lightened(0.18), 1.7)
+			staging_ring.material_override = _material(Color(color.r, color.g, color.b, 0.52), 0.42, 0.08)
 	if staging_light:
 		staging_light.visible = staging_active
 		staging_light.light_color = color.lightened(0.15)
@@ -186,9 +190,9 @@ static func update_control_view(view: Node3D, point: Dictionary, objective_targe
 	if core:
 		var pulse := 0.94 + sin(float(Time.get_ticks_msec()) * 0.004) * 0.08
 		core.scale = Vector3.ONE * pulse
-		core.material_override = _emissive_material(color.lightened(0.3), 2.0)
+		core.material_override = _emissive_material(color.lightened(0.18), 0.75)
 	if halo:
-		halo.material_override = _emissive_material(color.darkened(0.05), 1.6)
+		halo.material_override = _material(Color(color.r, color.g, color.b, 0.42), 0.45, 0.08)
 	var label: Label3D = view.get_node("PointLabel")
 	var role_label := str(point.get("role_label", "")).to_upper()
 	var income_per_second := int(float(point.get("income_per_second", 10.0)))
@@ -200,82 +204,6 @@ static func update_control_view(view: Node3D, point: Dictionary, objective_targe
 	if staging_active:
 		label.text += "\nONLINE — REPAIR / RALLY"
 	label.modulate = color.lightened(0.35)
-
-
-static func create_resource_view(parent: Node3D, resource: Dictionary) -> Node3D:
-	var root := Node3D.new()
-	root.position = resource["position"]
-	var ring := MeshInstance3D.new()
-	ring.name = "ResourceRing"
-	var ring_mesh := CylinderMesh.new()
-	ring_mesh.top_radius = 3.0
-	ring_mesh.bottom_radius = 3.0
-	ring_mesh.height = 0.08
-	ring_mesh.radial_segments = 28
-	ring.mesh = ring_mesh
-	ring.material_override = _material(Color("#604b24"), 0.72, 0.0)
-	root.add_child(ring)
-	var selection_ring := MeshInstance3D.new()
-	selection_ring.name = "ResourceSelectionRing"
-	var selection_mesh := CylinderMesh.new()
-	selection_mesh.top_radius = 3.35
-	selection_mesh.bottom_radius = 3.35
-	selection_mesh.height = 0.04
-	selection_mesh.radial_segments = 32
-	selection_ring.mesh = selection_mesh
-	selection_ring.position.y = 0.12
-	selection_ring.material_override = _emissive_material(Color("#fff0a4"), 2.0)
-	selection_ring.visible = false
-	root.add_child(selection_ring)
-	for index in range(5):
-		var crystal := MeshInstance3D.new()
-		var crystal_mesh := CylinderMesh.new()
-		crystal_mesh.top_radius = 0.2
-		crystal_mesh.bottom_radius = 0.42
-		crystal_mesh.height = 0.8 + float(index % 3) * 0.35
-		crystal_mesh.radial_segments = 6
-		crystal.mesh = crystal_mesh
-		crystal.position = Vector3(-1.25 + float(index % 3) * 1.25, crystal_mesh.height * 0.5, -0.7 + float(index / 3) * 1.0)
-		crystal.rotation_degrees = Vector3(0.0, float(index * 33), 9.0 - float(index) * 3.0)
-		crystal.material_override = _material(Color("#e9a93b"), 0.34, 0.36)
-		root.add_child(crystal)
-	var label := Label3D.new()
-	label.name = "ResourceLabel"
-	label.text = resource["display_name"]
-	label.position.y = 2.8
-	label.font_size = 27
-	label.modulate = Color("#ffcf68")
-	label.outline_size = 7
-	label.outline_modulate = Color(0.02, 0.03, 0.05, 0.9)
-	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	label.no_depth_test = true
-	root.add_child(label)
-	parent.add_child(root)
-	return root
-
-
-static func update_resource_view(view: Node3D, resource: Dictionary, selected: bool) -> void:
-	var visibility_state := str(resource.get("visibility_state", "visible"))
-	view.visible = visibility_state != "hidden"
-	if not view.visible:
-		return
-	var remaining: float = max(0.0, float(resource.get("remaining", 0.0)))
-	var initial_remaining: float = max(0.0, float(resource.get("initial_remaining", remaining)))
-	var depleted := bool(resource.get("depleted", remaining <= 0.01))
-	var ring := view.get_node_or_null("ResourceRing") as MeshInstance3D
-	var selection_ring := view.get_node_or_null("ResourceSelectionRing") as MeshInstance3D
-	var label := view.get_node_or_null("ResourceLabel") as Label3D
-	if ring:
-		ring.material_override = _material(Color("#302a22") if depleted else Color("#604b24"), 0.72, 0.0)
-	if selection_ring:
-		selection_ring.visible = selected
-	if label:
-		var display_name := str(resource.get("display_name", "Energy Field"))
-		if depleted:
-			label.text = "%s\nDEPLETED" % display_name
-		else:
-			label.text = "%s\nENERGY %d / %d" % [display_name, int(remaining), int(initial_remaining)]
-		label.modulate = Color("#9e8b72") if depleted else Color("#ffcf68")
 
 
 static func _material(color: Color, roughness: float, metallic: float) -> StandardMaterial3D:

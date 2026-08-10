@@ -1,6 +1,8 @@
 class_name RtsBuildingView
 extends Node3D
 
+const AssetLibraryScript = preload("res://src/presentation/rts_asset_library.gd")
+
 var entity_id := ""
 var team := "neutral"
 var kind := ""
@@ -14,6 +16,10 @@ var visual_antenna_height := 0.0
 var health_back: MeshInstance3D
 var health_front: MeshInstance3D
 var name_label: Label3D
+var asset_visual: Node3D
+var asset_variant := ""
+var team_marker: MeshInstance3D
+var visual_marker_height := 2.0
 
 
 func setup(data: Dictionary) -> void:
@@ -41,6 +47,14 @@ func sync(data: Dictionary, selected: bool) -> void:
 	if antenna_mesh:
 		antenna_mesh.visible = construction_progress >= 0.95
 		antenna_mesh.position.y = visual_body_height * body_scale + visual_antenna_height * 0.5 + 0.2
+	var desired_variant := "upgraded" if bool(data.get("upgrade_complete", false)) or not str(data.get("completed_upgrade_id", "")).is_empty() else ""
+	if desired_variant != asset_variant and AssetLibraryScript.has_variant(kind, desired_variant):
+		_replace_asset_visual(desired_variant)
+	if asset_visual:
+		var asset_scale := AssetLibraryScript.scale_for(kind)
+		asset_visual.scale = Vector3(asset_scale.x, asset_scale.y * body_scale, asset_scale.z)
+	if team_marker:
+		team_marker.position.y = visual_marker_height * body_scale
 	var occupied_height: float = visual_body_height * body_scale
 	health_back.position.y = occupied_height + 2.65
 	health_front.position.y = occupied_height + 2.65
@@ -69,6 +83,19 @@ func _build_visuals() -> void:
 		body_size = Vector3(3.1, 2.4, 3.1)
 	elif kind == "storage_silo":
 		body_size = Vector3(2.2, 2.8, 2.2)
+	visual_marker_height = body_size.y + 0.16
+	if kind == "command_hub":
+		visual_marker_height = 3.15
+	elif kind == "refinery":
+		visual_marker_height = 2.55
+	elif kind == "assembly_bay":
+		visual_marker_height = 3.45
+	elif kind == "tech_centre":
+		visual_marker_height = 2.52
+	elif kind == "storage_silo":
+		visual_marker_height = 2.38
+	elif kind == "relay":
+		visual_marker_height = 2.85
 
 	visual_body_height = body_size.y
 	var body := BoxMesh.new()
@@ -100,15 +127,25 @@ func _build_visuals() -> void:
 		antenna_mesh.position.y = body_size.y + antenna.height * 0.5 + 0.2
 		add_child(antenna_mesh)
 
-	var disc := CylinderMesh.new()
-	disc.top_radius = max(body_size.x, body_size.z) * 0.68
-	disc.bottom_radius = disc.top_radius
-	disc.height = 0.045
-	disc.radial_segments = 28
+	_attach_asset_visual()
+	var marker_mesh := BoxMesh.new()
+	marker_mesh.size = Vector3(minf(body_size.x * 0.22, 1.05), 0.10, 0.28)
+	team_marker = MeshInstance3D.new()
+	team_marker.name = "TeamMarker"
+	team_marker.mesh = marker_mesh
+	team_marker.material_override = _material(palette)
+	team_marker.position = Vector3(0.0, visual_marker_height, -body_size.z * 0.18)
+	add_child(team_marker)
+
+	var disc := TorusMesh.new()
+	disc.outer_radius = max(body_size.x, body_size.z) * 0.68
+	disc.inner_radius = max(0.2, disc.outer_radius - 0.2)
+	disc.rings = 32
+	disc.ring_segments = 8
 	selection_disc = MeshInstance3D.new()
 	selection_disc.mesh = disc
-	selection_disc.material_override = _material(Color(0.38, 0.92, 1.0, 0.8))
-	selection_disc.position.y = 0.04
+	selection_disc.material_override = _material(Color(0.22, 0.68, 0.78, 0.58))
+	selection_disc.position.y = 0.07
 	selection_disc.visible = false
 	add_child(selection_disc)
 
@@ -143,6 +180,24 @@ func _build_visuals() -> void:
 	add_child(name_label)
 
 
+func _attach_asset_visual() -> void:
+	asset_visual = AssetLibraryScript.attach_asset(self, kind, team, asset_variant)
+	if asset_visual == null:
+		return
+	# Construction, selection, rally, health, and labels remain owned by this
+	# view. Only the old procedural body meshes are hidden behind the asset.
+	for child in get_children():
+		if child is MeshInstance3D:
+			child.visible = false
+
+
+func _replace_asset_visual(variant: String) -> void:
+	if asset_visual:
+		asset_visual.queue_free()
+	asset_variant = variant
+	asset_visual = AssetLibraryScript.attach_asset(self, kind, team, asset_variant)
+
+
 func _set_progress_bar(instance: MeshInstance3D, ratio: float, background_width: float, foreground_width: float) -> void:
 	var visible_ratio: float = max(0.02, ratio)
 	instance.scale.x = visible_ratio
@@ -170,8 +225,7 @@ func _material(color: Color) -> StandardMaterial3D:
 
 func _team_palette(team_name: String) -> Color:
 	if team_name == "player":
-		return Color("#2ec8e6")
+		return Color("#2aa8b8")
 	if team_name == "enemy":
-		return Color("#f05c67")
+		return Color("#c95764")
 	return Color("#a7b7c8")
-

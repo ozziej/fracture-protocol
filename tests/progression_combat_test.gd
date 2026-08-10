@@ -14,6 +14,8 @@ func _initialize() -> void:
 		failures.append("Level 1 should begin with only the Command Hub")
 	if simulation.get_level_bounds() != Vector2(115.0, 75.0):
 		failures.append("Relay Divide should use the expanded opening map")
+	if simulation.get_level_terrain().get("scenery", []).size() < 4:
+		failures.append("Relay Divide should author Kenney background-rock scenery")
 	var level_two_map_sim = SimulationScript.new()
 	root.add_child(level_two_map_sim)
 	level_two_map_sim.start_match("relay_crossroads")
@@ -24,6 +26,8 @@ func _initialize() -> void:
 	var level_two_terrain: Dictionary = level_two_map_sim.get_level_terrain()
 	if level_two_terrain.get("roads", []).size() < 5 or level_two_terrain.get("obstacles", []).size() < 8:
 		failures.append("Relay Crossroads should expose distinct roads and obstacles")
+	if level_two_terrain.get("scenery", []).size() < 4:
+		failures.append("Relay Crossroads should author Kenney background-rock scenery")
 	if not level_two_map_sim.resource_nodes.has("crossroads_field"):
 		failures.append("Relay Crossroads should expose its contested energy field")
 	var level_two_hq_id := _find_building(level_two_map_sim, "enemy", "command_hub")
@@ -185,7 +189,9 @@ func _initialize() -> void:
 	game.queue_free()
 
 
-	var progress_path := "user://progression_combat_test.json"
+	# Use an absolute temporary path so rapid, multi-process regression runs do
+	# not contend with Godot's live user-data directory or the player's save.
+	var progress_path := "/private/tmp/fracture_protocol_progression_combat_test.json"
 	if FileAccess.file_exists(progress_path):
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(progress_path))
 	var progress = CampaignProgressScript.new(progress_path)
@@ -197,7 +203,7 @@ func _initialize() -> void:
 		failures.append("Winning Level 1 should persist the Level 2 unlock")
 	if FileAccess.file_exists(progress_path):
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(progress_path))
-	var loss_progress_path := "user://progression_loss_test.json"
+	var loss_progress_path := "/private/tmp/fracture_protocol_progression_loss_test.json"
 	if FileAccess.file_exists(loss_progress_path):
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(loss_progress_path))
 	var loss_progress = CampaignProgressScript.new(loss_progress_path)
