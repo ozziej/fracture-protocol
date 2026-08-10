@@ -6,6 +6,7 @@ const NavigationServiceScript = preload("res://src/simulation/rts_navigation_ser
 const AiControllerScript = preload("res://src/simulation/rts_ai_controller.gd")
 const LogisticsSystemScript = preload("res://src/simulation/rts_logistics_system.gd")
 const ForceCapacityScript = preload("res://src/simulation/rts_force_capacity.gd")
+const VisibilitySystemScript = preload("res://src/simulation/rts_visibility_system.gd")
 
 signal simulation_event(event_type: String, payload: Dictionary)
 
@@ -69,6 +70,7 @@ var _ai_timer := 0.0
 var _event_sequence := 0
 var _ai_controller
 var _logistics_system
+var _visibility_system
 
 
 func _ready() -> void:
@@ -107,6 +109,9 @@ func start_match(next_level_id := "", ai_difficulty_override := "") -> void:
 	event_history.clear()
 	pending_projectiles.clear()
 	_ai_controller = null
+	if _visibility_system == null:
+		_visibility_system = VisibilitySystemScript.new(self)
+	_visibility_system.reset()
 
 	if level_definition.is_empty():
 		_setup_fallback_match()
@@ -315,6 +320,7 @@ func step_fixed() -> void:
 	_update_production()
 	_update_units()
 	_update_projectiles()
+	_visibility_system.invalidate()
 	_update_economy()
 	_update_ai()
 	_check_victory()
@@ -329,8 +335,8 @@ func issue_command(command_type: String, issuer: String, payload: Dictionary) ->
 	})
 
 
-func get_state() -> Dictionary:
-	return {
+func get_state(viewer_team := "") -> Dictionary:
+	var state := {
 		"tick": current_tick,
 		"player_credits": player_credits,
 		"enemy_credits": enemy_credits,
@@ -341,6 +347,35 @@ func get_state() -> Dictionary:
 		"resource_nodes": resource_nodes,
 		"match_over": match_over,
 	}
+	if str(viewer_team).is_empty():
+		return state
+	if _visibility_system == null:
+		_visibility_system = VisibilitySystemScript.new(self)
+	var visibility: Dictionary = _visibility_system.get_state(str(viewer_team))
+	state["units"] = _visibility_system.visible_entities(units, str(viewer_team), visibility.get("visible_units", {}))
+	state["buildings"] = _visibility_system.visible_entities(buildings, str(viewer_team), visibility.get("visible_buildings", {}))
+	state["control_points"] = _visibility_system.add_visibility_state_to_markers(control_points, str(viewer_team))
+	state["resource_nodes"] = _visibility_system.add_visibility_state_to_markers(resource_nodes, str(viewer_team))
+	state["visibility"] = visibility
+	return state
+
+
+func is_entity_visible_to_team(team: String, entity_id: String) -> bool:
+	if _visibility_system == null:
+		_visibility_system = VisibilitySystemScript.new(self)
+	return _visibility_system.is_entity_visible_to_team(team, entity_id)
+
+
+func is_position_visible_to_team(team: String, position: Vector3) -> bool:
+	if _visibility_system == null:
+		_visibility_system = VisibilitySystemScript.new(self)
+	return _visibility_system.is_position_visible_to_team(team, position)
+
+
+func is_position_explored_by_team(team: String, position: Vector3) -> bool:
+	if _visibility_system == null:
+		_visibility_system = VisibilitySystemScript.new(self)
+	return _visibility_system.is_position_explored_by_team(team, position)
 
 
 func get_player_unit_ids() -> Array:
@@ -717,6 +752,9 @@ func _apply_attack_command(issuer: String, payload: Dictionary) -> void:
 	var entity_ids: Array = payload.get("entity_ids", [])
 	if not _entity_exists(target_id):
 		_emit_event("OrderRejected", {"team": issuer, "reason": "Target no longer exists."})
+		return
+	if issuer == "player" and not is_entity_visible_to_team(issuer, target_id):
+		_emit_event("OrderRejected", {"team": issuer, "reason": "Target is hidden by fog of war — reveal it before ordering an attack."})
 		return
 	var accepted := 0
 	for entity_id in entity_ids:
@@ -1211,6 +1249,8 @@ func _fire_weapon(unit: Dictionary, target_id: String, damage_multiplier: float)
 	if not _entity_exists(target_id):
 		return
 	var definition = unit_definitions[unit["kind"]]
+	if not _can_fire_at_distance(definition, unit["position"].distance_to(_get_entity_position(target_id))):
+		return
 	var base_damage: float = definition.attack_damage * damage_multiplier
 	if definition.projectile_mode == "arc_missile":
 		var launch_position: Vector3 = unit["position"] + Vector3.UP * 0.8
@@ -1288,7 +1328,7 @@ func _update_units() -> void:
 		var definition = unit_definitions[unit["kind"]]
 		unit["cooldown"] = max(0.0, float(unit["cooldown"]) - TICK_SECONDS)
 		var attack_target: String = str(unit["attack_target"])
-		if not attack_target.is_empty() and not _entity_exists(attack_target):
+		if not attack_target.is_empty() and (not _entity_exists(attack_target) or _should_drop_attack_target(unit, attack_target)):
 			unit["attack_target"] = ""
 			attack_target = ""
 			if str(unit.get("order", "")) == "attack" and not _start_next_queued_order(unit):
@@ -1312,7 +1352,7 @@ func _update_units() -> void:
 				else:
 					var move_target_position: Vector3 = _get_entity_position(fire_target)
 					var move_target_distance: float = unit["position"].distance_to(move_target_position)
-					if move_target_distance <= definition.attack_range and float(unit["cooldown"]) <= 0.0:
+					if _can_fire_at_distance(definition, move_target_distance) and float(unit["cooldown"]) <= 0.0:
 						_fire_weapon(unit, fire_target, damage_multiplier)
 						unit["cooldown"] = definition.attack_cooldown
 			if unit["waypoints"].is_empty() and unit["position"].distance_to(unit["target_position"]) <= 0.15:
@@ -1328,12 +1368,13 @@ func _update_units() -> void:
 		if not attack_target.is_empty():
 			var target_position: Vector3 = _get_entity_position(attack_target)
 			var distance: float = unit["position"].distance_to(target_position)
-			if distance > definition.attack_range * 0.86:
+			if distance < definition.minimum_attack_range:
+				_move_unit_away_from_target(unit, target_position, definition.speed * speed_multiplier)
+			elif distance > _attack_standoff_range(definition):
 				unit["position"] = unit["position"].move_toward(target_position, definition.speed * speed_multiplier * TICK_SECONDS)
-			else:
-				if float(unit["cooldown"]) <= 0.0:
-					_fire_weapon(unit, attack_target, damage_multiplier)
-					unit["cooldown"] = definition.attack_cooldown
+			elif float(unit["cooldown"]) <= 0.0:
+				_fire_weapon(unit, attack_target, damage_multiplier)
+				unit["cooldown"] = definition.attack_cooldown
 			continue
 
 		if unit["order"] == "move" or unit["order"] == "attack_move" or unit["order"] == "patrol":
@@ -1363,13 +1404,46 @@ func _update_units() -> void:
 		units.erase(entity_id)
 
 
+func _can_fire_at_distance(definition, distance: float) -> bool:
+	return distance >= float(definition.minimum_attack_range) and distance <= float(definition.attack_range)
+
+
+func _attack_standoff_range(definition) -> float:
+	# Direct-fire units settle slightly inside their maximum range so their
+	# targets do not sit on a precision boundary. Arc missiles deliberately use
+	# the full authored range: long reach is their defining battlefield role.
+	if str(definition.projectile_mode) == "arc_missile":
+		return float(definition.attack_range)
+	return float(definition.attack_range) * 0.86
+
+
+func _move_unit_away_from_target(unit: Dictionary, target_position: Vector3, movement_speed: float) -> void:
+	var away_vector: Vector3 = unit["position"] - target_position
+	away_vector.y = 0.0
+	if away_vector.length() < 0.01:
+		away_vector = Vector3.RIGHT
+	var next_position: Vector3 = unit["position"] + away_vector.normalized() * movement_speed * TICK_SECONDS
+	unit["position"] = Vector3(clamp(next_position.x, -level_bounds.x + 1.0, level_bounds.x - 1.0), 0.0, clamp(next_position.z, -level_bounds.y + 1.0, level_bounds.y - 1.0))
+
+
+func _should_drop_attack_target(unit: Dictionary, target_id: String) -> bool:
+	if not _entity_exists(target_id):
+		return true
+	# The authored Command Hub remains a known strategic objective for the AI,
+	# but moving enemy units and secondary buildings disappear when they leave
+	# the AI's current vision.
+	if str(unit.get("team", "")) == "enemy" and buildings.has(target_id):
+		return str(buildings[target_id].get("kind", "")) != "command_hub"
+	return not is_entity_visible_to_team(str(unit.get("team", "")), target_id)
+
+
 func _update_collector_unit(unit: Dictionary, definition, speed_multiplier: float, damage_multiplier: float) -> void:
 	var collector_speed: float = definition.speed * speed_multiplier * _collector_speed_multiplier()
 	var state: String = str(unit.get("collector_state", "unassigned"))
 	var source_id: String = str(unit.get("collector_source_id", ""))
 	var destination_id: String = str(unit.get("collector_destination_id", ""))
 	var attack_target: String = str(unit.get("attack_target", ""))
-	if not attack_target.is_empty() and not _entity_exists(attack_target):
+	if not attack_target.is_empty() and (not _entity_exists(attack_target) or _should_drop_attack_target(unit, attack_target)):
 		unit["attack_target"] = ""
 		attack_target = ""
 
@@ -1387,7 +1461,7 @@ func _update_collector_unit(unit: Dictionary, definition, speed_multiplier: floa
 	if not attack_target.is_empty():
 		var target_position: Vector3 = _get_entity_position(attack_target)
 		var distance: float = unit["position"].distance_to(target_position)
-		if distance <= definition.attack_range:
+		if _can_fire_at_distance(definition, distance):
 			if float(unit["cooldown"]) <= 0.0:
 				_fire_weapon(unit, attack_target, damage_multiplier)
 				unit["cooldown"] = definition.attack_cooldown
@@ -1728,13 +1802,14 @@ func _check_victory() -> void:
 func _apply_damage(target_id: String, damage: float, attacker_id: String) -> void:
 	var attacker_position: Vector3 = _get_entity_position(attacker_id)
 	var attacker_team := _entity_team(attacker_id)
+	var attacker_kind := str(units[attacker_id].get("kind", "")) if units.has(attacker_id) else ""
 	if units.has(target_id):
 		var target: Dictionary = units[target_id]
 		var target_position: Vector3 = target["position"]
 		var armour: float = unit_definitions[target["kind"]].armour
 		var actual_damage: float = max(1.0, damage - armour)
 		target["health"] = max(0.0, float(target["health"]) - actual_damage)
-		_emit_event("UnitDamaged", {"target_id": target_id, "attacker_id": attacker_id, "team": target["team"], "attacker_team": attacker_team, "attacker_position": attacker_position, "target_position": target_position, "damage": actual_damage, "health": target["health"], "max_health": target["max_health"]})
+		_emit_event("UnitDamaged", {"target_id": target_id, "attacker_id": attacker_id, "attacker_kind": attacker_kind, "team": target["team"], "attacker_team": attacker_team, "attacker_position": attacker_position, "target_position": target_position, "damage": actual_damage, "health": target["health"], "max_health": target["max_health"]})
 		if target["kind"] == "collector":
 			_begin_collector_retreat(target_id)
 		if float(target["health"]) <= 0.0:
@@ -1745,7 +1820,7 @@ func _apply_damage(target_id: String, damage: float, attacker_id: String) -> voi
 		var building_position: Vector3 = building["position"]
 		var actual_damage: float = max(1.0, damage)
 		building["health"] = max(0.0, float(building["health"]) - actual_damage)
-		_emit_event("BuildingDamaged", {"building_id": target_id, "attacker_id": attacker_id, "team": building["team"], "attacker_team": attacker_team, "attacker_position": attacker_position, "target_position": building_position, "damage": actual_damage, "health": building["health"], "max_health": building["max_health"]})
+		_emit_event("BuildingDamaged", {"building_id": target_id, "attacker_id": attacker_id, "attacker_kind": attacker_kind, "team": building["team"], "attacker_team": attacker_team, "attacker_position": attacker_position, "target_position": building_position, "damage": actual_damage, "health": building["health"], "max_health": building["max_health"]})
 		if float(building["health"]) <= 0.0:
 			buildings.erase(target_id)
 			_emit_event("BuildingDestroyed", {"building_id": target_id, "attacker_id": attacker_id, "attacker_team": attacker_team, "attacker_position": attacker_position, "position": building_position, "team": building["team"], "message": "%s destroyed." % building_definitions[building["kind"]].display_name})
@@ -1947,6 +2022,7 @@ func _add_unit(team: String, kind: String, position: Vector3) -> String:
 		"order": "idle",
 		"health": definition.max_health,
 		"max_health": definition.max_health,
+		"vision_range": definition.vision_range,
 		"cooldown": 0.0,
 		"supply_state": "connected",
 		"supply_reason": "Initial deployment",
@@ -1984,6 +2060,7 @@ func _add_building(team: String, kind: String, position: Vector3, under_construc
 		"position": normalized_position,
 		"health": definition.max_health,
 		"max_health": definition.max_health,
+		"vision_range": definition.vision_range,
 		"complete": complete,
 		"construction_progress": 1.0 if complete else 0.0,
 		"queue": [],

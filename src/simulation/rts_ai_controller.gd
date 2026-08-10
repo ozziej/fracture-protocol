@@ -22,6 +22,7 @@ var map_tactic_id := "relay_first"
 var map_tactic_display_name := "RELAY FIRST"
 var map_tactic_message := "Secure the authored forward network before the main assault."
 var map_tactic_attack_delay_multiplier := 1.0
+var proactive_attack_delay_ticks := 0
 var _enemy_baseline_health := 0.0
 var _last_posture_change_tick := -999999
 var _announced := false
@@ -98,6 +99,7 @@ func get_summary() -> Dictionary:
 		"map_tactic": map_tactic_id,
 		"map_tactic_display_name": map_tactic_display_name,
 		"map_tactic_message": map_tactic_message,
+		"proactive_attack_delay_ticks": proactive_attack_delay_ticks,
 	}
 
 
@@ -134,6 +136,7 @@ func _refresh_policy(requested_difficulty := "") -> void:
 	map_tactic_display_name = str(resolved.get("map_tactic_display_name", map_tactic_id.replace("_", " ").to_upper()))
 	map_tactic_message = str(resolved.get("map_tactic_message", "Secure the authored forward network before the main assault."))
 	map_tactic_attack_delay_multiplier = max(0.25, float(resolved.get("map_tactic_attack_delay_multiplier", 1.0)))
+	proactive_attack_delay_ticks = max(0, int(resolved.get("proactive_attack_delay_ticks", 0)))
 	if _enemy_baseline_health <= 0.0:
 		_enemy_baseline_health = _enemy_total_max_health()
 
@@ -168,7 +171,7 @@ func _update_tactical_posture() -> void:
 	var next_posture := "opening"
 	if _enemy_is_battered() or _player_is_pressuring_enemy():
 		next_posture = "defensive"
-	elif _player_is_passive():
+	elif _player_is_passive() and _proactive_attack_window_open():
 		next_posture = "attacking"
 	if next_posture == posture:
 		return
@@ -184,6 +187,11 @@ func _update_tactical_posture() -> void:
 			"map_tactic": map_tactic_id,
 			"message": "Enemy posture changed to %s — %s" % [_posture_display_name(posture), _posture_reason(posture)],
 		})
+
+
+func _proactive_attack_window_open() -> bool:
+	var difficulty_multiplier: float = max(0.25, float(profile.get("opening_attack_delay_multiplier", 1.0)))
+	return simulation.current_tick >= int(float(proactive_attack_delay_ticks) * difficulty_multiplier)
 
 
 func _enemy_total_max_health() -> float:
@@ -524,6 +532,8 @@ func _nearest_player_economic_target(origin: Vector3) -> String:
 		var unit: Dictionary = simulation.units[entity_id]
 		if unit["team"] != "player" or unit["kind"] != "collector":
 			continue
+		if not simulation.is_entity_visible_to_team("enemy", entity_id):
+			continue
 		var distance: float = unit["position"].distance_to(origin)
 		if distance < nearest_distance:
 			nearest_distance = distance
@@ -533,6 +543,8 @@ func _nearest_player_economic_target(origin: Vector3) -> String:
 	for building_id in simulation.buildings:
 		var building: Dictionary = simulation.buildings[building_id]
 		if building["team"] == "player" and building["kind"] == "refinery":
+			if not simulation.is_entity_visible_to_team("enemy", building_id):
+				continue
 			var distance: float = building["position"].distance_to(origin)
 			if distance < nearest_distance:
 				nearest_distance = distance
@@ -546,6 +558,8 @@ func _nearest_player_unit_to(origin: Vector3, max_distance := INF) -> String:
 	for entity_id in simulation.units:
 		var unit: Dictionary = simulation.units[entity_id]
 		if unit["team"] != "player":
+			continue
+		if not simulation.is_entity_visible_to_team("enemy", entity_id):
 			continue
 		var distance: float = unit["position"].distance_to(origin)
 		if distance < nearest_distance:

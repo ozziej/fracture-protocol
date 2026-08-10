@@ -7,6 +7,8 @@ var _sequence := 0
 
 
 func present(parent: Node3D, simulation, event_type: String, payload: Dictionary) -> void:
+	if not _event_visible_to_player(simulation, event_type, payload):
+		return
 	match event_type:
 		"ProjectileLaunched":
 			spawn_missile_arc(parent, payload)
@@ -47,10 +49,12 @@ func spawn_missile_arc(parent: Node3D, payload: Dictionary) -> void:
 func spawn_damage_feedback(parent: Node3D, simulation, payload: Dictionary, building_hit: bool) -> void:
 	var attacker_position: Vector3 = payload.get("attacker_position", payload.get("target_position", Vector3.ZERO))
 	var target_position: Vector3 = payload.get("target_position", Vector3.ZERO)
-	var effect_color := Color("#ffb347") if building_hit else Color("#ffd36a")
+	var attacker_kind := str(payload.get("attacker_kind", ""))
+	var effect_color := Color("#ff9f43") if attacker_kind == "bulwark" else Color("#c7dcff") if attacker_kind == "warden" else Color("#ffb347") if building_hit else Color("#ffd36a")
 	var attacker_id := str(payload.get("attacker_id", ""))
 	var is_missile: bool = simulation.units.has(attacker_id) and str(simulation.units[attacker_id].get("kind", "")) == "bulwark"
-	if not is_missile:
+	var attacker_visible: bool = simulation.is_entity_visible_to_team("player", attacker_id) if not attacker_id.is_empty() else simulation.is_position_visible_to_team("player", attacker_position)
+	if not is_missile and attacker_visible:
 		spawn_tracer(parent, attacker_position + Vector3.UP * 0.75, target_position + Vector3.UP * (1.0 if building_hit else 0.55), effect_color)
 	var damage: int = int(round(float(payload.get("damage", 0.0))))
 	spawn_impact(parent, target_position + Vector3.UP * (1.0 if building_hit else 0.55), effect_color, "-%d" % damage)
@@ -126,6 +130,21 @@ func spawn_destruction_feedback(parent: Node3D, payload: Dictionary) -> void:
 func _next_name(prefix: String) -> String:
 	_sequence += 1
 	return "%s_%03d" % [prefix, _sequence]
+
+
+func _event_visible_to_player(simulation, event_type: String, payload: Dictionary) -> bool:
+	if str(payload.get("attacker_team", "")) == "player" or str(payload.get("team", "")) == "player":
+		return true
+	var attacker_id := str(payload.get("attacker_id", ""))
+	if event_type == "ProjectileLaunched":
+		return simulation.is_position_visible_to_team("player", payload.get("launch_position", Vector3.ZERO))
+	if not attacker_id.is_empty() and simulation.is_entity_visible_to_team("player", attacker_id):
+		return true
+	var target_id := str(payload.get("target_id", payload.get("unit_id", payload.get("building_id", ""))))
+	if not target_id.is_empty() and simulation.is_entity_visible_to_team("player", target_id):
+		return true
+	var event_position: Vector3 = payload.get("position", payload.get("target_position", Vector3.ZERO))
+	return simulation.is_position_visible_to_team("player", event_position)
 
 
 func _feedback_label(text: String, color: Color, font_size: int, outline_size: int) -> Label3D:

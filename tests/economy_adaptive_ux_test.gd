@@ -70,6 +70,15 @@ func _test_adaptive_ai(failures: Array[String]) -> void:
 	var level_one_sim = SimulationScript.new()
 	root.add_child(level_one_sim)
 	level_one_sim.start_match("relay_divide")
+	level_one_sim._emit_event("ResourceDelivered", {"team": "player", "message": "Collector delivered."})
+	level_one_sim._ai_controller._update_tactical_posture()
+	if str(level_one_sim.get_ai_summary().get("posture", "")) != "opening":
+		failures.append("Level 1 should keep its opening posture during the authored grace period")
+	level_one_sim.current_tick = int(level_one_sim.level_definition.get("ai", {}).get("proactive_attack_delay_ticks", 0))
+	level_one_sim._emit_event("ResourceDelivered", {"team": "player", "message": "Collector delivered."})
+	level_one_sim._ai_controller._update_tactical_posture()
+	if str(level_one_sim.get_ai_summary().get("posture", "")) != "attacking":
+		failures.append("Level 1 should eventually adapt into an attacking posture after its grace period")
 	var level_two_sim = SimulationScript.new()
 	root.add_child(level_two_sim)
 	level_two_sim.start_match("relay_crossroads")

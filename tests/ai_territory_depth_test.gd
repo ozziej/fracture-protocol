@@ -38,6 +38,10 @@ func _initialize() -> void:
 	var enemy_hq_id := _find_entity(policy_sim.buildings, "command_hub", "enemy")
 	if collector_id.is_empty() and not player_refinery_id.is_empty() and not player_hq_id.is_empty():
 		collector_id = policy_sim._add_collector("player", "north_field", player_refinery_id, player_hq_id, policy_sim.buildings[player_refinery_id]["position"])
+	if not collector_id.is_empty() and not enemy_hq_id.is_empty():
+		policy_sim.units[collector_id]["position"] = policy_sim.buildings[enemy_hq_id]["position"] + Vector3(8.0, 0.0, 0.0)
+		policy_sim.units[collector_id]["target_position"] = policy_sim.units[collector_id]["position"]
+		policy_sim._visibility_system.invalidate()
 	policy_sim.set_ai_intent("raid_economy")
 	var raid_summary: Dictionary = policy_sim.get_ai_summary()
 	var raid_target: String = policy_sim._ai_controller._select_attack_target(player_hq_id, enemy_hq_id)

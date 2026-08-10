@@ -28,6 +28,9 @@ func _initialize() -> void:
 		failures.append("minimap should use the authored level bounds")
 	if main.simulation.control_points["west_crossing"]["owner"] != "neutral":
 		failures.append("West Crossing should begin neutral, outside the opening force")
+	var central_reveal_id: String = main.simulation._add_unit("player", "ranger", main.simulation.control_points["central_relay"]["position"])
+	main.simulation._visibility_system.invalidate()
+	main._sync_views()
 	var central_point_label: Label3D = main.control_views["central_relay"].get_node("PointLabel") as Label3D
 	if central_point_label == null or central_point_label.text.find("NETWORK HUB") < 0:
 		failures.append("control-point presentation should identify the Central Relay network-hub role")
@@ -39,6 +42,16 @@ func _initialize() -> void:
 	var level_two_bounds := Rect2(-140.0, -92.0, 280.0, 184.0)
 	if main.minimap.map_bounds != level_two_bounds:
 		failures.append("switching to Level 2 should rebuild the minimap bounds")
+	if main.minimap.mouse_filter != Control.MOUSE_FILTER_STOP:
+		failures.append("minimap should capture tactical clicks instead of ignoring input")
+	var camera_before_minimap_click: Vector3 = main.camera_target
+	var minimap_click := InputEventMouseButton.new()
+	minimap_click.button_index = MOUSE_BUTTON_LEFT
+	minimap_click.pressed = true
+	minimap_click.position = Vector2(210.0, 100.0)
+	main.minimap._gui_input(minimap_click)
+	if main.camera_target.distance_to(camera_before_minimap_click) < 8.0:
+		failures.append("clicking the minimap should pan the camera to the tactical location")
 	var level_two_refinery_id := _find_entity(main.simulation.buildings, "refinery", "player")
 	var level_two_hub_id := _find_entity(main.simulation.buildings, "command_hub", "player")
 	var level_two_collector_id: String = main.simulation._add_collector("player", "north_field", level_two_refinery_id, level_two_hub_id, main.simulation.buildings[level_two_refinery_id]["position"])
@@ -54,8 +67,9 @@ func _initialize() -> void:
 	main._sync_views()
 
 	main._on_simulation_event("UnitDamaged", {
-		"attacker_position": Vector3(-4.0, 0.0, 0.0),
-		"target_position": Vector3(0.0, 0.0, 0.0),
+		"attacker_position": main.simulation.buildings[level_two_hub_id]["position"],
+		"target_position": main.simulation.buildings[level_two_hub_id]["position"] + Vector3(2.0, 0.0, 0.0),
+		"attacker_team": "player",
 		"damage": 17.0,
 		"tick": 1,
 	})

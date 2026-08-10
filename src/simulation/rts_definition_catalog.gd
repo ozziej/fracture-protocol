@@ -27,6 +27,8 @@ static func populate(unit_definitions: Dictionary, building_definitions: Diction
 	ranger.id = "ranger"
 	ranger.display_name = "Ranger"
 	ranger.role = "general infantry"
+	ranger.role_summary = "Light / fast-fire skirmisher"
+	ranger.role_tags = PackedStringArray(["LIGHT ARMOUR", "FAST FIRE", "ANTI-UNIT"])
 	ranger.cost = 80
 	ranger.force_slots = 1
 	ranger.build_time = 2.2
@@ -36,7 +38,7 @@ static func populate(unit_definitions: Dictionary, building_definitions: Diction
 	ranger.attack_damage = 12.0
 	ranger.attack_cooldown = 0.75
 	ranger.armour = 0.0
-	ranger.vision_range = 15.0
+	ranger.vision_range = 24.0
 	ranger.body_scale = Vector3(0.72, 1.05, 0.72)
 	unit_definitions[ranger.id] = ranger
 
@@ -44,6 +46,8 @@ static func populate(unit_definitions: Dictionary, building_definitions: Diction
 	warden.id = "warden"
 	warden.display_name = "Warden"
 	warden.role = "armoured line vehicle"
+	warden.role_summary = "Armoured line breaker"
+	warden.role_tags = PackedStringArray(["HEAVY ARMOUR", "SLOW FIRE", "DIRECT HIT"])
 	warden.cost = 145
 	warden.force_slots = 2
 	warden.build_time = 4.2
@@ -61,6 +65,8 @@ static func populate(unit_definitions: Dictionary, building_definitions: Diction
 	raider.id = "raider"
 	raider.display_name = "Raider"
 	raider.role = "fast attack vehicle"
+	raider.role_summary = "Fast pressure vehicle"
+	raider.role_tags = PackedStringArray(["FAST", "LIGHT ARMOUR", "RAID"])
 	raider.cost = 105
 	raider.force_slots = 1
 	raider.build_time = 3.0
@@ -78,12 +84,15 @@ static func populate(unit_definitions: Dictionary, building_definitions: Diction
 	bulwark.id = "bulwark"
 	bulwark.display_name = "Bulwark"
 	bulwark.role = "siege vehicle"
+	bulwark.role_summary = "Heavy siege / structure breaker"
+	bulwark.role_tags = PackedStringArray(["SIEGE", "ARC MISSILE", "BLAST / STRUCTURES"])
 	bulwark.cost = 210
 	bulwark.force_slots = 2
 	bulwark.build_time = 6.5
 	bulwark.max_health = 210.0
 	bulwark.speed = 2.6
-	bulwark.attack_range = 14.0
+	bulwark.attack_range = 20.0
+	bulwark.minimum_attack_range = 8.0
 	bulwark.attack_damage = 70.0
 	bulwark.attack_cooldown = 3.6
 	bulwark.armour = 3.0
@@ -91,7 +100,7 @@ static func populate(unit_definitions: Dictionary, building_definitions: Diction
 	bulwark.splash_radius = 2.8
 	bulwark.splash_minimum_multiplier = 0.4
 	bulwark.projectile_mode = "arc_missile"
-	bulwark.vision_range = 14.0
+	bulwark.vision_range = 18.0
 	bulwark.body_scale = Vector3(1.4, 0.8, 1.15)
 	bulwark.required_technology = "advanced_targeting"
 	unit_definitions[bulwark.id] = bulwark
@@ -100,6 +109,8 @@ static func populate(unit_definitions: Dictionary, building_definitions: Diction
 	collector.id = "collector"
 	collector.display_name = "Collector"
 	collector.role = "resource hauler"
+	collector.role_summary = "Economy unit with self-defence"
+	collector.role_tags = PackedStringArray(["ECONOMY", "RETREAT", "SELF-DEFENCE"])
 	collector.cost = 115
 	collector.force_slots = 1
 	collector.build_time = 3.5
@@ -119,6 +130,7 @@ static func populate(unit_definitions: Dictionary, building_definitions: Diction
 	command_hub.cost = 0
 	command_hub.build_time = 0.0
 	command_hub.max_health = 2400.0
+	command_hub.vision_range = 22.0
 	command_hub.footprint = Vector2(4.5, 4.5)
 	command_hub.body_height = 2.8
 	building_definitions[command_hub.id] = command_hub
@@ -135,6 +147,7 @@ static func populate(unit_definitions: Dictionary, building_definitions: Diction
 	refinery.cost = 250
 	refinery.build_time = 4.5
 	refinery.max_health = 900.0
+	refinery.vision_range = 15.0
 	refinery.footprint = Vector2(3.5, 3.5)
 	refinery.produces_income = 0.0
 	refinery.body_height = 1.8
@@ -147,6 +160,7 @@ static func populate(unit_definitions: Dictionary, building_definitions: Diction
 	assembly_bay.cost = 220
 	assembly_bay.build_time = 4.0
 	assembly_bay.max_health = 1000.0
+	assembly_bay.vision_range = 14.0
 	assembly_bay.footprint = Vector2(3.5, 3.5)
 	assembly_bay.prerequisite_building = "refinery"
 	assembly_bay.can_produce = "ranger,warden,bulwark,raider"
@@ -164,6 +178,7 @@ static func populate(unit_definitions: Dictionary, building_definitions: Diction
 	tech_centre.cost = 320
 	tech_centre.build_time = 5.5
 	tech_centre.max_health = 850.0
+	tech_centre.vision_range = 16.0
 	tech_centre.footprint = Vector2(3.2, 3.2)
 	tech_centre.prerequisite_building = "assembly_bay"
 	tech_centre.can_research = "advanced_targeting"
@@ -177,6 +192,7 @@ static func populate(unit_definitions: Dictionary, building_definitions: Diction
 	silo.cost = 150
 	silo.build_time = 3.5
 	silo.max_health = 600.0
+	silo.vision_range = 10.0
 	silo.footprint = Vector2(2.4, 2.4)
 	silo.build_source_kind = "refinery"
 	silo.prerequisite_building = "refinery"
@@ -190,6 +206,7 @@ static func populate(unit_definitions: Dictionary, building_definitions: Diction
 	relay.cost = 180
 	relay.build_time = 4.0
 	relay.max_health = 700.0
+	relay.vision_range = 18.0
 	relay.footprint = Vector2(2.6, 2.6)
 	relay.body_height = 2.5
 	building_definitions[relay.id] = relay

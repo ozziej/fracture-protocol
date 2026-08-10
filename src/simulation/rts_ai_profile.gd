@@ -73,4 +73,5 @@ static func resolve(level_definition: Dictionary, requested_difficulty := "") ->
 		"passive_delivery_threshold": int(ai_config.get("passive_delivery_threshold", 1)),
 		"passive_window_ticks": int(ai_config.get("passive_window_ticks", 360)),
 		"posture_change_cooldown_ticks": int(ai_config.get("posture_change_cooldown_ticks", 120)),
+		"proactive_attack_delay_ticks": int(ai_config.get("proactive_attack_delay_ticks", 0)),
 	}

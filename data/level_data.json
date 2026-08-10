@@ -946,6 +946,7 @@
       },
       "rules": {
         "max_queue": 5,
+        "fog_tile_size": 8.0,
         "max_units_total": 24,
         "max_buildings_total": 8,
         "max_buildings_by_kind": {
@@ -1073,7 +1074,8 @@
         },
         "staging_point_id": "east_crossing",
         "opening_attack_delay_ticks": 2400,
-        "minimum_attack_group_size": 3
+        "proactive_attack_delay_ticks": 1500,
+        "minimum_attack_group_size": 4
       },
       "allowed_buildings": [
         "refinery",
@@ -1122,6 +1124,7 @@
       },
       "rules": {
         "max_queue": 5,
+        "fog_tile_size": 8.0,
         "max_units_total": 24,
         "max_buildings_total": 8,
         "max_buildings_by_kind": {
@@ -1275,6 +1278,7 @@
         },
         "staging_point_id": "east_crossing",
         "opening_attack_delay_ticks": 1800,
+        "proactive_attack_delay_ticks": 0,
         "minimum_attack_group_size": 3
       },
       "allowed_buildings": [

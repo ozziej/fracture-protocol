@@ -151,6 +151,10 @@ static func create_control_view(parent: Node3D, point: Dictionary) -> Node3D:
 
 
 static func update_control_view(view: Node3D, point: Dictionary, objective_target_point_id: String) -> void:
+	var visibility_state := str(point.get("visibility_state", "visible"))
+	view.visible = visibility_state != "hidden"
+	if not view.visible:
+		return
 	var color := Color("#a7b7c8")
 	if point["owner"] == "player":
 		color = Color("#2ec8e6")
@@ -251,6 +255,10 @@ static func create_resource_view(parent: Node3D, resource: Dictionary) -> Node3D
 
 
 static func update_resource_view(view: Node3D, resource: Dictionary, selected: bool) -> void:
+	var visibility_state := str(resource.get("visibility_state", "visible"))
+	view.visible = visibility_state != "hidden"
+	if not view.visible:
+		return
 	var remaining: float = max(0.0, float(resource.get("remaining", 0.0)))
 	var initial_remaining: float = max(0.0, float(resource.get("initial_remaining", remaining)))
 	var depleted := bool(resource.get("depleted", remaining <= 0.01))

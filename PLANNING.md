@@ -1,6 +1,6 @@
 # Fracture Protocol — Planning Document
 
-**Status:** Economy depletion, adaptive authored AI tactics, and battlefield HUD cleanup implemented; playtest pacing and tactical readability next
+**Status:** First-player opening pacing, combat-role readability, interactive tactical minimap, and team-based fog of war implemented; paused for human playtest
 **Version:** 1.0
 **Target:** PC  
 **Engine direction:** Godot 4  
@@ -43,6 +43,11 @@ The current Godot 4 prototype has a playable local skirmish foundation:
 - Campaign deployment is a start menu rather than a battlefield panel. The map no longer carries persistent controls or an Opponent Policy panel; authored mission tactics are automatic, and adaptive posture feedback arrives as player-facing intel.
 - Construction preview and simulation validation share footprint, obstacle, bounds, source, prerequisite, limit, and credit checks. Invalid placement previews turn red and retain build mode so the player can correct the position without reopening the construction card.
 - Command Hub and support-building health now provide a response window against early raids, while adaptive AI changes from opening to attacking when the player harvests unchallenged and defensive when its network is battered.
+- Level 1 now keeps an authored proactive-attack grace period and requires a larger attack group, while direct player pressure still triggers a defensive response. This gives the first mission time to teach the economy without removing consequences for an early rush.
+- Unit definitions now expose role summaries and combat tags to the contextual HUD, selected groups identify their composition, and combat feedback uses distinct role colours alongside the existing Ranger, Warden, Bulwark, Raider, and Collector silhouettes.
+- The tactical minimap is now an interactive navigation surface: it shows finite resources, objective and staging states, role-shaped unit markers, selected entities, and an estimated camera viewport; clicking it pans the camera to that map location.
+- Vision is now simulation-owned for both teams. Own entities remain visible, opposing units/buildings appear only inside current allied vision, explored terrain remains dimly known, and undiscovered terrain/resources/control points stay hidden in the world and minimap. The fog overlay and filtered combat feedback use the same state.
+- Rangers now act as forward scouts with extended vision. Bulwarks now have a longer 20-unit maximum reach, an 8-unit minimum firing distance, full-range arc-missile standoff behavior, delayed impact, and close-range retreat instead of blindly closing on targets.
 - Automated scenario coverage now includes Collector management, AI behavior, rush/turtle/greedy/tech-first/unit-first/Collector-loss/supply-cut paths, clean restart, the focused movement/presentation regression, authored terrain loading, queue limits, rally exits, force caps, Ranger-Raider parity, queued waypoints, patrol looping, and a 100-unit simulation benchmark.
 
 - Supply-connected captured control points now become Forward Staging Sites: they support the existing paid field repairs, provide a named Assembly Bay rally destination, visibly go offline when cut, and restore the saved rally when reconnected. West Crossing teaches the player mechanic while the AI secures East Crossing using the same rules.
@@ -50,7 +55,7 @@ The current Godot 4 prototype has a playable local skirmish foundation:
 - The enemy now resolves authored Standard, Aggressive, and Defensive policy profiles without hidden economy or combat bonuses. Each mission selects an authored opening tactic, then the AI adapts between Opening, Attacking, and Defensive postures based on player harvesting and battlefield pressure.
 - Control points now have authored strategic roles. West and East Crossings are Forward Staging sites with connected paid-repair and rally access, while Central Relay is a Network Hub with +15 credits/sec, +10 supply-link range, and slower capture pressure. Roles are visible in world labels, minimap markers, territory HUD feedback, and capture events.
 
-The next iteration should playtest both authored campaign missions from a clean start-menu deployment, tune finite-field pacing and alternate-field recovery, verify that forward-base supply explanations are understood, and balance adaptive AI attack/defence thresholds before adding more units or faction-specific economy. Asset work can proceed selectively around the representative relay corridor rather than replacing the whole graybox at once.
+The immediate next step is human playtesting from a clean start-menu deployment. Record whether Level 1 gives enough time to scout with Rangers, whether the fog reveal/re-hide rhythm is readable in the world and minimap, whether Bulwarks feel useful at long range but vulnerable when rushed, and whether the minimap viewport/click-to-pan behaviour remains useful. Tune only from those observations before adding more units or faction-specific economy.
 
 ## 1. Vision
 

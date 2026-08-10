@@ -8,6 +8,7 @@ const CampaignProgressScript = preload("res://src/campaign_progress.gd")
 const WorldBuilderScript = preload("res://src/presentation/rts_world_builder.gd")
 const CombatEffectsScript = preload("res://src/presentation/rts_combat_effects.gd")
 const WorldViewSynchronizerScript = preload("res://src/presentation/rts_world_view_synchronizer.gd")
+const FogOfWarViewScript = preload("res://src/presentation/rts_fog_of_war_view.gd")
 
 const MAP_HALF_WIDTH := 80.0
 const MAP_HALF_DEPTH := 55.0
@@ -19,6 +20,7 @@ var simulation
 var campaign_progress
 var camera: Camera3D
 var world_shell: Node3D
+var fog_view
 var camera_target := Vector3.ZERO
 var camera_distance := 31.0
 var camera_yaw := 0.0
@@ -206,6 +208,10 @@ func _build_world_shell() -> void:
 	world_shell.name = "AuthoredWorldShell"
 	add_child(world_shell)
 	WorldBuilderScript.build_world_shell(world_shell, simulation)
+	fog_view = FogOfWarViewScript.new()
+	fog_view.name = "FogOfWarView"
+	fog_view.configure(simulation.get_level_bounds(), float(simulation.level_rules.get("fog_tile_size", 8.0)))
+	world_shell.add_child(fog_view)
 
 
 func _build_ui() -> void:
@@ -354,8 +360,9 @@ func _build_ui() -> void:
 
 	minimap = MinimapScript.new()
 	minimap.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	minimap.position = Vector2(-260.0, -220.0)
-	minimap.size = Vector2(242.0, 106.0)
+	minimap.position = Vector2(-270.0, -274.0)
+	minimap.size = Vector2(252.0, 166.0)
+	minimap.world_position_clicked.connect(_on_minimap_world_position_clicked)
 	var bounds: Vector2 = simulation.get_level_bounds()
 	minimap.map_bounds = Rect2(-bounds.x, -bounds.y, bounds.x * 2.0, bounds.y * 2.0)
 	root.add_child(minimap)
@@ -572,6 +579,8 @@ func _entity_at_screen(screen_position: Vector2, player_only: bool) -> String:
 		var unit: Dictionary = simulation.units[entity_id]
 		if player_only and unit["team"] != "player":
 			continue
+		if not player_only and unit["team"] != "player" and not simulation.is_entity_visible_to_team("player", entity_id):
+			continue
 		var projected := camera.unproject_position(unit["position"] + Vector3.UP * 0.7)
 		var distance := projected.distance_to(screen_position)
 		if distance < closest_distance:
@@ -580,6 +589,8 @@ func _entity_at_screen(screen_position: Vector2, player_only: bool) -> String:
 	for entity_id in simulation.buildings:
 		var building: Dictionary = simulation.buildings[entity_id]
 		if player_only and building["team"] != "player":
+			continue
+		if not player_only and building["team"] != "player" and not simulation.is_entity_visible_to_team("player", entity_id):
 			continue
 		var projected := camera.unproject_position(building["position"] + Vector3.UP * 1.0)
 		var distance := projected.distance_to(screen_position)
@@ -834,6 +845,8 @@ func _resource_node_at_screen(screen_position: Vector2) -> String:
 	var closest_distance: float = 42.0
 	for node_id in simulation.resource_nodes:
 		var node: Dictionary = simulation.resource_nodes[node_id]
+		if not simulation.is_position_explored_by_team("player", node["position"]):
+			continue
 		var projected := camera.unproject_position(node["position"] + Vector3.UP * 0.6)
 		var distance: float = projected.distance_to(screen_position)
 		if distance < closest_distance:
@@ -862,6 +875,8 @@ func _control_point_at_screen(screen_position: Vector2) -> String:
 	var closest_distance: float = 50.0
 	for point_id in simulation.control_points:
 		var point: Dictionary = simulation.control_points[point_id]
+		if not simulation.is_position_explored_by_team("player", point["position"]):
+			continue
 		var projected := camera.unproject_position(point["position"] + Vector3.UP * 1.3)
 		var distance := projected.distance_to(screen_position)
 		if distance < closest_distance:
@@ -984,16 +999,34 @@ func _update_camera() -> void:
 	var offset := Vector3(sin(camera_yaw) * camera_distance, camera_distance * camera_pitch, cos(camera_yaw) * camera_distance)
 	camera.global_position = camera_target + offset
 	camera.look_at(camera_target, Vector3.UP)
+	if minimap:
+		minimap.set_camera_view(camera_target, camera_distance)
 
 
 func _sync_views(frame_delta: float = 0.0) -> void:
-	var state: Dictionary = simulation.get_state()
+	var state: Dictionary = simulation.get_state("player")
 	for selected_id in selected_ids.duplicate():
 		if not state["units"].has(selected_id) and not state["buildings"].has(selected_id):
 			selected_ids.erase(selected_id)
 	if not state["resource_nodes"].has(selected_resource_id):
 		selected_resource_id = ""
 	WorldViewSynchronizerScript.sync(self, state, selected_ids, unit_views, building_views, control_views, resource_views, selected_resource_id, objective_target_point_id, minimap, frame_delta)
+	if fog_view:
+		fog_view.sync(state.get("visibility", {}))
+	if minimap:
+		minimap.set_selection(selected_ids, selected_resource_id, objective_target_point_id)
+
+
+func _on_minimap_world_position_clicked(world_position: Vector3) -> void:
+	var bounds: Vector2 = simulation.get_level_bounds() if simulation else Vector2(MAP_HALF_WIDTH, MAP_HALF_DEPTH)
+	camera_target = Vector3(
+		clamp(world_position.x, -bounds.x * CAMERA_TARGET_X_FACTOR, bounds.x * CAMERA_TARGET_X_FACTOR),
+		0.0,
+		clamp(world_position.z, -bounds.y * CAMERA_TARGET_Z_FACTOR, bounds.y * CAMERA_TARGET_Z_FACTOR)
+	)
+	_update_camera()
+	if status_label and not start_menu_visible:
+		status_label.text = "TACTICAL MAP — camera moved to %d, %d." % [int(world_position.x), int(world_position.z)]
 
 
 func _create_control_view(point: Dictionary) -> Node3D:
@@ -1259,7 +1292,10 @@ func _update_hud() -> void:
 		var first_id: String = selected_ids[0]
 		var selected_data: Dictionary = simulation.units.get(first_id, simulation.buildings.get(first_id, {}))
 		if not selected_data.is_empty():
-			selected_text = "%s  x%d\n%s" % [selected_data["display_name"].to_upper(), selected_ids.size(), _selection_detail(selected_data)]
+			var selection_detail := _selection_detail(selected_data)
+			if selected_ids.size() > 1:
+				selection_detail += "\n" + _selection_composition()
+			selected_text = "%s\n%s" % [_selection_title(), selection_detail]
 	selected_label.text = selected_text
 	_update_context_cards()
 	_update_production_queue_ui()
@@ -1421,11 +1457,33 @@ func _unit_context_state(unit_type: String, building: Dictionary) -> Dictionary:
 func _unit_card_label(unit_type: String, value_text: String) -> String:
 	var display_name := unit_type.replace("_", " ").to_upper()
 	var force_slots := 1
+	var role_hint := "GENERAL"
 	if simulation.unit_definitions.has(unit_type):
 		var definition = simulation.unit_definitions[unit_type]
 		display_name = str(definition.display_name).to_upper()
 		force_slots = max(1, int(definition.force_slots))
-	return "◈ %s [%dF]\n%s" % [display_name, force_slots, value_text]
+		var tags: PackedStringArray = definition.role_tags
+		if not tags.is_empty():
+			role_hint = str(tags[0])
+			if tags.size() > 1:
+				role_hint += " · " + str(tags[1])
+	return "%s %s [%dF]\n%s · %s" % [_unit_card_icon(unit_type), display_name, force_slots, role_hint, value_text]
+
+
+func _unit_card_icon(unit_type: String) -> String:
+	match unit_type:
+		"ranger":
+			return "RIFLE"
+		"warden":
+			return "ARMOR"
+		"bulwark":
+			return "MISSILE"
+		"raider":
+			return "FAST"
+		"collector":
+			return "CARGO"
+		_:
+			return "UNIT"
 
 
 func _upgrade_context_state(building: Dictionary) -> Dictionary:
@@ -1566,9 +1624,17 @@ func _selection_detail(data: Dictionary) -> String:
 		if str(data.get("supply_reason", "")).is_empty() == false:
 			supply_text += " — %s" % str(data.get("supply_reason", ""))
 	var force_text := ""
+	var role_text := ""
 	if data.has("kind") and simulation.unit_definitions.has(str(data["kind"])):
 		var selected_definition = simulation.unit_definitions[str(data["kind"])]
 		force_text = "   FORCE %d" % max(1, int(selected_definition.force_slots))
+		var role_hint := str(selected_definition.role_summary).to_upper()
+		var tags: PackedStringArray = selected_definition.role_tags
+		if not tags.is_empty():
+			role_hint = str(tags[0])
+			if tags.size() > 1:
+				role_hint += " · " + str(tags[1])
+		role_text = "\nROLE %s  DMG %d  RANGE %.1f  ARM %d" % [role_hint, int(selected_definition.attack_damage), float(selected_definition.attack_range), int(selected_definition.armour)]
 		var waypoint_count: int = data.get("command_waypoints", []).size()
 		if waypoint_count > 0:
 			force_text += "   WAYPOINTS %d" % waypoint_count
@@ -1615,8 +1681,42 @@ func _selection_detail(data: Dictionary) -> String:
 		else:
 			rally_text = "   RALLY SET"
 	if data.has("order"):
-		return "HP %d/%d   ORDER %s%s%s%s%s%s%s" % [int(data["health"]), int(data["max_health"]), str(data["order"]).to_upper(), force_text, supply_text, collector_text, research_text, queue_text, rally_text]
-	return "HP %d/%d   %s%s%s%s%s%s%s" % [int(data["health"]), int(data["max_health"]), "ONLINE" if data["complete"] else "BUILDING", force_text, supply_text, collector_text, research_text, queue_text, rally_text]
+		return "HP %d/%d   ORDER %s%s%s%s%s%s%s%s" % [int(data["health"]), int(data["max_health"]), str(data["order"]).to_upper(), force_text, supply_text, collector_text, research_text, queue_text, rally_text, role_text]
+	return "HP %d/%d   %s%s%s%s%s%s%s%s" % [int(data["health"]), int(data["max_health"]), "ONLINE" if data["complete"] else "BUILDING", force_text, supply_text, collector_text, research_text, queue_text, rally_text, role_text]
+
+
+func _selection_title() -> String:
+	if selected_ids.is_empty():
+		return "NO SELECTION"
+	var kinds: Dictionary = {}
+	for entity_id in selected_ids:
+		if simulation.units.has(entity_id):
+			var kind := str(simulation.units[entity_id].get("kind", "unit"))
+			kinds[kind] = int(kinds.get(kind, 0)) + 1
+		elif simulation.buildings.has(entity_id):
+			var building_kind := str(simulation.buildings[entity_id].get("kind", "structure"))
+			kinds[building_kind] = int(kinds.get(building_kind, 0)) + 1
+	if kinds.size() == 1:
+		var only_kind := str(kinds.keys()[0])
+		var definition = simulation.unit_definitions.get(only_kind)
+		var display_name := str(definition.display_name) if definition else only_kind.replace("_", " ").capitalize()
+		return "%s  x%d" % [display_name.to_upper(), selected_ids.size()]
+	return "MIXED FORCE  x%d" % selected_ids.size()
+
+
+func _selection_composition() -> String:
+	var counts: Dictionary = {}
+	for entity_id in selected_ids:
+		if not simulation.units.has(entity_id):
+			continue
+		var kind := str(simulation.units[entity_id].get("kind", "unit"))
+		var definition = simulation.unit_definitions.get(kind)
+		var display_name := str(definition.display_name).to_upper() if definition else kind.to_upper()
+		counts[display_name] = int(counts.get(display_name, 0)) + 1
+	var parts: PackedStringArray = []
+	for display_name in counts:
+		parts.append("%s %d" % [display_name, int(counts[display_name])])
+	return " · ".join(parts)
 
 func _on_simulation_event(event_type: String, payload: Dictionary) -> void:
 	if combat_effects:

@@ -11,6 +11,14 @@ func _initialize() -> void:
 	balance_sim.start_match("relay_crossroads")
 	var ranger = balance_sim.unit_definitions["ranger"]
 	var raider = balance_sim.unit_definitions["raider"]
+	var warden = balance_sim.unit_definitions["warden"]
+	var bulwark = balance_sim.unit_definitions["bulwark"]
+	if ranger.role_tags.is_empty() or str(ranger.role_tags[0]) != "LIGHT ARMOUR":
+		failures.append("Ranger should expose its light-armour combat role")
+	if warden.role_tags.is_empty() or str(warden.role_tags[0]) != "HEAVY ARMOUR":
+		failures.append("Warden should expose its heavy-armour combat role")
+	if bulwark.role_tags.is_empty() or str(bulwark.role_tags[0]) != "SIEGE":
+		failures.append("Bulwark should expose its siege combat role")
 	if float(ranger.max_health) != float(raider.max_health):
 		failures.append("Ranger and Raider should have equal health in the first-pass matchup")
 	if float(ranger.armour) != float(raider.armour):

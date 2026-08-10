@@ -7,6 +7,7 @@ extends Resource
 @export var cost: int = 200
 @export var build_time: float = 5.0
 @export var max_health: float = 500.0
+@export var vision_range: float = 14.0
 @export var footprint: Vector2 = Vector2(3.0, 3.0)
 @export var produces_income: float = 0.0
 @export var can_produce: String = ""
@@ -18,4 +19,3 @@ extends Resource
 @export var upgrade_time: float = 0.0
 @export var upgrade_effect: String = ""
 @export var body_height: float = 1.5
-
