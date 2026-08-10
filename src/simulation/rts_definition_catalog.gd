@@ -118,7 +118,7 @@ static func populate(unit_definitions: Dictionary, building_definitions: Diction
 	command_hub.role = "headquarters"
 	command_hub.cost = 0
 	command_hub.build_time = 0.0
-	command_hub.max_health = 900.0
+	command_hub.max_health = 2400.0
 	command_hub.footprint = Vector2(4.5, 4.5)
 	command_hub.body_height = 2.8
 	building_definitions[command_hub.id] = command_hub
@@ -134,7 +134,7 @@ static func populate(unit_definitions: Dictionary, building_definitions: Diction
 	refinery.role = "economy"
 	refinery.cost = 250
 	refinery.build_time = 4.5
-	refinery.max_health = 420.0
+	refinery.max_health = 900.0
 	refinery.footprint = Vector2(3.5, 3.5)
 	refinery.produces_income = 0.0
 	refinery.body_height = 1.8
@@ -146,7 +146,7 @@ static func populate(unit_definitions: Dictionary, building_definitions: Diction
 	assembly_bay.role = "production"
 	assembly_bay.cost = 220
 	assembly_bay.build_time = 4.0
-	assembly_bay.max_health = 450.0
+	assembly_bay.max_health = 1000.0
 	assembly_bay.footprint = Vector2(3.5, 3.5)
 	assembly_bay.prerequisite_building = "refinery"
 	assembly_bay.can_produce = "ranger,warden,bulwark,raider"
@@ -163,7 +163,7 @@ static func populate(unit_definitions: Dictionary, building_definitions: Diction
 	tech_centre.role = "technology"
 	tech_centre.cost = 320
 	tech_centre.build_time = 5.5
-	tech_centre.max_health = 380.0
+	tech_centre.max_health = 850.0
 	tech_centre.footprint = Vector2(3.2, 3.2)
 	tech_centre.prerequisite_building = "assembly_bay"
 	tech_centre.can_research = "advanced_targeting"
@@ -176,7 +176,7 @@ static func populate(unit_definitions: Dictionary, building_definitions: Diction
 	silo.role = "logistics storage"
 	silo.cost = 150
 	silo.build_time = 3.5
-	silo.max_health = 260.0
+	silo.max_health = 600.0
 	silo.footprint = Vector2(2.4, 2.4)
 	silo.build_source_kind = "refinery"
 	silo.prerequisite_building = "refinery"
@@ -189,7 +189,7 @@ static func populate(unit_definitions: Dictionary, building_definitions: Diction
 	relay.role = "logistics"
 	relay.cost = 180
 	relay.build_time = 4.0
-	relay.max_health = 300.0
+	relay.max_health = 700.0
 	relay.footprint = Vector2(2.6, 2.6)
 	relay.body_height = 2.5
 	building_definitions[relay.id] = relay

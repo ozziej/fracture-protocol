@@ -13,6 +13,7 @@ const MAP_HALF_WIDTH := 80.0
 const MAP_HALF_DEPTH := 55.0
 const CAMERA_TARGET_X_FACTOR := 0.78
 const CAMERA_TARGET_Z_FACTOR := 0.78
+const AI_DIFFICULTIES := ["standard", "aggressive", "defensive"]
 
 var simulation
 var campaign_progress
@@ -29,6 +30,7 @@ var building_views: Dictionary = {}
 var control_views: Dictionary = {}
 var resource_views: Dictionary = {}
 var selected_ids: Array = []
+var selected_resource_id := ""
 var control_groups: Dictionary = {}
 
 var dragging := false
@@ -39,6 +41,9 @@ var build_mode := ""
 var attack_move_mode := false
 var patrol_mode := false
 var build_ghost: Node3D
+var build_ghost_mesh: MeshInstance3D
+var build_ghost_label: Label3D
+var build_ghost_valid := false
 var collector_assignment_mode := false
 var collector_assignment_source_id := ""
 var collector_assignment_unit_id := ""
@@ -61,6 +66,10 @@ var collector_button: Button
 var minimap
 var mission_one_button: Button
 var mission_two_button: Button
+var start_menu_overlay: ColorRect
+var start_menu_panel: PanelContainer
+var start_menu_briefing_label: Label
+var start_menu_visible := true
 var combat_effect_sequence := 0
 var combat_effects
 var objective_target_point_id := ""
@@ -91,7 +100,8 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_process_camera_input(delta)
-	simulation.step(delta)
+	if not start_menu_visible:
+		simulation.step(delta)
 	_sync_views(delta)
 	_update_camera()
 	_update_hud()
@@ -175,6 +185,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				attack_move_mode = false
 				patrol_mode = false
 				selected_ids.clear()
+				selected_resource_id = ""
 				_update_selected_visuals()
 			KEY_SPACE:
 				status_label.text = "Simulation is live — orders resolve on the fixed tick."
@@ -243,32 +254,6 @@ func _build_ui() -> void:
 	status_label.position = Vector2(22.0, 123.0)
 	status_label.size = Vector2(980.0, 26.0)
 	root.add_child(status_label)
-
-	var help := _label("WASD pan · H focus · F attack-move · P patrol · Shift+RMB queue · RMB order · Q Ranger · C Collector · T tech · Y repair", 12, Color("#8ca9b5"))
-	help.name = "ControlsHelp"
-	help.position = Vector2(22.0, 149.0)
-	help.size = Vector2(1230.0, 24.0)
-	var mission_panel := PanelContainer.new()
-	mission_panel.position = Vector2(18.0, 178.0)
-	mission_panel.size = Vector2(270.0, 108.0)
-	mission_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.025, 0.075, 0.1, 0.9), Color(0.18, 0.7, 0.78, 0.55)))
-	root.add_child(mission_panel)
-	var mission_list := VBoxContainer.new()
-	mission_list.add_theme_constant_override("separation", 4)
-	mission_panel.add_child(mission_list)
-	var mission_title := _label("CAMPAIGN DEPLOYMENT", 12, Color("#8cebf3"))
-	mission_list.add_child(mission_title)
-	mission_one_button = Button.new()
-	mission_one_button.text = "LEVEL 1 — RELAY DIVIDE [F1]"
-	mission_one_button.pressed.connect(_load_campaign_level.bind("relay_divide"))
-	mission_list.add_child(mission_one_button)
-	mission_two_button = Button.new()
-	mission_two_button.text = "LEVEL 2 — RELAY CROSSROADS [F2]"
-	mission_two_button.tooltip_text = "Complete Relay Divide to unlock this mission."
-	mission_two_button.pressed.connect(_load_campaign_level.bind("relay_crossroads"))
-	mission_list.add_child(mission_two_button)
-
-	root.add_child(help)
 
 	event_log_label = _label("EVENT LOG\nAwaiting orders...", 14, Color("#abc5cb"))
 	event_log_label.position = Vector2(18.0, 500.0)
@@ -380,6 +365,56 @@ func _build_ui() -> void:
 	selection_marquee.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	selection_marquee.visible = false
 	root.add_child(selection_marquee)
+	_build_campaign_start_menu(root)
+
+
+func _build_campaign_start_menu(root: Control) -> void:
+	start_menu_overlay = ColorRect.new()
+	start_menu_overlay.name = "CampaignStartMenuOverlay"
+	start_menu_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	start_menu_overlay.color = Color(0.008, 0.025, 0.04, 0.92)
+	start_menu_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	root.add_child(start_menu_overlay)
+
+	start_menu_panel = PanelContainer.new()
+	start_menu_panel.name = "CampaignStartMenu"
+	start_menu_panel.position = Vector2(240.0, 118.0)
+	start_menu_panel.size = Vector2(800.0, 470.0)
+	start_menu_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.025, 0.075, 0.1, 0.98), Color(0.18, 0.7, 0.78, 0.8)))
+	start_menu_overlay.add_child(start_menu_panel)
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 30)
+	margin.add_theme_constant_override("margin_right", 30)
+	margin.add_theme_constant_override("margin_top", 24)
+	margin.add_theme_constant_override("margin_bottom", 24)
+	start_menu_panel.add_child(margin)
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 12)
+	margin.add_child(column)
+	var title := _label("CAMPAIGN DEPLOYMENT", 24, Color("#d6fbff"))
+	column.add_child(title)
+	var subtitle := _label("FRACTURE PROTOCOL  //  SELECT A MISSION", 13, Color("#8cebf3"))
+	column.add_child(subtitle)
+	start_menu_briefing_label = _label("", 14, Color("#c3d8df"))
+	start_menu_briefing_label.custom_minimum_size = Vector2(0.0, 54.0)
+	start_menu_briefing_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	column.add_child(start_menu_briefing_label)
+	mission_one_button = Button.new()
+	mission_one_button.name = "LevelOneButton"
+	mission_one_button.custom_minimum_size = Vector2(0.0, 58.0)
+	mission_one_button.text = "LEVEL 1 — RELAY DIVIDE"
+	mission_one_button.pressed.connect(_load_campaign_level.bind("relay_divide"))
+	column.add_child(mission_one_button)
+	mission_two_button = Button.new()
+	mission_two_button.name = "LevelTwoButton"
+	mission_two_button.custom_minimum_size = Vector2(0.0, 58.0)
+	mission_two_button.text = "LEVEL 2 — RELAY CROSSROADS"
+	mission_two_button.tooltip_text = "Complete Relay Divide to unlock this mission."
+	mission_two_button.pressed.connect(_load_campaign_level.bind("relay_crossroads"))
+	column.add_child(mission_two_button)
+	var footer := _label("The opponent tactic is authored by the mission and adapts to battlefield pressure automatically.", 12, Color("#8ca9b5"))
+	footer.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	column.add_child(footer)
 
 
 func _finish_left_click() -> void:
@@ -388,19 +423,30 @@ func _finish_left_click() -> void:
 		return
 	if build_mode != "":
 		var build_position := _screen_to_ground(pointer_position)
-		if _is_inside_map(build_position):
+		var placement: Dictionary = simulation.get_build_placement_status("player", build_mode, build_position, build_source_id)
+		if bool(placement.get("valid", false)):
 			simulation.issue_command("build", "player", {"building_type": build_mode, "position": build_position, "source_building_id": build_source_id})
+			_cancel_build_mode()
 		else:
-			status_label.text = "Placement is outside the map. Move the preview onto the battlefield."
-		_cancel_build_mode()
+			status_label.text = "CANNOT PLACE — %s" % str(placement.get("reason", "Invalid placement."))
+			_update_build_ghost()
 		return
 	var drag_rect := Rect2(drag_start, drag_current - drag_start).abs()
 	if drag_rect.size.length() < 12.0:
+		var clicked_resource_id := _resource_node_at_screen(pointer_position)
+		if not clicked_resource_id.is_empty():
+			selected_ids.clear()
+			selected_resource_id = clicked_resource_id
+			status_label.text = "%s selected — inspect its finite reserve below." % simulation.resource_nodes[clicked_resource_id]["display_name"]
+			_update_selected_visuals()
+			return
 		var clicked_id := _entity_at_screen(pointer_position, true)
+		selected_resource_id = ""
 		selected_ids.clear()
 		if not clicked_id.is_empty() and ((simulation.units.has(clicked_id) and simulation.units[clicked_id]["team"] == "player") or (simulation.buildings.has(clicked_id) and simulation.buildings[clicked_id]["team"] == "player")):
 			selected_ids.append(clicked_id)
 	else:
+		selected_resource_id = ""
 		selected_ids.clear()
 		for entity_id in simulation.units:
 			var unit: Dictionary = simulation.units[entity_id]
@@ -613,6 +659,9 @@ func _toggle_build_mode() -> void:
 func _cancel_build_mode() -> void:
 	build_mode = ""
 	build_source_id = ""
+	build_ghost_valid = false
+	build_ghost_mesh = null
+	build_ghost_label = null
 	if build_ghost:
 		build_ghost.queue_free()
 		build_ghost = null
@@ -633,6 +682,7 @@ func _create_build_ghost() -> void:
 	elif build_mode == "storage_silo":
 		footprint = Vector3(2.4, 2.8, 2.4)
 	var mesh := MeshInstance3D.new()
+	mesh.name = "PreviewMesh"
 	var box := BoxMesh.new()
 	box.size = footprint
 	mesh.mesh = box
@@ -640,6 +690,7 @@ func _create_build_ghost() -> void:
 	mesh.material_override = _material(Color(0.18, 0.86, 0.88, 0.55), 0.65, 0.1)
 	build_ghost.add_child(mesh)
 	var label := Label3D.new()
+	label.name = "PreviewLabel"
 	label.text = "PLACE %s\nLEFT-CLICK TO BUILD" % build_mode.replace("_", " ").to_upper()
 	label.position.y = footprint.y + 1.1
 	label.font_size = 24
@@ -649,6 +700,8 @@ func _create_build_ghost() -> void:
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.no_depth_test = true
 	build_ghost.add_child(label)
+	build_ghost_mesh = mesh
+	build_ghost_label = label
 	if not build_source_id.is_empty() and simulation.buildings.has(build_source_id):
 		var source_position: Vector3 = simulation.buildings[build_source_id]["position"]
 		build_ghost.position = source_position + Vector3(6.0, 0.0, 0.0)
@@ -660,6 +713,17 @@ func _update_build_ghost() -> void:
 		return
 	var position := _screen_to_ground(pointer_position)
 	build_ghost.position = Vector3(position.x, 0.0, position.z)
+	var placement: Dictionary = simulation.get_build_placement_status("player", build_mode, position, build_source_id)
+	build_ghost_valid = bool(placement.get("valid", false))
+	var preview_color := Color(0.18, 0.86, 0.88, 0.55) if build_ghost_valid else Color(0.96, 0.18, 0.24, 0.65)
+	if build_ghost_mesh:
+		build_ghost_mesh.material_override = _material(preview_color, 0.65, 0.1)
+	if build_ghost_label:
+		if build_ghost_valid:
+			build_ghost_label.text = "PLACE %s\nLEFT-CLICK TO BUILD" % build_mode.replace("_", " ").to_upper()
+		else:
+			build_ghost_label.text = "INVALID PLACEMENT\n%s" % str(placement.get("reason", "Cannot build here."))
+		build_ghost_label.modulate = Color("#d9fbff") if build_ghost_valid else Color("#ff9ba3")
 
 
 func _find_player_assembly_bay() -> String:
@@ -731,6 +795,9 @@ func _handle_collector_assignment_click() -> void:
 		var source_id := _resource_node_at_screen(pointer_position)
 		if source_id.is_empty():
 			status_label.text = "Click the Northern or Southern Energy Field to choose a source."
+			return
+		if bool(simulation.resource_nodes[source_id].get("depleted", false)) or float(simulation.resource_nodes[source_id].get("remaining", 0.0)) <= 0.01:
+			status_label.text = "%s is depleted — choose another Energy Field." % simulation.resource_nodes[source_id]["display_name"]
 			return
 		collector_assignment_source_id = source_id
 		status_label.text = "Source selected: %s — now click a friendly Resource Processor." % simulation.resource_nodes[source_id]["display_name"]
@@ -924,7 +991,9 @@ func _sync_views(frame_delta: float = 0.0) -> void:
 	for selected_id in selected_ids.duplicate():
 		if not state["units"].has(selected_id) and not state["buildings"].has(selected_id):
 			selected_ids.erase(selected_id)
-	WorldViewSynchronizerScript.sync(self, state, selected_ids, unit_views, building_views, control_views, resource_views, objective_target_point_id, minimap, frame_delta)
+	if not state["resource_nodes"].has(selected_resource_id):
+		selected_resource_id = ""
+	WorldViewSynchronizerScript.sync(self, state, selected_ids, unit_views, building_views, control_views, resource_views, selected_resource_id, objective_target_point_id, minimap, frame_delta)
 
 
 func _create_control_view(point: Dictionary) -> Node3D:
@@ -952,6 +1021,7 @@ func _restart_match() -> void:
 	attack_move_mode = false
 	patrol_mode = false
 	selected_ids.clear()
+	selected_resource_id = ""
 	control_groups.clear()
 	event_log_label.text = "EVENT LOG\nAwaiting orders..."
 	status_label.modulate = Color("#c3d8df")
@@ -1006,7 +1076,9 @@ func _load_campaign_level(level_id: String) -> void:
 	control_views.clear()
 	resource_views.clear()
 	simulation.start_match(level_id)
+	_set_start_menu_visible(false)
 	camera_target = _starting_camera_target()
+	_update_camera()
 	_build_world_shell()
 	if minimap:
 		var bounds: Vector2 = simulation.get_level_bounds()
@@ -1014,6 +1086,16 @@ func _load_campaign_level(level_id: String) -> void:
 	_update_selected_visuals()
 	_sync_views()
 	_update_hud()
+
+
+func _set_start_menu_visible(visible: bool) -> void:
+	start_menu_visible = visible
+	if start_menu_overlay:
+		start_menu_overlay.visible = visible
+	if start_menu_panel:
+		start_menu_panel.visible = visible
+	if visible and status_label and simulation and not simulation.match_over:
+		status_label.text = "Select a mission to begin deployment."
 
 func _find_player_building(kind: String) -> String:
 	for building_id in simulation.buildings:
@@ -1128,7 +1210,8 @@ func _update_hud() -> void:
 	_update_objective()
 	credits_label.text = "CREDITS %03d" % int(simulation.player_credits)
 	var territory: Dictionary = simulation.get_territory_summary()
-	territory_label.text = "TERRITORY %d/%d" % [territory["player"], territory["total"]]
+	territory_label.text = "TERRITORY %d/%d  +%dC/S" % [territory["player"], territory["total"], int(territory.get("player_income_per_second", 0.0))]
+	territory_label.tooltip_text = _territory_tooltip(territory)
 	var supply: Dictionary = simulation.get_supply_summary("player")
 	var unsupplied_units: int = int(supply["unsupplied_units"])
 	var supply_state := "CONNECTED"
@@ -1136,6 +1219,7 @@ func _update_hud() -> void:
 		supply_state = "%d UNSUPPLIED" % unsupplied_units
 	supply_label.text = "SUPPLY %s" % supply_state
 	supply_label.modulate = Color("#ffbf6a") if unsupplied_units > 0 else Color("#7cf1ad")
+	supply_label.tooltip_text = "Connected units are within the Hub, Relay, or connected forward-base network. Unsupplied units move and fire at reduced effectiveness."
 	var limits: Dictionary = simulation.get_limit_summary("player")
 	var unit_limits: Dictionary = limits["units"]
 	force_label.text = "FORCE %d/%d" % [int(unit_limits["current"]) + int(unit_limits["queued"]), int(unit_limits["max"])]
@@ -1155,17 +1239,23 @@ func _update_hud() -> void:
 		technology_label.text = "TECH LOCKED"
 		technology_label.modulate = Color("#ffbf6a")
 	if mission_one_button:
-		mission_one_button.disabled = simulation.match_over == false and simulation.get_level_id() == "relay_divide"
+		mission_one_button.disabled = false
 	if mission_two_button:
 		var level_two_unlocked: bool = campaign_progress == null or campaign_progress.is_unlocked("relay_crossroads")
-		mission_two_button.disabled = not level_two_unlocked or (simulation.match_over == false and simulation.get_level_id() == "relay_crossroads")
+		mission_two_button.disabled = not level_two_unlocked
 		mission_two_button.tooltip_text = "Deploy Relay Crossroads" if level_two_unlocked else "Complete Relay Divide to unlock this mission."
+	if start_menu_briefing_label:
+		start_menu_briefing_label.text = simulation.get_level_briefing()
 	if simulation.match_over:
 		_cancel_build_mode()
 		_cancel_collector_assignment(false)
 
-	var selected_text := "NO SELECTION\nSelect units or a structure"
-	if not selected_ids.is_empty():
+	var selected_text := "NO SELECTION\nSelect units, a structure, or an Energy Field"
+	if not selected_resource_id.is_empty() and simulation.resource_nodes.has(selected_resource_id):
+		var resource_summary: Dictionary = simulation.get_resource_summary(selected_resource_id)
+		var resource_state := "DEPLETED" if bool(resource_summary.get("depleted", false)) else "%d%% REMAINING" % int(float(resource_summary.get("percent_remaining", 0.0)) * 100.0)
+		selected_text = "%s\nENERGY %d / %d   %s" % [str(resource_summary.get("display_name", "ENERGY FIELD")).to_upper(), int(resource_summary.get("remaining", 0.0)), int(resource_summary.get("initial_remaining", 0.0)), resource_state]
+	elif not selected_ids.is_empty():
 		var first_id: String = selected_ids[0]
 		var selected_data: Dictionary = simulation.units.get(first_id, simulation.buildings.get(first_id, {}))
 		if not selected_data.is_empty():
@@ -1173,6 +1263,29 @@ func _update_hud() -> void:
 	selected_label.text = selected_text
 	_update_context_cards()
 	_update_production_queue_ui()
+
+
+func _territory_tooltip(territory: Dictionary) -> String:
+	var lines: PackedStringArray = []
+	lines.append("Owned territory income: +%d credits/sec" % int(territory.get("player_income_per_second", 0.0)))
+	var supply_bonus := float(territory.get("player_supply_link_bonus", 0.0))
+	if supply_bonus > 0.0:
+		lines.append("Network Hub extension: +%d supply-link range" % int(supply_bonus))
+	var staging_sites := int(territory.get("player_staging_sites", 0))
+	if staging_sites > 0:
+		lines.append("Active staging sites: %d — repair and rally available" % staging_sites)
+	if lines.size() == 1:
+		lines.append("Capture a point to unlock its authored strategic role.")
+	return "\n".join(lines)
+
+
+func _on_ai_difficulty_selected(index: int) -> void:
+	if index < 0 or index >= AI_DIFFICULTIES.size() or not simulation:
+		return
+	var difficulty_id: String = AI_DIFFICULTIES[index]
+	simulation.set_ai_difficulty(difficulty_id)
+	if status_label and not simulation.match_over:
+		status_label.text = "AI difficulty set to %s; its policy will adapt on the next decision." % difficulty_id.capitalize()
 
 
 func _find_queue_building_for_ui() -> String:
@@ -1450,6 +1563,8 @@ func _selection_detail(data: Dictionary) -> String:
 	var supply_text := ""
 	if data.has("supply_state"):
 		supply_text = "   SUPPLY %s" % str(data["supply_state"]).to_upper()
+		if str(data.get("supply_reason", "")).is_empty() == false:
+			supply_text += " — %s" % str(data.get("supply_reason", ""))
 	var force_text := ""
 	if data.has("kind") and simulation.unit_definitions.has(str(data["kind"])):
 		var selected_definition = simulation.unit_definitions[str(data["kind"])]
@@ -1468,6 +1583,8 @@ func _selection_detail(data: Dictionary) -> String:
 			collector_route_label = "RETREAT TO BASE"
 		elif data["collector_state"] == "unassigned":
 			collector_route_label = "UNASSIGNED — PRESS U"
+		elif data["collector_state"] == "depleted":
+			collector_route_label = "SOURCE DEPLETED — PRESS U"
 		collector_text = "   %s %d/%d" % [
 			collector_route_label,
 			int(data.get("collector_cargo", 0.0)),
@@ -1507,6 +1624,12 @@ func _on_simulation_event(event_type: String, payload: Dictionary) -> void:
 	if not status_label or not event_log_label:
 		return
 	var feedback_message: String = str(payload.get("message", payload.get("reason", "")))
+	if event_type == "AIIntentDeclared" or event_type == "AIPhaseChanged" or event_type == "AIPostureChanged":
+		if not feedback_message.is_empty():
+			status_label.text = "OPPONENT INTEL — %s" % feedback_message
+		return
+	if not _is_player_event(event_type, payload):
+		return
 	if not feedback_message.is_empty():
 		status_label.text = feedback_message
 	if event_type == "MatchWon" or event_type == "MatchLost":
@@ -1524,6 +1647,14 @@ func _on_simulation_event(event_type: String, payload: Dictionary) -> void:
 	event_log_label.text = "EVENT LOG\n" + "\n".join(lines.slice(1))
 
 
+func _is_player_event(event_type: String, payload: Dictionary) -> bool:
+	if payload.has("attacker_team"):
+		return str(payload.get("team", "")) == "player" or str(payload.get("attacker_team", "")) == "player"
+	if payload.has("team"):
+		return str(payload.get("team", "")) == "player"
+	return event_type == "MatchStarted" or event_type == "MatchWon" or event_type == "MatchLost"
+
+
 func _update_selection_marquee() -> void:
 	var rectangle := Rect2(drag_start, drag_current - drag_start).abs()
 	selection_marquee.position = rectangle.position
@@ -1531,6 +1662,8 @@ func _update_selection_marquee() -> void:
 
 
 func _pointer_over_ui() -> bool:
+	if start_menu_visible:
+		return true
 	if queue_panel and queue_panel.visible and queue_panel.get_global_rect().has_point(pointer_position):
 		return true
 	return pointer_position.y < 184.0 or pointer_position.y > 605.0 or pointer_position.x > 1000.0

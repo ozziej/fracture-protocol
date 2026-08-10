@@ -6,7 +6,7 @@ const BuildingViewScript = preload("res://src/rts_building_view.gd")
 
 ## Translates immutable-ish simulation snapshots into scene nodes. This is the
 ## presentation boundary: it may create or tween nodes, but cannot issue rules.
-static func sync(parent: Node3D, state: Dictionary, selected_ids: Array, unit_views: Dictionary, building_views: Dictionary, control_views: Dictionary, resource_views: Dictionary, objective_target_point_id: String, minimap, frame_delta: float) -> void:
+static func sync(parent: Node3D, state: Dictionary, selected_ids: Array, unit_views: Dictionary, building_views: Dictionary, control_views: Dictionary, resource_views: Dictionary, selected_resource_id: String, objective_target_point_id: String, minimap, frame_delta: float) -> void:
 	for entity_id in state["units"]:
 		if not unit_views.has(entity_id):
 			var view = UnitViewScript.new()
@@ -38,6 +38,11 @@ static func sync(parent: Node3D, state: Dictionary, selected_ids: Array, unit_vi
 	for node_id in state["resource_nodes"]:
 		if not resource_views.has(node_id):
 			resource_views[node_id] = create_resource_view(parent, state["resource_nodes"][node_id])
+		update_resource_view(resource_views[node_id], state["resource_nodes"][node_id], str(node_id) == selected_resource_id)
+	for node_id in resource_views.keys():
+		if not state["resource_nodes"].has(node_id):
+			resource_views[node_id].queue_free()
+			resource_views.erase(node_id)
 
 	if minimap:
 		minimap.set_snapshot(state)
@@ -181,9 +186,15 @@ static func update_control_view(view: Node3D, point: Dictionary, objective_targe
 	if halo:
 		halo.material_override = _emissive_material(color.darkened(0.05), 1.6)
 	var label: Label3D = view.get_node("PointLabel")
-	label.text = "%s %d%%" % [point["display_name"], abs(int(point["capture_progress"]))]
+	var role_label := str(point.get("role_label", "")).to_upper()
+	var income_per_second := int(float(point.get("income_per_second", 10.0)))
+	var role_text := "%s · +%dC/S" % [role_label, income_per_second] if not role_label.is_empty() else "+%dC/S" % income_per_second
+	var supply_link_bonus := int(float(point.get("supply_link_bonus", 0.0)))
+	if supply_link_bonus > 0:
+		role_text += " · LINK +%d" % supply_link_bonus
+	label.text = "%s\n%s\nCAPTURE %d%%" % [point["display_name"], role_text, abs(int(point["capture_progress"]))]
 	if staging_active:
-		label.text += "\nFORWARD STAGING — REPAIR / RALLY"
+		label.text += "\nONLINE — REPAIR / RALLY"
 	label.modulate = color.lightened(0.35)
 
 
@@ -191,6 +202,7 @@ static func create_resource_view(parent: Node3D, resource: Dictionary) -> Node3D
 	var root := Node3D.new()
 	root.position = resource["position"]
 	var ring := MeshInstance3D.new()
+	ring.name = "ResourceRing"
 	var ring_mesh := CylinderMesh.new()
 	ring_mesh.top_radius = 3.0
 	ring_mesh.bottom_radius = 3.0
@@ -199,6 +211,18 @@ static func create_resource_view(parent: Node3D, resource: Dictionary) -> Node3D
 	ring.mesh = ring_mesh
 	ring.material_override = _material(Color("#604b24"), 0.72, 0.0)
 	root.add_child(ring)
+	var selection_ring := MeshInstance3D.new()
+	selection_ring.name = "ResourceSelectionRing"
+	var selection_mesh := CylinderMesh.new()
+	selection_mesh.top_radius = 3.35
+	selection_mesh.bottom_radius = 3.35
+	selection_mesh.height = 0.04
+	selection_mesh.radial_segments = 32
+	selection_ring.mesh = selection_mesh
+	selection_ring.position.y = 0.12
+	selection_ring.material_override = _emissive_material(Color("#fff0a4"), 2.0)
+	selection_ring.visible = false
+	root.add_child(selection_ring)
 	for index in range(5):
 		var crystal := MeshInstance3D.new()
 		var crystal_mesh := CylinderMesh.new()
@@ -212,6 +236,7 @@ static func create_resource_view(parent: Node3D, resource: Dictionary) -> Node3D
 		crystal.material_override = _material(Color("#e9a93b"), 0.34, 0.36)
 		root.add_child(crystal)
 	var label := Label3D.new()
+	label.name = "ResourceLabel"
 	label.text = resource["display_name"]
 	label.position.y = 2.8
 	label.font_size = 27
@@ -223,6 +248,26 @@ static func create_resource_view(parent: Node3D, resource: Dictionary) -> Node3D
 	root.add_child(label)
 	parent.add_child(root)
 	return root
+
+
+static func update_resource_view(view: Node3D, resource: Dictionary, selected: bool) -> void:
+	var remaining: float = max(0.0, float(resource.get("remaining", 0.0)))
+	var initial_remaining: float = max(0.0, float(resource.get("initial_remaining", remaining)))
+	var depleted := bool(resource.get("depleted", remaining <= 0.01))
+	var ring := view.get_node_or_null("ResourceRing") as MeshInstance3D
+	var selection_ring := view.get_node_or_null("ResourceSelectionRing") as MeshInstance3D
+	var label := view.get_node_or_null("ResourceLabel") as Label3D
+	if ring:
+		ring.material_override = _material(Color("#302a22") if depleted else Color("#604b24"), 0.72, 0.0)
+	if selection_ring:
+		selection_ring.visible = selected
+	if label:
+		var display_name := str(resource.get("display_name", "Energy Field"))
+		if depleted:
+			label.text = "%s\nDEPLETED" % display_name
+		else:
+			label.text = "%s\nENERGY %d / %d" % [display_name, int(remaining), int(initial_remaining)]
+		label.modulate = Color("#9e8b72") if depleted else Color("#ffcf68")
 
 
 static func _material(color: Color, roughness: float, metallic: float) -> StandardMaterial3D:

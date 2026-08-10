@@ -1,7 +1,7 @@
 # Fracture Protocol — Planning Document
 
-**Status:** Level 1 opening, Ranger/Raider balance, and authored Level 2 battlefield implemented; playtest both campaign missions next
-**Version:** 0.8
+**Status:** Economy depletion, adaptive authored AI tactics, and battlefield HUD cleanup implemented; playtest pacing and tactical readability next
+**Version:** 1.0
 **Target:** PC  
 **Engine direction:** Godot 4  
 **First playable:** Local skirmish against AI  
@@ -38,12 +38,19 @@ The current Godot 4 prototype has a playable local skirmish foundation:
 - Production now uses a five-item queue cap, slower authored build pacing, explicit exit anchors, selectable Assembly Bay rally points, and visible queue/force-limit feedback.
 - The authored `data/level_data.json` schema now drives the first skirmish's bounds, roads, lane markers, obstacles, accents, resource fields, capture points, player/enemy spawns, AI coordinates, and per-level caps/timing rules.
 - Unit and building health fills are aligned to their backgrounds at full health; Collector cargo remains a separate progressive bar.
+- Resource fields now expose finite authored reserves, live current/initial amounts, depletion events, and a clear Collector exhausted state. Clicking a field selects it for inspection; stale routes are rejected and the AI falls back to another available field.
+- Supply feedback now names the connected Hub, Relay, staging site, or forward-base structure that supports a unit. Units outside the network explain the movement and combat penalty instead of presenting an unexplained UNSUPPLIED label.
+- Campaign deployment is a start menu rather than a battlefield panel. The map no longer carries persistent controls or an Opponent Policy panel; authored mission tactics are automatic, and adaptive posture feedback arrives as player-facing intel.
+- Construction preview and simulation validation share footprint, obstacle, bounds, source, prerequisite, limit, and credit checks. Invalid placement previews turn red and retain build mode so the player can correct the position without reopening the construction card.
+- Command Hub and support-building health now provide a response window against early raids, while adaptive AI changes from opening to attacking when the player harvests unchallenged and defensive when its network is battered.
 - Automated scenario coverage now includes Collector management, AI behavior, rush/turtle/greedy/tech-first/unit-first/Collector-loss/supply-cut paths, clean restart, the focused movement/presentation regression, authored terrain loading, queue limits, rally exits, force caps, Ranger-Raider parity, queued waypoints, patrol looping, and a 100-unit simulation benchmark.
 
 - Supply-connected captured control points now become Forward Staging Sites: they support the existing paid field repairs, provide a named Assembly Bay rally destination, visibly go offline when cut, and restore the saved rally when reconnected. West Crossing teaches the player mechanic while the AI secures East Crossing using the same rules.
 - Relay Divide now has an expanded 160×110 authored battlefield, a player-base opening camera, a visible tactical minimap, and a world-space objective beacon. Mission briefing and objective copy are data-owned in `data/level_data.json`, keeping map/story text out of gameplay scripts.
+- The enemy now resolves authored Standard, Aggressive, and Defensive policy profiles without hidden economy or combat bonuses. Each mission selects an authored opening tactic, then the AI adapts between Opening, Attacking, and Defensive postures based on player harvesting and battlefield pressure.
+- Control points now have authored strategic roles. West and East Crossings are Forward Staging sites with connected paid-repair and rally access, while Central Relay is a Network Hub with +15 credits/sec, +10 supply-link range, and slower capture pressure. Roles are visible in world labels, minimap markers, territory HUD feedback, and capture events.
 
-The next iteration should playtest both authored campaign missions, verify Ranger-Raider parity under real combat pressure, and tune staging-site pressure, queue pacing, force caps, rally placement, Collector risk/reward, and AI attack timing before adding more units or faction-specific economy. Asset work can proceed selectively around the representative relay corridor rather than replacing the whole graybox at once.
+The next iteration should playtest both authored campaign missions from a clean start-menu deployment, tune finite-field pacing and alternate-field recovery, verify that forward-base supply explanations are understood, and balance adaptive AI attack/defence thresholds before adding more units or faction-specific economy. Asset work can proceed selectively around the representative relay corridor rather than replacing the whole graybox at once.
 
 ## 1. Vision
 

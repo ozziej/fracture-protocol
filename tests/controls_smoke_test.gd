@@ -13,20 +13,29 @@ func _initialize() -> void:
 		failures.append("HUD should show an actionable first-minute objective")
 	if main.collector_button.visible:
 		failures.append("Level 1 should hide Collector production until a Resource Processor is selected")
+	if main.start_menu_panel == null or not main.start_menu_panel.visible:
+		failures.append("campaign deployment should be a start menu before the match begins")
+	var visible_help: Node = main.find_child("ControlsHelp", true, false)
+	if visible_help != null and visible_help.visible:
+		failures.append("on-screen controls text should be removed from the battlefield HUD")
+	if main.find_child("OpponentPolicyPanel", true, false) != null:
+		failures.append("opponent policy should not obscure the battlefield HUD")
 	var minimap_rect: Rect2 = main.minimap.get_global_rect()
 	var viewport_rect: Rect2 = main.get_viewport().get_visible_rect()
 	if minimap_rect.position.x < 0.0 or minimap_rect.position.y < 0.0 or minimap_rect.end.x > viewport_rect.end.x or minimap_rect.end.y > viewport_rect.end.y:
 		failures.append("minimap should be visible inside the tactical HUD")
 	if main.minimap.map_bounds != Rect2(-115.0, -75.0, 230.0, 150.0):
 		failures.append("minimap should use the authored level bounds")
-	var help: Label = main.find_child("ControlsHelp", true, false) as Label
-	if help == null or help.get_global_rect().end.x > viewport_rect.end.x:
-		failures.append("controls help should fit inside the HUD")
 	if main.simulation.control_points["west_crossing"]["owner"] != "neutral":
 		failures.append("West Crossing should begin neutral, outside the opening force")
+	var central_point_label: Label3D = main.control_views["central_relay"].get_node("PointLabel") as Label3D
+	if central_point_label == null or central_point_label.text.find("NETWORK HUB") < 0:
+		failures.append("control-point presentation should identify the Central Relay network-hub role")
 
 	main.campaign_progress.mark_complete("relay_divide")
 	main._load_campaign_level("relay_crossroads")
+	if main.start_menu_panel.visible:
+		failures.append("starting a mission should close the campaign start menu")
 	var level_two_bounds := Rect2(-140.0, -92.0, 280.0, 184.0)
 	if main.minimap.map_bounds != level_two_bounds:
 		failures.append("switching to Level 2 should rebuild the minimap bounds")

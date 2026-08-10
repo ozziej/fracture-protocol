@@ -15,10 +15,23 @@ The simulation delegates isolated responsibilities to collaborators:
   obstacle-aware routes.
 - `simulation/rts_ai_controller.gd` is an enemy policy that can only use the
   same public commands as the player; it has no hidden resource or combat path.
+- `simulation/rts_ai_profile.gd` resolves authored difficulty profiles and
+  mission intents into a small policy contract. Difficulty changes timing,
+  force thresholds, queue reservations, and risk tolerance; it never changes
+  the shared economy or combat definitions.
 - `simulation/rts_force_capacity.gd` is a stateless force-accounting service;
   unit slot weights and queued reservations are evaluated consistently.
 - Queue and patrol orders remain serialisable unit state, with direct Move, Attack, Stop, and Collector commands explicitly clearing stale route plans.
 - Mission changes reload the selected simulation definition and rebuild the presentation world shell and minimap bounds from authored level data, keeping map geometry aligned with simulation state.
+- Control-point roles, income, capture resistance, supply-link bonuses, and
+  staging repair multipliers are authored in `data/level_data.json`. The
+  logistics service applies those roles to the shared territory, supply, and
+  repair rules, while the HUD and minimap render their consequences from the
+  simulation snapshot.
+- Resource reserves, depletion state, and map-specific AI tactics are authored
+  in `data/level_data.json`. The simulation owns depletion and adaptive posture
+  transitions; the presentation layer only renders field inspection, player
+  intel, and the start-menu deployment flow.
 
 `main.gd` remains the Godot scene entry point and input composition root. It
 contains only player input, selection, camera state, campaign flow, and the
@@ -52,6 +65,8 @@ payloads; they never issue or alter match commands.
   distinct lifecycle, such as projectiles, territory/supply, or production.
 - Add visual effects as simulation events plus a presentation listener; do not
   calculate damage in a visual node.
+- Keep placement previews and build acceptance on the same simulation query so
+  a red invalid preview cannot become an accepted or silently discarded build.
 - Keep `RtsSimulation` public methods stable when moving internal work. Tests,
   campaigns, replays, and future multiplayer integrations use it as the
   compatibility boundary.

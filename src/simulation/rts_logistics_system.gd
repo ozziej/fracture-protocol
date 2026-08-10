@@ -18,13 +18,14 @@ func update_control_points() -> void:
 		if player_count == enemy_count:
 			continue
 		var pressure := 5.0 if player_count > enemy_count else -5.0
+		pressure *= max(0.1, float(point.get("capture_rate_multiplier", 1.0)))
 		point["capture_progress"] = clamp(float(point["capture_progress"]) + pressure, -100.0, 100.0)
 		if float(point["capture_progress"]) >= 100.0 and point["owner"] != "player":
 			point["owner"] = "player"
-			simulation._emit_event("TerritoryCaptured", {"point_id": point_id, "team": "player", "message": "%s secured." % point["display_name"]})
+			simulation._emit_event("TerritoryCaptured", {"point_id": point_id, "team": "player", "role": point.get("strategic_role", ""), "message": "%s secured — %s" % [point["display_name"], point.get("role_description", "territory advantage online")]})
 		elif float(point["capture_progress"]) <= -100.0 and point["owner"] != "enemy":
 			point["owner"] = "enemy"
-			simulation._emit_event("TerritoryCaptured", {"point_id": point_id, "team": "enemy", "message": "%s lost." % point["display_name"]})
+			simulation._emit_event("TerritoryCaptured", {"point_id": point_id, "team": "enemy", "role": point.get("strategic_role", ""), "message": "%s lost — %s is now available to the opponent." % [point["display_name"], point.get("role_label", "territory benefit")]})
 
 
 func update_forward_staging_states() -> void:
@@ -42,9 +43,9 @@ func update_forward_staging_states() -> void:
 		point["staging_active"] = active
 		point["staging_team"] = owner if active else "neutral"
 		if active and not was_active:
-			simulation._emit_event("ForwardStagingActivated", {"point_id": point_id, "team": owner, "message": "%s is online as a forward staging site." % point["display_name"]})
+			simulation._emit_event("ForwardStagingActivated", {"point_id": point_id, "team": owner, "message": "%s is online — %s." % [point["display_name"], point.get("role_description", "forward staging available")]})
 		elif not active and was_active:
-			simulation._emit_event("ForwardStagingDeactivated", {"point_id": point_id, "team": previous_team, "message": "%s forward staging site is offline." % point["display_name"]})
+			simulation._emit_event("ForwardStagingDeactivated", {"point_id": point_id, "team": previous_team, "message": "%s is offline — its connected staging benefits are unavailable." % point["display_name"]})
 	_update_staging_rallies()
 
 
@@ -80,20 +81,58 @@ func update_economy() -> void:
 
 
 func update_supply_states() -> void:
-	var player_sources: Array = simulation._get_connected_supply_sources("player")
-	var enemy_sources: Array = simulation._get_connected_supply_sources("enemy")
 	for entity_id in simulation.units:
 		var unit: Dictionary = simulation.units[entity_id]
-		var sources: Array = player_sources if unit["team"] == "player" else enemy_sources
-		var connected := false
-		for source_position in sources:
-			if unit["position"].distance_to(source_position) <= simulation.SUPPLY_EFFECT_RADIUS:
-				connected = true
-				break
+		var supply_info: Dictionary = _supply_info(str(unit["team"]), unit["position"])
+		var connected: bool = bool(supply_info.get("connected", false))
 		var next_state: String = "connected" if connected else "unsupplied"
 		var previous_state: String = unit.get("supply_state", "connected")
 		unit["supply_state"] = next_state
+		unit["supply_reason"] = str(supply_info.get("reason", "Outside the connected network."))
 		unit["supply_speed_multiplier"] = 1.0 if connected else simulation.UNSUPPLIED_SPEED_MULTIPLIER
 		unit["supply_damage_multiplier"] = 1.0 if connected else simulation.UNSUPPLIED_DAMAGE_MULTIPLIER
 		if previous_state != next_state:
-			simulation._emit_event("SupplyStateChanged", {"unit_id": entity_id, "team": unit["team"], "state": next_state, "message": "%s %s." % [unit["display_name"], "resupplied" if connected else "is UNSUPPLIED"]})
+			var message := "%s resupplied — %s." % [unit["display_name"], unit["supply_reason"]] if connected else "%s is UNSUPPLIED — move nearer to a connected Hub, Relay, or forward base." % unit["display_name"]
+			simulation._emit_event("SupplyStateChanged", {"unit_id": entity_id, "team": unit["team"], "state": next_state, "reason": unit["supply_reason"], "message": message})
+
+
+func _supply_info(team: String, position: Vector3) -> Dictionary:
+	var connected_source_ids: Array = simulation._get_connected_supply_source_ids(team)
+	var connected_source_positions: Array = []
+	var closest_source_name := ""
+	var closest_source_distance := INF
+	for source_id in connected_source_ids:
+		var source_position := Vector3.INF
+		var source_name := "connected network"
+		if simulation.buildings.has(source_id):
+			source_position = simulation.buildings[source_id]["position"]
+			source_name = str(simulation.buildings[source_id]["display_name"])
+		elif simulation.control_points.has(source_id):
+			source_position = simulation.control_points[source_id]["position"]
+			source_name = str(simulation.control_points[source_id]["display_name"])
+		if source_position == Vector3.INF:
+			continue
+		connected_source_positions.append({"position": source_position, "name": source_name})
+		var source_distance: float = position.distance_to(source_position)
+		if source_distance < closest_source_distance:
+			closest_source_distance = source_distance
+			closest_source_name = source_name
+		if source_distance <= simulation.SUPPLY_EFFECT_RADIUS:
+			return {"connected": true, "reason": "Within %s supply radius" % source_name}
+
+	# A completed friendly structure connected to the network acts as a small
+	# forward base. This keeps units beside a Processor/Assembly/Tech Centre
+	# supplied without making every building a new network source.
+	for building_id in simulation.buildings:
+		var building: Dictionary = simulation.buildings[building_id]
+		if building["team"] != team or not building["complete"]:
+			continue
+		var building_position: Vector3 = building["position"]
+		var building_connected := false
+		for source in connected_source_positions:
+			if building_position.distance_to(source["position"]) <= simulation.SUPPLY_LINK_RADIUS:
+				building_connected = true
+				break
+		if building_connected and position.distance_to(building_position) <= simulation.SUPPLY_EFFECT_RADIUS:
+			return {"connected": true, "reason": "Forward base: %s" % building["display_name"]}
+	return {"connected": false, "reason": "Outside the connected network%s" % (" near %s" % closest_source_name if not closest_source_name.is_empty() else "")}

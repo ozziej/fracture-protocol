@@ -1,6 +1,59 @@
 {
   "schema_version": 1,
   "default_level_id": "relay_divide",
+  "ai_profiles": {
+    "standard": {
+      "display_name": "Standard",
+      "decision_interval_seconds": 2.0,
+      "opening_attack_delay_multiplier": 1.0,
+      "minimum_attack_group_size_delta": 0,
+      "production_queue_target": 2,
+      "capture_group_size": 3,
+      "repair_health_ratio": 0.45,
+      "retreat_health_ratio": 0.45,
+      "attack_reissue_ticks": 60
+    },
+    "aggressive": {
+      "display_name": "Aggressive",
+      "decision_interval_seconds": 1.5,
+      "opening_attack_delay_multiplier": 0.7,
+      "minimum_attack_group_size_delta": -1,
+      "production_queue_target": 3,
+      "capture_group_size": 2,
+      "repair_health_ratio": 0.3,
+      "retreat_health_ratio": 0.3,
+      "attack_reissue_ticks": 45
+    },
+    "defensive": {
+      "display_name": "Defensive",
+      "decision_interval_seconds": 2.5,
+      "opening_attack_delay_multiplier": 1.35,
+      "minimum_attack_group_size_delta": 1,
+      "production_queue_target": 2,
+      "capture_group_size": 4,
+      "repair_health_ratio": 0.6,
+      "retreat_health_ratio": 0.6,
+      "attack_reissue_ticks": 75
+    }
+  },
+  "ai_intents": {
+    "secure_then_assault": {
+      "display_name": "SECURE EAST CROSSING -> ASSAULT HQ",
+      "message": "Secure East Crossing, connect the relay network, then group an attack on the enemy command hub."
+    },
+    "pressure_hq": {
+      "display_name": "PRESSURE ENEMY HQ",
+      "message": "Build a combat group and pressure the enemy Command Hub before expanding the network."
+    },
+    "raid_economy": {
+      "display_name": "RAID THE ECONOMY",
+      "message": "Use mobile forces to hunt Collectors and Resource Processors before committing to the HQ assault."
+    },
+    "hold_network": {
+      "display_name": "HOLD THE NETWORK",
+      "message": "Secure the forward site, defend the relay network, and engage forces that threaten it."
+    }
+  },
   "base_maps": {
     "relay_divide_base": {
       "display_name": "Relay Divide",
@@ -330,7 +383,7 @@
             "z": 15
           },
           "faction_hint": 1,
-          "remaining": 5000
+          "remaining": 1800
         },
         {
           "id": "south_field",
@@ -341,7 +394,7 @@
             "z": -15
           },
           "faction_hint": -1,
-          "remaining": 5000
+          "remaining": 1800
         }
       ],
       "control_points": [
@@ -354,7 +407,14 @@
             "z": -1
           },
           "radius": 4.5,
-          "supports_staging": true
+          "supports_staging": true,
+          "strategic_role": "network_hub",
+          "role_label": "NETWORK HUB",
+          "role_description": "Extends nearby supply links and yields +15 credits/sec.",
+          "income_per_second": 15,
+          "supply_link_bonus": 10,
+          "capture_rate_multiplier": 0.8,
+          "repair_amount_multiplier": 1.0
         },
         {
           "id": "east_crossing",
@@ -365,7 +425,14 @@
             "z": -20
           },
           "radius": 4.5,
-          "supports_staging": true
+          "supports_staging": true,
+          "strategic_role": "forward_staging",
+          "role_label": "FORWARD STAGING",
+          "role_description": "Enables paid field repair and Assembly Bay rally when connected.",
+          "income_per_second": 10,
+          "supply_link_bonus": 0,
+          "capture_rate_multiplier": 1.0,
+          "repair_amount_multiplier": 1.25
         },
         {
           "id": "west_crossing",
@@ -376,7 +443,14 @@
             "z": 20
           },
           "radius": 4.5,
-          "supports_staging": true
+          "supports_staging": true,
+          "strategic_role": "forward_staging",
+          "role_label": "FORWARD STAGING",
+          "role_description": "Enables paid field repair and Assembly Bay rally when connected.",
+          "income_per_second": 10,
+          "supply_link_bonus": 0,
+          "capture_rate_multiplier": 1.0,
+          "repair_amount_multiplier": 1.25
         }
       ]
     },
@@ -765,7 +839,7 @@
           "z": 62
         },
         "faction_hint": 1,
-        "remaining": 6500
+        "remaining": 2400
       },
       {
         "id": "south_field",
@@ -776,7 +850,7 @@
           "z": -62
         },
         "faction_hint": -1,
-        "remaining": 6500
+        "remaining": 2400
       },
       {
         "id": "crossroads_field",
@@ -787,7 +861,7 @@
           "z": 62
         },
         "faction_hint": 0,
-        "remaining": 3500
+        "remaining": 1400
       }
     ],
     "control_points": [
@@ -798,9 +872,16 @@
           "x": 0,
           "y": 0,
           "z": 0
-        },
-        "radius": 5.5,
-        "supports_staging": true
+          },
+          "radius": 5.5,
+          "supports_staging": true,
+          "strategic_role": "network_hub",
+          "role_label": "NETWORK HUB",
+          "role_description": "Extends nearby supply links and yields +15 credits/sec.",
+          "income_per_second": 15,
+          "supply_link_bonus": 10,
+          "capture_rate_multiplier": 0.8,
+          "repair_amount_multiplier": 1.0
       },
       {
         "id": "east_crossing",
@@ -809,9 +890,16 @@
           "x": 78,
           "y": 0,
           "z": -45
-        },
-        "radius": 5.5,
-        "supports_staging": true
+          },
+          "radius": 5.5,
+          "supports_staging": true,
+          "strategic_role": "forward_staging",
+          "role_label": "FORWARD STAGING",
+          "role_description": "Enables paid field repair and Assembly Bay rally when connected.",
+          "income_per_second": 10,
+          "supply_link_bonus": 0,
+          "capture_rate_multiplier": 1.0,
+          "repair_amount_multiplier": 1.25
       },
       {
         "id": "west_crossing",
@@ -820,9 +908,16 @@
           "x": -78,
           "y": 0,
           "z": 45
-        },
-        "radius": 5.5,
-        "supports_staging": true
+          },
+          "radius": 5.5,
+          "supports_staging": true,
+          "strategic_role": "forward_staging",
+          "role_label": "FORWARD STAGING",
+          "role_description": "Enables paid field repair and Assembly Bay rally when connected.",
+          "income_per_second": 10,
+          "supply_link_bonus": 0,
+          "capture_rate_multiplier": 1.0,
+          "repair_amount_multiplier": 1.25
       }
     ]
     }
@@ -958,6 +1053,18 @@
         }
       },
       "ai": {
+        "difficulty": "standard",
+        "intent": "secure_then_assault",
+        "intent_display_name": "SECURE EAST CROSSING -> ASSAULT HQ",
+        "intent_message": "Secure East Crossing, connect the relay network, then group an attack on the enemy command hub.",
+        "map_tactic": "relay_first",
+        "map_tactic_display_name": "RELAY FIRST",
+        "map_tactic_message": "Hold the authored crossings before committing to the central assault.",
+        "map_tactic_attack_delay_multiplier": 1.0,
+        "defensive_health_threshold": 0.72,
+        "passive_delivery_threshold": 1,
+        "passive_window_ticks": 360,
+        "posture_change_cooldown_ticks": 120,
         "collector_source_id": "south_field",
         "relay_position": {
           "x": 64,
@@ -1148,6 +1255,18 @@
         }
       },
       "ai": {
+        "difficulty": "standard",
+        "intent": "secure_then_assault",
+        "intent_display_name": "SECURE EAST CROSSING -> ASSAULT HQ",
+        "intent_message": "Secure East Crossing, connect the relay network, then group an attack on the enemy command hub.",
+        "map_tactic": "forward_pressure",
+        "map_tactic_display_name": "FORWARD PRESSURE",
+        "map_tactic_message": "Contest the Crossroads early, then pressure the enemy economy before the HQ assault.",
+        "map_tactic_attack_delay_multiplier": 0.9,
+        "defensive_health_threshold": 0.72,
+        "passive_delivery_threshold": 1,
+        "passive_window_ticks": 360,
+        "posture_change_cooldown_ticks": 120,
         "collector_source_id": "south_field",
         "relay_position": {
           "x": 82,

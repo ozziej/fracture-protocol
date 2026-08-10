@@ -37,7 +37,16 @@ func _draw() -> void:
 		elif point["owner"] == "enemy":
 			point_color = Color(0.95, 0.28, 0.37, 1.0)
 		var point_position := _map_point(point["position"], map_rect)
-		draw_circle(point_position, 3.0, point_color)
+		if str(point.get("strategic_role", "")) == "network_hub":
+			var diamond := PackedVector2Array([
+				point_position + Vector2(0.0, -5.0),
+				point_position + Vector2(5.0, 0.0),
+				point_position + Vector2(0.0, 5.0),
+				point_position + Vector2(-5.0, 0.0),
+			])
+			draw_colored_polygon(diamond, point_color)
+		else:
+			draw_circle(point_position, 3.0, point_color)
 		if bool(point.get("staging_active", false)):
 			draw_arc(point_position, 5.5, 0.0, TAU, 20, point_color.lightened(0.25), 1.4)
 	for building_id in snapshot.get("buildings", {}):
@@ -54,4 +63,3 @@ func _map_point(world_position: Vector3, map_rect: Rect2) -> Vector2:
 	var x_ratio := inverse_lerp(map_bounds.position.x, map_bounds.end.x, world_position.x)
 	var z_ratio := inverse_lerp(map_bounds.position.y, map_bounds.end.y, world_position.z)
 	return Vector2(map_rect.position.x + x_ratio * map_rect.size.x, map_rect.position.y + z_ratio * map_rect.size.y)
-
