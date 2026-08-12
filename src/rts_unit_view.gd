@@ -2,6 +2,7 @@ class_name RtsUnitView
 extends Node3D
 
 const AssetLibraryScript = preload("res://src/presentation/rts_asset_library.gd")
+const BillboardHelperScript = preload("res://src/presentation/rts_billboard_helper.gd")
 
 var entity_id := ""
 var team := "neutral"
@@ -16,6 +17,7 @@ var health_front: MeshInstance3D
 var cargo_back: MeshInstance3D
 var cargo_front: MeshInstance3D
 var name_label: Label3D
+var status_billboard: Node3D
 var asset_visual: Node3D
 var team_marker: MeshInstance3D
 var visual_initialized := false
@@ -46,16 +48,17 @@ func sync(data: Dictionary, selected: bool, frame_delta: float = 0.0) -> void:
 		travel_direction = data["target_position"] - desired_position
 		travel_direction.y = 0.0
 	_update_facing(travel_direction, frame_delta)
+	_sync_status_billboard()
 	last_authoritative_position = desired_position
 	selection_disc.visible = selected
 	var health_ratio: float = clamp(float(data["health"]) / max(1.0, float(data["max_health"])), 0.0, 1.0)
-	_set_progress_bar(health_front, health_ratio, 1.35, 1.35)
+	_set_progress_bar(health_front, health_ratio, 1.58, 1.42)
 	if cargo_front and cargo_back:
 		var cargo_capacity: float = max(1.0, float(data.get("collector_capacity", 0.0)))
 		var cargo_ratio: float = clamp(float(data.get("collector_cargo", 0.0)) / cargo_capacity, 0.0, 1.0)
 		cargo_back.visible = kind == "collector"
 		cargo_front.visible = kind == "collector"
-		_set_progress_bar(cargo_front, cargo_ratio, 1.35, 1.35)
+		_set_progress_bar(cargo_front, cargo_ratio, 1.58, 1.42)
 	var supply_state: String = str(data.get("supply_state", "connected"))
 	var order: String = str(data.get("order", "idle"))
 	var label_text: String = data["display_name"]
@@ -81,6 +84,16 @@ func sync(data: Dictionary, selected: bool, frame_delta: float = 0.0) -> void:
 	name_label.text = label_text
 	name_label.modulate = Color("#ffbf6a") if supply_state == "unsupplied" else _team_palette(team).lightened(0.45)
 	_update_order_marker(data, selected)
+
+
+func apply_terrain_height(height: float, frame_delta: float = 0.0) -> void:
+	var target_position := global_position
+	if frame_delta <= 0.0:
+		target_position.y = height
+	else:
+		target_position.y = lerpf(global_position.y, height, 1.0 - exp(-frame_delta * 18.0))
+	global_position = target_position
+	_sync_status_billboard()
 
 func _build_visuals() -> void:
 	var palette := _team_palette(team)
@@ -201,20 +214,25 @@ func _build_visuals() -> void:
 	order_target.visible = false
 	add_child(order_target)
 
-	health_back = _health_bar(Color(0.06, 0.08, 0.11, 1.0), Vector3(1.35, 0.08, 0.08))
+	status_billboard = Node3D.new()
+	status_billboard.name = "StatusBillboard"
+	status_billboard.top_level = true
+	add_child(status_billboard)
+
+	health_back = _health_bar(Color(0.025, 0.035, 0.045, 1.0), Vector3(1.58, 0.17, 0.055))
 	health_back.position = Vector3(0.0, definition_height + 0.4, 0.0)
-	add_child(health_back)
-	health_front = _health_bar(Color(0.28, 0.94, 0.55, 1.0), Vector3(1.35, 0.095, 0.095))
-	health_front.position = Vector3(0.0, definition_height + 0.4, 0.03)
-	add_child(health_front)
+	status_billboard.add_child(health_back)
+	health_front = _health_bar(Color(0.28, 0.94, 0.55, 1.0), Vector3(1.42, 0.105, 0.06))
+	health_front.position = Vector3(0.0, definition_height + 0.4, 0.04)
+	status_billboard.add_child(health_front)
 
 	if kind == "collector":
-		cargo_back = _health_bar(Color(0.06, 0.08, 0.11, 1.0), Vector3(1.35, 0.07, 0.07))
+		cargo_back = _health_bar(Color(0.025, 0.035, 0.045, 1.0), Vector3(1.58, 0.15, 0.055))
 		cargo_back.position = Vector3(0.0, definition_height + 0.22, 0.0)
-		add_child(cargo_back)
-		cargo_front = _health_bar(Color("#f3bd52"), Vector3(1.35, 0.085, 0.085))
-		cargo_front.position = Vector3(0.0, definition_height + 0.22, 0.035)
-		add_child(cargo_front)
+		status_billboard.add_child(cargo_back)
+		cargo_front = _health_bar(Color("#f3bd52"), Vector3(1.42, 0.09, 0.06))
+		cargo_front.position = Vector3(0.0, definition_height + 0.22, 0.04)
+		status_billboard.add_child(cargo_front)
 
 	name_label = Label3D.new()
 	name_label.position = Vector3(0.0, definition_height + 0.76, 0.0)
@@ -222,9 +240,13 @@ func _build_visuals() -> void:
 	name_label.modulate = palette.lightened(0.45)
 	name_label.outline_size = 8
 	name_label.outline_modulate = Color(0.01, 0.02, 0.04, 0.9)
-	name_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	name_label.billboard = BaseMaterial3D.BILLBOARD_DISABLED
 	name_label.no_depth_test = true
-	add_child(name_label)
+	status_billboard.add_child(name_label)
+
+
+func _sync_status_billboard() -> void:
+	BillboardHelperScript.sync_to_camera(status_billboard, global_position, get_viewport())
 
 
 func _attach_asset_visual() -> void:
@@ -276,10 +298,10 @@ func _update_order_marker(data: Dictionary, selected: bool) -> void:
 	order_target.position = delta + Vector3(0.0, 0.14, 0.0)
 
 
-func _set_progress_bar(instance: MeshInstance3D, ratio: float, background_width: float, foreground_width: float) -> void:
+func _set_progress_bar(instance: MeshInstance3D, ratio: float, _background_width: float, foreground_width: float) -> void:
 	var visible_ratio: float = max(0.02, ratio)
 	instance.scale.x = visible_ratio
-	instance.position.x = -background_width * 0.5 + foreground_width * 0.5 * visible_ratio
+	instance.position.x = -foreground_width * 0.5 + foreground_width * 0.5 * visible_ratio
 
 
 func _health_bar(color: Color, size: Vector3) -> MeshInstance3D:

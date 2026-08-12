@@ -2,6 +2,7 @@ class_name RtsBuildingView
 extends Node3D
 
 const AssetLibraryScript = preload("res://src/presentation/rts_asset_library.gd")
+const BillboardHelperScript = preload("res://src/presentation/rts_billboard_helper.gd")
 
 var entity_id := ""
 var team := "neutral"
@@ -16,6 +17,7 @@ var visual_antenna_height := 0.0
 var health_back: MeshInstance3D
 var health_front: MeshInstance3D
 var name_label: Label3D
+var status_billboard: Node3D
 var asset_visual: Node3D
 var asset_variant := ""
 var team_marker: MeshInstance3D
@@ -32,6 +34,7 @@ func setup(data: Dictionary) -> void:
 
 func sync(data: Dictionary, selected: bool) -> void:
 	global_position = data["position"]
+	_sync_status_billboard()
 	selection_disc.visible = selected
 	if rally_marker:
 		var rally_position: Vector3 = data.get("rally_position", data["position"])
@@ -60,7 +63,7 @@ func sync(data: Dictionary, selected: bool) -> void:
 	health_front.position.y = occupied_height + 2.65
 	name_label.position.y = occupied_height + 3.02
 	var health_ratio: float = clamp(float(data["health"]) / max(1.0, float(data["max_health"])), 0.0, 1.0)
-	_set_progress_bar(health_front, health_ratio, 2.5, 2.5)
+	_set_progress_bar(health_front, health_ratio, 2.9, 2.68)
 	var label_text: String = data["display_name"] if data["complete"] else "CONSTRUCTING %d%%" % int(construction_progress * 100.0)
 	var research_id: String = str(data.get("research_id", ""))
 	if data["complete"] and not research_id.is_empty():
@@ -162,12 +165,17 @@ func _build_visuals() -> void:
 		rally_marker.visible = false
 		add_child(rally_marker)
 
-	health_back = _health_bar(Color(0.06, 0.08, 0.11, 1.0), Vector3(2.5, 0.1, 0.1))
+	status_billboard = Node3D.new()
+	status_billboard.name = "StatusBillboard"
+	status_billboard.top_level = true
+	add_child(status_billboard)
+
+	health_back = _health_bar(Color(0.025, 0.035, 0.045, 1.0), Vector3(2.9, 0.22, 0.07))
 	health_back.position = Vector3(0.0, body_size.y + 2.65, 0.0)
-	add_child(health_back)
-	health_front = _health_bar(Color(0.28, 0.94, 0.55, 1.0), Vector3(2.5, 0.12, 0.12))
-	health_front.position = Vector3(0.0, body_size.y + 2.65, 0.04)
-	add_child(health_front)
+	status_billboard.add_child(health_back)
+	health_front = _health_bar(Color(0.28, 0.94, 0.55, 1.0), Vector3(2.68, 0.135, 0.075))
+	health_front.position = Vector3(0.0, body_size.y + 2.65, 0.05)
+	status_billboard.add_child(health_front)
 
 	name_label = Label3D.new()
 	name_label.position = Vector3(0.0, body_size.y + 3.02, 0.0)
@@ -175,9 +183,13 @@ func _build_visuals() -> void:
 	name_label.modulate = palette.lightened(0.45)
 	name_label.outline_size = 9
 	name_label.outline_modulate = Color(0.01, 0.02, 0.04, 0.9)
-	name_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	name_label.billboard = BaseMaterial3D.BILLBOARD_DISABLED
 	name_label.no_depth_test = true
-	add_child(name_label)
+	status_billboard.add_child(name_label)
+
+
+func _sync_status_billboard() -> void:
+	BillboardHelperScript.sync_to_camera(status_billboard, global_position, get_viewport())
 
 
 func _attach_asset_visual() -> void:
@@ -198,10 +210,10 @@ func _replace_asset_visual(variant: String) -> void:
 	asset_visual = AssetLibraryScript.attach_asset(self, kind, team, asset_variant)
 
 
-func _set_progress_bar(instance: MeshInstance3D, ratio: float, background_width: float, foreground_width: float) -> void:
+func _set_progress_bar(instance: MeshInstance3D, ratio: float, _background_width: float, foreground_width: float) -> void:
 	var visible_ratio: float = max(0.02, ratio)
 	instance.scale.x = visible_ratio
-	instance.position.x = -background_width * 0.5 + foreground_width * 0.5 * visible_ratio
+	instance.position.x = -foreground_width * 0.5 + foreground_width * 0.5 * visible_ratio
 
 
 func _health_bar(color: Color, size: Vector3) -> MeshInstance3D:

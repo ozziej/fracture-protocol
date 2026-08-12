@@ -16,6 +16,12 @@ func _initialize() -> void:
 		failures.append("Relay Divide should use the expanded opening map")
 	if simulation.get_level_terrain().get("scenery", []).size() < 4:
 		failures.append("Relay Divide should author Kenney background-rock scenery")
+	if simulation.get_level_terrain().has("terrain_features") or simulation.get_level_terrain().get("vegetation_zones", []).size() < 4:
+		failures.append("Relay Divide should use coherent generated landforms and authored vegetation zones")
+	if simulation.get_level_terrain().get("walkable_terrain", []).size() != 0:
+		failures.append("Relay Divide should replace the mesa with grounded rocky outcrops")
+	if simulation.navigation_obstacles.size() < simulation.get_level_terrain().get("obstacles", []).size() + 6:
+		failures.append("Relay Divide should include blocking authored rocks in navigation")
 	var level_two_map_sim = SimulationScript.new()
 	root.add_child(level_two_map_sim)
 	level_two_map_sim.start_match("relay_crossroads")
@@ -28,6 +34,12 @@ func _initialize() -> void:
 		failures.append("Relay Crossroads should expose distinct roads and obstacles")
 	if level_two_terrain.get("scenery", []).size() < 4:
 		failures.append("Relay Crossroads should author Kenney background-rock scenery")
+	if level_two_terrain.has("terrain_features") or level_two_terrain.get("vegetation_zones", []).size() < 6:
+		failures.append("Relay Crossroads should use coherent generated landforms and its denser vegetation pass")
+	if level_two_terrain.get("walkable_terrain", []).size() != 0:
+		failures.append("Relay Crossroads should replace the mesa with grounded rocky outcrops")
+	if level_two_map_sim.navigation_obstacles.size() < level_two_terrain.get("obstacles", []).size() + 6:
+		failures.append("Relay Crossroads should include blocking authored rocks in navigation")
 	if not level_two_map_sim.resource_nodes.has("crossroads_field"):
 		failures.append("Relay Crossroads should expose its contested energy field")
 	var level_two_hq_id := _find_building(level_two_map_sim, "enemy", "command_hub")

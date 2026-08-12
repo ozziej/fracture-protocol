@@ -1011,6 +1011,11 @@ func _sync_views(frame_delta: float = 0.0) -> void:
 	if not state["resource_nodes"].has(selected_resource_id):
 		selected_resource_id = ""
 	WorldViewSynchronizerScript.sync(self, state, selected_ids, unit_views, building_views, control_views, resource_views, selected_resource_id, objective_target_point_id, minimap, frame_delta)
+	var terrain: Dictionary = simulation.get_level_terrain()
+	for entity_id in unit_views:
+		if state["units"].has(entity_id):
+			var unit_view = unit_views[entity_id]
+			unit_view.apply_terrain_height(WorldBuilderScript.terrain_height_at(terrain, unit_view.global_position), frame_delta)
 	if world_shell:
 		WorldBuilderScript.sync_scenery_visibility(world_shell, state.get("visibility", {}))
 	if fog_view:

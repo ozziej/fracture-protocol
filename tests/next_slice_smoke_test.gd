@@ -84,10 +84,12 @@ func _initialize() -> void:
 			failures.append("Collector cargo progress should use a distinct colour from health")
 	var unit_health_box: BoxMesh = collector_view.health_front.mesh as BoxMesh
 	var unit_health_back_box: BoxMesh = collector_view.health_back.mesh as BoxMesh
+	var unit_health_left: float = collector_view.health_front.position.x - unit_health_box.size.x * collector_view.health_front.scale.x * 0.5
 	var unit_health_right: float = collector_view.health_front.position.x + unit_health_box.size.x * collector_view.health_front.scale.x * 0.5
+	var unit_health_back_left: float = collector_view.health_back.position.x - unit_health_back_box.size.x * 0.5
 	var unit_health_back_right: float = collector_view.health_back.position.x + unit_health_back_box.size.x * 0.5
-	if abs(unit_health_right - unit_health_back_right) > 0.01:
-		failures.append("a full-health unit bar should reach the end of its background")
+	if unit_health_left <= unit_health_back_left or unit_health_right >= unit_health_back_right or absf((unit_health_left - unit_health_back_left) - (unit_health_back_right - unit_health_right)) > 0.01:
+		failures.append("a full-health unit bar should be centred inside an even dark border")
 
 	var building_data := {
 		"id": "building_view",
@@ -124,10 +126,12 @@ func _initialize() -> void:
 		failures.append("completed buildings should restore their full grounded height")
 	var building_health_box: BoxMesh = building_view.health_front.mesh as BoxMesh
 	var building_health_back_box: BoxMesh = building_view.health_back.mesh as BoxMesh
+	var building_health_left: float = building_view.health_front.position.x - building_health_box.size.x * building_view.health_front.scale.x * 0.5
 	var building_health_right: float = building_view.health_front.position.x + building_health_box.size.x * building_view.health_front.scale.x * 0.5
+	var building_health_back_left: float = building_view.health_back.position.x - building_health_back_box.size.x * 0.5
 	var building_health_back_right: float = building_view.health_back.position.x + building_health_back_box.size.x * 0.5
-	if abs(building_health_right - building_health_back_right) > 0.01:
-		failures.append("a full-health building bar should reach the end of its background")
+	if building_health_left <= building_health_back_left or building_health_right >= building_health_back_right or absf((building_health_left - building_health_back_left) - (building_health_back_right - building_health_right)) > 0.01:
+		failures.append("a full-health building bar should be centred inside an even dark border")
 
 	var rally_data: Dictionary = building_data.duplicate(true)
 	rally_data["kind"] = "assembly_bay"

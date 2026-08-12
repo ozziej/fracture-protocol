@@ -7,6 +7,7 @@ const AiControllerScript = preload("res://src/simulation/rts_ai_controller.gd")
 const LogisticsSystemScript = preload("res://src/simulation/rts_logistics_system.gd")
 const ForceCapacityScript = preload("res://src/simulation/rts_force_capacity.gd")
 const VisibilitySystemScript = preload("res://src/simulation/rts_visibility_system.gd")
+const FormationLayoutScript = preload("res://src/simulation/rts_formation_layout.gd")
 
 signal simulation_event(event_type: String, payload: Dictionary)
 
@@ -247,6 +248,13 @@ func _configure_level_runtime() -> void:
 		var position := _level_vector3(obstacle.get("position", {}))
 		var size := _level_vector3(obstacle.get("size", {}), Vector3(1.0, 1.0, 1.0))
 		navigation_obstacles.append(Rect2(position.x - size.x * 0.5, position.z - size.z * 0.5, size.x, size.z))
+	for scenery_data in terrain.get("scenery", []):
+		var scenery: Dictionary = scenery_data
+		if not bool(scenery.get("blocks_movement", false)):
+			continue
+		var scenery_position := _level_vector3(scenery.get("position", {}))
+		var collision_size := _level_vector3(scenery.get("collision_size", {}), Vector3(3.0, 2.0, 3.0))
+		navigation_obstacles.append(Rect2(scenery_position.x - collision_size.x * 0.5, scenery_position.z - collision_size.z * 0.5, collision_size.x, collision_size.z))
 	if navigation_obstacles.is_empty():
 		navigation_obstacles = DEFAULT_NAVIGATION_OBSTACLES.duplicate()
 
@@ -1061,6 +1069,7 @@ func _try_set_rally_point(issuer: String, payload: Dictionary) -> void:
 		building["rally_mode"] = "control_point"
 		building["rally_point_id"] = control_point_id
 		building["rally_suspended"] = false
+		building["rally_slot_index"] = 0
 		_emit_event("RallyPointSet", {
 			"building_id": building_id,
 			"team": issuer,
@@ -1084,6 +1093,7 @@ func _try_set_rally_point(issuer: String, payload: Dictionary) -> void:
 	building["rally_mode"] = "ground"
 	building["rally_point_id"] = ""
 	building["rally_suspended"] = false
+	building["rally_slot_index"] = 0
 	_emit_event("RallyPointSet", {
 		"building_id": building_id,
 		"team": issuer,
@@ -1195,6 +1205,7 @@ func _update_production() -> void:
 			if spawned_id.is_empty():
 				continue
 			if rally_position.distance_to(exit_position) > 0.15:
+				rally_position = _next_rally_destination(building, rally_position)
 				var spawned_unit: Dictionary = units[spawned_id]
 				spawned_unit["target_position"] = rally_position
 				spawned_unit["waypoints"] = _build_navigation_path(exit_position, rally_position)
@@ -1208,6 +1219,31 @@ func _update_production() -> void:
 				completion_message = "Collector ready at the Assembly Bay exit — assign a resource route."
 			_emit_event("ProductionCompleted", {"building_id": building_id, "unit_id": spawned_id, "unit_type": job["unit_type"], "team": building["team"], "message": completion_message})
 		building["queue"] = queue
+
+
+func _next_rally_destination(building: Dictionary, centre: Vector3) -> Vector3:
+	var slot_count := ForceCapacityScript.capacity(level_rules)
+	var start_slot := int(building.get("rally_slot_index", 0)) % slot_count
+	var chosen_slot := start_slot
+	for attempt in range(slot_count):
+		var candidate_slot := (start_slot + attempt) % slot_count
+		var candidate := centre + FormationLayoutScript.persistent_rally_offset(candidate_slot)
+		var occupied := false
+		for unit_id in units:
+			var unit: Dictionary = units[unit_id]
+			if unit["team"] != building["team"]:
+				continue
+			if unit["position"].distance_to(candidate) < 0.9 or unit["target_position"].distance_to(candidate) < 0.35:
+				occupied = true
+				break
+		if not occupied:
+			chosen_slot = candidate_slot
+			break
+	building["rally_slot_index"] = (chosen_slot + 1) % slot_count
+	var result := centre + FormationLayoutScript.persistent_rally_offset(chosen_slot)
+	result.x = clampf(result.x, -level_bounds.x + 1.0, level_bounds.x - 1.0)
+	result.z = clampf(result.z, -level_bounds.y + 1.0, level_bounds.y - 1.0)
+	return result
 
 
 func _max_production_queue() -> int:
@@ -2069,6 +2105,7 @@ func _add_building(team: String, kind: String, position: Vector3, under_construc
 		"rally_mode": "ground",
 		"rally_point_id": "",
 		"rally_suspended": false,
+		"rally_slot_index": 0,
 		"research_id": "",
 		"research_remaining": 0.0,
 		"research_total": 0.0,
@@ -2155,12 +2192,7 @@ func _set_credits(team: String, value: float) -> void:
 
 
 func _formation_offset(index: int, total: int) -> Vector3:
-	if total <= 1:
-		return Vector3.ZERO
-	var columns := int(ceil(sqrt(float(total))))
-	var row := index / columns
-	var column := index % columns
-	return Vector3((column - (columns - 1) * 0.5) * 1.6, 0.0, row * 1.6)
+	return FormationLayoutScript.group_offset(index, total)
 
 
 func _new_entity_id(prefix: String) -> String:

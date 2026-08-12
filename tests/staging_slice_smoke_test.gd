@@ -65,6 +65,17 @@ func _initialize() -> void:
 	_step_without_ai(generic_sim, 1)
 	if str(generic_sim.buildings[generic_assembly_id].get("rally_mode", "")) != "ground" or generic_sim.buildings[generic_assembly_id]["rally_position"].distance_to(ground_rally) > 0.05:
 		failures.append("ordinary ground rallies should remain available")
+	var original_rangers := _unit_ids_of_kind(generic_sim.units, "ranger", "player")
+	generic_sim.player_credits = 2000.0
+	generic_sim.issue_command("produce", "player", {"building_id": generic_assembly_id, "unit_type": "ranger"})
+	generic_sim.issue_command("produce", "player", {"building_id": generic_assembly_id, "unit_type": "ranger"})
+	_step_without_ai(generic_sim, 150)
+	var produced_targets: Array[Vector3] = []
+	for unit_id in _unit_ids_of_kind(generic_sim.units, "ranger", "player"):
+		if not original_rangers.has(unit_id):
+			produced_targets.append(generic_sim.units[unit_id]["target_position"])
+	if produced_targets.size() < 2 or produced_targets[0].distance_to(produced_targets[1]) < 1.0:
+		failures.append("successive produced units should fan out into distinct rally formation slots")
 	generic_sim.issue_command("set_rally_point", "player", {"building_id": generic_assembly_id, "control_point_id": "central_relay"})
 	_step_without_ai(generic_sim, 1)
 	if not _has_rejection(generic_sim, "Secure and connect"):
@@ -115,6 +126,14 @@ func _latest_unit_of_kind(units: Dictionary, kind: String, team: String) -> Stri
 		if units[entity_id]["kind"] == kind and units[entity_id]["team"] == team:
 			latest_id = entity_id
 	return latest_id
+
+
+func _unit_ids_of_kind(units: Dictionary, kind: String, team: String) -> Array[String]:
+	var result: Array[String] = []
+	for entity_id in units:
+		if units[entity_id]["kind"] == kind and units[entity_id]["team"] == team:
+			result.append(entity_id)
+	return result
 
 
 func _has_rejection(simulation, reason_fragment: String) -> bool:

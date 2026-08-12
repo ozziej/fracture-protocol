@@ -21,6 +21,9 @@ The simulation delegates isolated responsibilities to collaborators:
   the shared economy or combat definitions.
 - `simulation/rts_force_capacity.gd` is a stateless force-accounting service;
   unit slot weights and queued reservations are evaluated consistently.
+- `simulation/rts_formation_layout.gd` owns deterministic group and persistent
+  rally-slot geometry, so player and AI production use the same serialisable
+  spread instead of presentation-only offsets.
 - Queue and patrol orders remain serialisable unit state, with direct Move, Attack, Stop, and Collector commands explicitly clearing stale route plans.
 - Mission changes reload the selected simulation definition and rebuild the presentation world shell and minimap bounds from authored level data, keeping map geometry aligned with simulation state.
 - Control-point roles, income, capture resistance, supply-link bonuses, and
@@ -40,6 +43,11 @@ It delegates non-interactive presentation work to:
 
 - `presentation/rts_world_builder.gd` for lights, camera creation, terrain,
   roads, obstacles, and authored terrain accents.
+- presentation/rts_terrain_decorator.gd composes a small number of readable
+  Space Kit mesas, outposts, debris fields, and deterministic vegetation zones.
+  Modular terrain pieces are repeated at near-uniform scale rather than
+  stretched to obstacle footprints. It changes presentation only; simulation
+  obstacle rectangles remain the pathing authority.
 - `presentation/rts_world_view_synchronizer.gd` for simulation snapshots to
   unit, building, resource, control-point, and minimap views.
 - `presentation/rts_resource_view.gd` for depletion-aware crystal clusters,
@@ -50,6 +58,9 @@ It delegates non-interactive presentation work to:
   simulation kinds to the Kenney-based GLB exports. Unit and building views
   retain their procedural geometry as a fallback, so an art import failure
   cannot remove gameplay UI or simulation state.
+- `presentation/rts_billboard_helper.gd` for camera-aligned world-space status
+  UI shared by units and buildings, preventing parent rotation or mirrored
+  back faces from affecting health, cargo, and name readability.
 
 ## Art pipeline
 
@@ -66,7 +77,22 @@ deliberately reserved for a small presentation marker, world-space labels, and
 thin selection/staging rings. Authored scenery is tagged by the world builder
 and hidden while its visibility-grid cell remains undiscovered. Movement facing comes from measured
 simulation displacement in `rts_unit_view.gd`, so pursuit, retreat, harvesting,
-and explicit movement all use the same presentation rule.
+and explicit movement all use the same presentation rule. Health, cargo, and
+name UI live in top-level camera-facing roots, independent of chassis rotation.
+Legacy navigation rectangles are now presented as fog-aware authored mesa
+prefabs, outpost, debris, and industrial clusters. Map floors use the Kenney
+terrain tile rather than a stretched procedural box, while authored roads use
+the matching straight, cross, end, and corner road GLBs. The mesa prefabs are
+assembled in Blender from aligned Space Kit cliff/corner/ramp modules and
+reused for sparse map-boundary landforms and authored walkable platforms.
+Walkable platforms retain their authored height, vary only their X/Z footprint,
+and raise unit presentation views while simulation movement remains 2D. Rocks,
+obstacles, and border mesas receive matching presentation collision bodies;
+blocking authored rocks are also included in simulation navigation footprints.
+Both maps use selective infrastructure and deterministic vegetation from the
+imported Kenney nature set. The asset library keeps the full kit available, but
+a map uses only the pieces needed for a coherent composition; it is not an asset
+showcase.
 
 New art should follow this boundary:
 

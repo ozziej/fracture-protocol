@@ -83,12 +83,47 @@
     "scenery_rock_a": {
       "runtime_scene": "art/fracture_protocol_assets/scenery_rock_a.glb",
       "source_parts": ["rock_largeA.glb"],
-      "role": "non-colliding background scenery"
+      "role": "collidable background rock scenery"
     },
     "scenery_rock_b": {
       "runtime_scene": "art/fracture_protocol_assets/scenery_rock_b.glb",
       "source_parts": ["rock_largeB.glb"],
-      "role": "non-colliding background scenery"
+      "role": "collidable background rock scenery"
+    },
+    "terrain_ground": {
+      "runtime_scene": "kenney_space-kit/Models/terrain.glb",
+      "source_parts": ["terrain.glb"],
+      "role": "authored flat ground tile scaled to each map footprint"
+    },
+    "terrain_road_straight": {
+      "runtime_scene": "kenney_space-kit/Models/terrain_roadStraight.glb",
+      "source_parts": ["terrain_roadStraight.glb"],
+      "role": "authored straight road surface"
+    },
+    "terrain_road_cross": {
+      "runtime_scene": "kenney_space-kit/Models/terrain_roadCross.glb",
+      "source_parts": ["terrain_roadCross.glb"],
+      "role": "authored road intersection surface"
+    },
+    "terrain_road_end": {
+      "runtime_scene": "kenney_space-kit/Models/terrain_roadEnd.glb",
+      "source_parts": ["terrain_roadEnd.glb"],
+      "role": "authored road termination surface"
+    },
+    "terrain_road_corner": {
+      "runtime_scene": "kenney_space-kit/Models/terrain_roadCorner.glb",
+      "source_parts": ["terrain_roadCorner.glb"],
+      "role": "authored curved road surface"
+    },
+    "terrain_mesa_small_a": {
+      "runtime_scene": "art/fracture_protocol_assets/mesa_small_a.glb",
+      "source_parts": ["terrain_sideCliff.glb", "terrain_sideCorner.glb", "terrain_sideCornerInner.glb", "terrain_sideEnd.glb"],
+      "role": "authored flat-topped terrain prefab"
+    },
+    "terrain_mesa_small_b": {
+      "runtime_scene": "art/fracture_protocol_assets/mesa_small_b.glb",
+      "source_parts": ["terrain_sideCliff.glb", "terrain_sideCorner.glb", "terrain_sideCornerInner.glb", "terrain_sideEnd.glb", "terrain_ramp.glb"],
+      "role": "authored flat-topped ramp mesa for walkable elevated terrain"
     }
   }
 }
