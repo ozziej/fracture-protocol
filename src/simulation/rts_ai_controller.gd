@@ -33,13 +33,13 @@ func _init(owner) -> void:
 	_refresh_policy()
 
 
-func configure(requested_difficulty := "") -> void:
-	_refresh_policy(requested_difficulty)
+func configure(requested_difficulty := "", requested_intent := "") -> void:
+	_refresh_policy(requested_difficulty, requested_intent)
 
 
 func set_difficulty(requested_difficulty: String) -> void:
 	var previous_id := difficulty_id
-	_refresh_policy(requested_difficulty)
+	_refresh_policy(requested_difficulty, intent_id)
 	if previous_id == difficulty_id:
 		return
 	_set_phase("opening")
@@ -124,8 +124,8 @@ func update() -> void:
 	_manage_combat()
 
 
-func _refresh_policy(requested_difficulty := "") -> void:
-	var resolved: Dictionary = AiProfileScript.resolve(simulation.level_definition, requested_difficulty)
+func _refresh_policy(requested_difficulty := "", requested_intent := "") -> void:
+	var resolved: Dictionary = AiProfileScript.resolve(simulation.level_definition, requested_difficulty, requested_intent)
 	profile = resolved.get("profile", {}).duplicate(true)
 	difficulty_id = str(resolved.get("difficulty", "standard"))
 	intent_id = str(resolved.get("intent", "secure_then_assault"))

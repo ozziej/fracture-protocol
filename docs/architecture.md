@@ -35,6 +35,12 @@ The simulation delegates isolated responsibilities to collaborators:
   in `data/level_data.json`. The simulation owns depletion and adaptive posture
   transitions; the presentation layer only renders field inspection, player
   intel, and the start-menu deployment flow.
+- `simulation/rts_scenario_system.gd` owns optional data-driven skirmish
+  objectives. Scenario definitions live in `data/skirmish_data.json`; the
+  service reads simulation-owned control-point staging state, advances fixed
+  tick progress, and emits progress/result events. It does not decide the
+  authoritative `match_over` transition, so HQ destruction and scenario
+  completion still pass through `RtsSimulation`.
 
 `main.gd` remains the Godot scene entry point and input composition root. It
 contains only player input, selection, camera state, campaign flow, and the
@@ -115,6 +121,33 @@ Simulation services receive only the simulation façade needed for their policy
 or use pure arguments. Presentation services receive snapshots and event
 payloads; they never issue or alter match commands.
 
+## Deployment and skirmish flow
+
+`RtsSimulation.start_match()` retains its existing two-argument contract and
+accepts an optional third `match_settings` dictionary for new deployment
+types. Empty or legacy calls create campaign matches; explicit skirmish
+settings select the authored map, scenario, AI difficulty, and AI intent.
+`restart_match()` reuses the selected settings so Rematch is deterministic.
+
+`main.gd` presents Campaign and Skirmish deployment tabs. Campaign buttons
+continue to use `CampaignProgress`, while skirmish deployment is deliberately
+stateless with respect to campaign saves. Map and scenario choices come from
+the simulation catalog, and AI difficulty/intent are passed into the existing
+AI profile/controller boundary rather than being special-cased in the UI.
+
+The first scenario is `network_hold`: the player must own and maintain active,
+connected staging at Central Relay and West Crossing for 900 fixed ticks
+(90 seconds). The enemy uses the mirrored Central Relay and East Crossing
+requirements. Losing a required point resets that side's hold progress. The
+normal Command Hub victory condition remains active in parallel, so a skirmish
+can still end immediately through HQ destruction.
+
+Scenario state is included in the simulation snapshot for HUD and replay/test
+consumers. Objective markers are represented as an array of point IDs so the
+world view and minimap can highlight every required site. Match result UI is
+event-driven and offers Rematch or Return to Deployment; neither action grants
+or removes campaign progress.
+
 ## Extension rules
 
 - Add a new unit/building/technology definition to the definition catalogue
@@ -128,3 +161,9 @@ payloads; they never issue or alter match commands.
 - Keep `RtsSimulation` public methods stable when moving internal work. Tests,
   campaigns, replays, and future multiplayer integrations use it as the
   compatibility boundary.
+- Keep scenario definitions data-driven. A new skirmish objective should add a
+  catalog entry plus a focused scenario-system rule, then expose only stable
+  snapshot state and events to presentation.
+- Keep campaign persistence scoped to campaign `MatchWon` events. Local
+  skirmishes may reuse maps, units, and AI policies, but must not unlock or
+  complete campaign missions.

@@ -42,9 +42,10 @@ const FALLBACK_PROFILES := {
 }
 
 
-static func resolve(level_definition: Dictionary, requested_difficulty := "") -> Dictionary:
+static func resolve(level_definition: Dictionary, requested_difficulty := "", requested_intent := "") -> Dictionary:
 	var ai_config: Dictionary = level_definition.get("ai", {})
 	var authored_profiles: Dictionary = level_definition.get("ai_profiles", {})
+	var authored_intents: Dictionary = level_definition.get("ai_intents", {})
 	var authored_default := str(ai_config.get("difficulty", "standard"))
 	var difficulty_id := str(requested_difficulty) if not str(requested_difficulty).is_empty() else authored_default
 	if not FALLBACK_PROFILES.has(difficulty_id) and not authored_profiles.has(difficulty_id):
@@ -57,13 +58,22 @@ static func resolve(level_definition: Dictionary, requested_difficulty := "") ->
 			profile[key] = authored_profile[key]
 	profile["id"] = difficulty_id
 	profile["display_name"] = str(profile.get("display_name", difficulty_id.capitalize()))
+	var intent_id := str(ai_config.get("intent", "secure_then_assault"))
+	if not str(requested_intent).is_empty() and authored_intents.has(str(requested_intent)):
+		intent_id = str(requested_intent)
+	var intent_definition: Dictionary = authored_intents.get(intent_id, {})
+	var default_intent_name := str(ai_config.get("intent_display_name", "SECURE THEN ASSAULT"))
+	var default_intent_message := str(ai_config.get("intent_message", "Secure the forward network, then assault the enemy command hub."))
+	if not intent_definition.is_empty() and not str(requested_intent).is_empty():
+		default_intent_name = str(intent_definition.get("display_name", default_intent_name))
+		default_intent_message = str(intent_definition.get("message", default_intent_message))
 
 	return {
 		"profile": profile,
 		"difficulty": difficulty_id,
-		"intent": str(ai_config.get("intent", "secure_then_assault")),
-		"intent_display_name": str(ai_config.get("intent_display_name", "SECURE THEN ASSAULT")),
-		"intent_message": str(ai_config.get("intent_message", "Secure the forward network, then assault the enemy command hub.")),
+		"intent": intent_id,
+		"intent_display_name": default_intent_name,
+		"intent_message": default_intent_message,
 		"target_point_id": str(ai_config.get("staging_point_id", "")),
 		"map_tactic_id": str(ai_config.get("map_tactic", "relay_first")),
 		"map_tactic_display_name": str(ai_config.get("map_tactic_display_name", "RELAY FIRST")),

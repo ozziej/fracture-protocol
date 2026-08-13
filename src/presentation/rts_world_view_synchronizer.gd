@@ -7,7 +7,7 @@ const ResourceViewScript = preload("res://src/presentation/rts_resource_view.gd"
 
 ## Translates immutable-ish simulation snapshots into scene nodes. This is the
 ## presentation boundary: it may create or tween nodes, but cannot issue rules.
-static func sync(parent: Node3D, state: Dictionary, selected_ids: Array, unit_views: Dictionary, building_views: Dictionary, control_views: Dictionary, resource_views: Dictionary, selected_resource_id: String, objective_target_point_id: String, minimap, frame_delta: float) -> void:
+static func sync(parent: Node3D, state: Dictionary, selected_ids: Array, unit_views: Dictionary, building_views: Dictionary, control_views: Dictionary, resource_views: Dictionary, selected_resource_id: String, objective_target_point_ids: Variant, minimap, frame_delta: float) -> void:
 	for entity_id in state["units"]:
 		if not unit_views.has(entity_id):
 			var view = UnitViewScript.new()
@@ -35,7 +35,7 @@ static func sync(parent: Node3D, state: Dictionary, selected_ids: Array, unit_vi
 	for point_id in state["control_points"]:
 		if not control_views.has(point_id):
 			control_views[point_id] = create_control_view(parent, state["control_points"][point_id])
-		update_control_view(control_views[point_id], state["control_points"][point_id], objective_target_point_id)
+		update_control_view(control_views[point_id], state["control_points"][point_id], objective_target_point_ids)
 	for node_id in state["resource_nodes"]:
 		if not resource_views.has(node_id):
 			var resource_view = ResourceViewScript.new()
@@ -154,7 +154,7 @@ static func create_control_view(parent: Node3D, point: Dictionary) -> Node3D:
 	return root
 
 
-static func update_control_view(view: Node3D, point: Dictionary, objective_target_point_id: String) -> void:
+static func update_control_view(view: Node3D, point: Dictionary, objective_target_point_ids: Variant) -> void:
 	var visibility_state := str(point.get("visibility_state", "visible"))
 	view.visible = visibility_state != "hidden"
 	if not view.visible:
@@ -180,7 +180,11 @@ static func update_control_view(view: Node3D, point: Dictionary, objective_targe
 		staging_light.light_color = color.lightened(0.15)
 	var objective_beam := view.get_node_or_null("ObjectiveBeam") as MeshInstance3D
 	var objective_marker := view.get_node_or_null("ObjectiveMarker") as Label3D
-	var is_objective := str(point["id"]) == objective_target_point_id
+	var is_objective := false
+	if objective_target_point_ids is Array:
+		is_objective = str(point["id"]) in objective_target_point_ids
+	else:
+		is_objective = str(point["id"]) == str(objective_target_point_ids)
 	if objective_beam:
 		objective_beam.visible = is_objective
 	if objective_marker:

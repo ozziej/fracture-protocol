@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "default_scenario_id": "network_hold",
+  "maps": [
+    {
+      "id": "relay_divide",
+      "display_name": "Relay Divide",
+      "description": "A compact first-contact battlefield built around three relay sites and two finite energy fields."
+    },
+    {
+      "id": "relay_crossroads",
+      "display_name": "Relay Crossroads",
+      "description": "A larger contested network with a central energy reserve and multiple approach lanes."
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "network_hold",
+      "display_name": "Network Hold",
+      "description": "Own the Central Relay and your forward crossing while they remain connected to your Command Hub.",
+      "objective_type": "hold_network",
+      "hold_ticks": 900,
+      "progress_event_interval_ticks": 10,
+      "maps": ["relay_divide", "relay_crossroads"],
+      "player_required_points": ["central_relay", "west_crossing"],
+      "enemy_required_points": ["central_relay", "east_crossing"],
+      "player_objective": "Hold Central Relay + West Crossing",
+      "enemy_objective": "Hold Central Relay + East Crossing",
+      "player_win_message": "Network held for 90 seconds. The Coalition relay line is secure.",
+      "enemy_win_message": "The Frontier held the network for 90 seconds. The Coalition line has fractured.",
+      "default_ai_intent": "secure_then_assault",
+      "default_ai_difficulty": "standard"
+    }
+  ]
+}

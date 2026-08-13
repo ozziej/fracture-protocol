@@ -1,7 +1,7 @@
 # Fracture Protocol — Planning Document
 
-**Status:** First-player opening pacing, combat-role readability, interactive tactical minimap, and team-based fog of war implemented; paused for human playtest
-**Version:** 1.0
+**Status:** Skirmish scenarios, deployment selection, result flow, first-player opening pacing, combat-role readability, interactive tactical minimap, and team-based fog of war implemented; paused for human playtest
+**Version:** 1.1
 **Target:** PC  
 **Engine direction:** Godot 4  
 **First playable:** Local skirmish against AI  
@@ -55,6 +55,8 @@ The current Godot 4 prototype has a playable local skirmish foundation:
 - Relay Divide now has an expanded 160×110 authored battlefield, a player-base opening camera, a visible tactical minimap, and a world-space objective beacon. Mission briefing and objective copy are data-owned in `data/level_data.json`, keeping map/story text out of gameplay scripts.
 - The enemy now resolves authored Standard, Aggressive, and Defensive policy profiles without hidden economy or combat bonuses. Each mission selects an authored opening tactic, then the AI adapts between Opening, Attacking, and Defensive postures based on player harvesting and battlefield pressure.
 - Control points now have authored strategic roles. West and East Crossings are Forward Staging sites with connected paid-repair and rally access, while Central Relay is a Network Hub with +15 credits/sec, +10 supply-link range, and slower capture pressure. Roles are visible in world labels, minimap markers, territory HUD feedback, and capture events.
+- Skirmish deployment is now data-driven through `data/skirmish_data.json`: it supports Relay Divide and Relay Crossroads, the 90-second Network Hold objective, Standard/Aggressive/Defensive AI difficulty, and authored AI intent selection. Campaign remains the default deployment and skirmish results do not modify campaign saves.
+- The skirmish HUD highlights every required network point, reports fixed-tick hold progress and interruptions, and presents event-driven Victory/Defeat results with Rematch and Return to Deployment actions. The scenario service and UI flow are covered by a focused regression alongside the existing suite.
 
 The immediate next step is human playtesting from a clean start-menu deployment. Record whether Level 1 gives enough time to scout with Rangers, whether the fog reveal/re-hide rhythm is readable in the world and minimap, whether Bulwarks feel useful at long range but vulnerable when rushed, and whether the minimap viewport/click-to-pan behaviour remains useful. Tune only from those observations before adding more units or faction-specific economy.
 
@@ -455,6 +457,13 @@ Capture points, relays, supply state, disruption, reconnection, and territory-dr
 
 The AI builds, researches, repairs, replaces Collectors, produces, defends, attacks, and uses the same command/economy rules as the player.
 
+### Milestone 4.5 — Skirmish scenarios and deployment — first pass complete
+
+Campaign and local skirmish deployment share the authored maps and simulation
+boundary. Network Hold provides the first fixed-tick alternate victory
+condition, with live objective markers, progress feedback, result handling, and
+clean rematch flow.
+
 ### Milestone 5 — Representative visual slice — first pass started
 
 The central relay corridor has a code-native signal-core treatment and lane markers. The next pass can replace this treatment selectively with authored assets, animation, audio, and VFX without changing the gameplay contract.
@@ -488,6 +497,14 @@ Scenario tests, clean restart coverage, first-minute guidance, and the 100-unit 
 - Unsupplied units receive a clear explanation and measurable, understandable effects.
 - Rebuilding or reconnecting the network restores the correct benefits.
 - The supply system remains comprehensible when several routes are contested simultaneously.
+
+### Scenario deployment
+
+- Campaign remains the default start-menu tab and preserves its existing unlock flow.
+- Skirmish selection exposes both authored maps, the Network Hold scenario, AI difficulty, and AI intent.
+- Owning and maintaining all required connected staging sites advances hold progress; losing one resets it.
+- HQ destruction remains an immediate win/loss condition in a skirmish.
+- Skirmish Rematch preserves the selected map, scenario, difficulty, and intent without changing campaign progress.
 
 ### Combat and AI
 

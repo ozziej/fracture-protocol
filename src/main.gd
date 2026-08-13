@@ -57,6 +57,7 @@ var technology_label: Label
 var force_label: Label
 var selected_label: Label
 var objective_label: Label
+var scenario_progress_label: Label
 var status_label: Label
 var event_log_label: Label
 var build_button: Button
@@ -71,10 +72,29 @@ var mission_two_button: Button
 var start_menu_overlay: ColorRect
 var start_menu_panel: PanelContainer
 var start_menu_briefing_label: Label
+var campaign_tab_button: Button
+var skirmish_tab_button: Button
+var campaign_menu_container: VBoxContainer
+var skirmish_menu_container: VBoxContainer
+var skirmish_map_option: OptionButton
+var skirmish_scenario_option: OptionButton
+var skirmish_difficulty_option: OptionButton
+var skirmish_intent_option: OptionButton
+var skirmish_briefing_label: Label
+var skirmish_deploy_button: Button
+var deployment_mode := "campaign"
 var start_menu_visible := true
+var result_overlay: ColorRect
+var result_panel: PanelContainer
+var result_title_label: Label
+var result_detail_label: Label
+var rematch_button: Button
+var return_deployment_button: Button
+var result_visible := false
 var combat_effect_sequence := 0
 var combat_effects
 var objective_target_point_id := ""
+var objective_target_point_ids: Array = []
 var build_source_id := ""
 var context_actions: Array = []
 var queue_panel: PanelContainer
@@ -256,8 +276,13 @@ func _build_ui() -> void:
 	objective_label.size = Vector2(1210.0, 25.0)
 	root.add_child(objective_label)
 
+	scenario_progress_label = _label("", 13, Color("#8cebf3"))
+	scenario_progress_label.position = Vector2(22.0, 121.0)
+	scenario_progress_label.size = Vector2(1210.0, 22.0)
+	root.add_child(scenario_progress_label)
+
 	status_label = _label("Awaiting orders.", 16, Color("#c3d8df"))
-	status_label.position = Vector2(22.0, 123.0)
+	status_label.position = Vector2(22.0, 145.0)
 	status_label.size = Vector2(980.0, 26.0)
 	root.add_child(status_label)
 
@@ -373,6 +398,7 @@ func _build_ui() -> void:
 	selection_marquee.visible = false
 	root.add_child(selection_marquee)
 	_build_campaign_start_menu(root)
+	_build_match_result_overlay(root)
 
 
 func _build_campaign_start_menu(root: Control) -> void:
@@ -384,44 +410,313 @@ func _build_campaign_start_menu(root: Control) -> void:
 	root.add_child(start_menu_overlay)
 
 	start_menu_panel = PanelContainer.new()
-	start_menu_panel.name = "CampaignStartMenu"
-	start_menu_panel.position = Vector2(240.0, 118.0)
-	start_menu_panel.size = Vector2(800.0, 470.0)
+	start_menu_panel.name = "DeploymentMenu"
+	start_menu_panel.position = Vector2(160.0, 68.0)
+	start_menu_panel.size = Vector2(960.0, 570.0)
 	start_menu_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.025, 0.075, 0.1, 0.98), Color(0.18, 0.7, 0.78, 0.8)))
 	start_menu_overlay.add_child(start_menu_panel)
 	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 30)
-	margin.add_theme_constant_override("margin_right", 30)
-	margin.add_theme_constant_override("margin_top", 24)
-	margin.add_theme_constant_override("margin_bottom", 24)
+	margin.add_theme_constant_override("margin_left", 28)
+	margin.add_theme_constant_override("margin_right", 28)
+	margin.add_theme_constant_override("margin_top", 20)
+	margin.add_theme_constant_override("margin_bottom", 20)
 	start_menu_panel.add_child(margin)
 	var column := VBoxContainer.new()
-	column.add_theme_constant_override("separation", 12)
+	column.add_theme_constant_override("separation", 9)
 	margin.add_child(column)
-	var title := _label("CAMPAIGN DEPLOYMENT", 24, Color("#d6fbff"))
+	var title := _label("DEPLOYMENT CONTROL", 24, Color("#d6fbff"))
 	column.add_child(title)
-	var subtitle := _label("FRACTURE PROTOCOL  //  SELECT A MISSION", 13, Color("#8cebf3"))
+	var subtitle := _label("FRACTURE PROTOCOL  //  CAMPAIGN OR LOCAL SKIRMISH", 13, Color("#8cebf3"))
 	column.add_child(subtitle)
+	var tabs := HBoxContainer.new()
+	tabs.add_theme_constant_override("separation", 8)
+	column.add_child(tabs)
+	campaign_tab_button = Button.new()
+	campaign_tab_button.name = "CampaignTabButton"
+	campaign_tab_button.text = "CAMPAIGN"
+	campaign_tab_button.custom_minimum_size = Vector2(180.0, 38.0)
+	campaign_tab_button.pressed.connect(_set_deployment_mode.bind("campaign"))
+	tabs.add_child(campaign_tab_button)
+	skirmish_tab_button = Button.new()
+	skirmish_tab_button.name = "SkirmishTabButton"
+	skirmish_tab_button.text = "SKIRMISH"
+	skirmish_tab_button.custom_minimum_size = Vector2(180.0, 38.0)
+	skirmish_tab_button.pressed.connect(_set_deployment_mode.bind("skirmish"))
+	tabs.add_child(skirmish_tab_button)
+
+	campaign_menu_container = VBoxContainer.new()
+	campaign_menu_container.name = "CampaignDeployment"
+	campaign_menu_container.add_theme_constant_override("separation", 9)
+	column.add_child(campaign_menu_container)
 	start_menu_briefing_label = _label("", 14, Color("#c3d8df"))
-	start_menu_briefing_label.custom_minimum_size = Vector2(0.0, 54.0)
+	start_menu_briefing_label.custom_minimum_size = Vector2(0.0, 68.0)
 	start_menu_briefing_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	column.add_child(start_menu_briefing_label)
+	campaign_menu_container.add_child(start_menu_briefing_label)
 	mission_one_button = Button.new()
 	mission_one_button.name = "LevelOneButton"
 	mission_one_button.custom_minimum_size = Vector2(0.0, 58.0)
 	mission_one_button.text = "LEVEL 1 — RELAY DIVIDE"
 	mission_one_button.pressed.connect(_load_campaign_level.bind("relay_divide"))
-	column.add_child(mission_one_button)
+	campaign_menu_container.add_child(mission_one_button)
 	mission_two_button = Button.new()
 	mission_two_button.name = "LevelTwoButton"
 	mission_two_button.custom_minimum_size = Vector2(0.0, 58.0)
 	mission_two_button.text = "LEVEL 2 — RELAY CROSSROADS"
 	mission_two_button.tooltip_text = "Complete Relay Divide to unlock this mission."
 	mission_two_button.pressed.connect(_load_campaign_level.bind("relay_crossroads"))
-	column.add_child(mission_two_button)
+	campaign_menu_container.add_child(mission_two_button)
 	var footer := _label("The opponent tactic is authored by the mission and adapts to battlefield pressure automatically.", 12, Color("#8ca9b5"))
 	footer.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	column.add_child(footer)
+	campaign_menu_container.add_child(footer)
+
+	skirmish_menu_container = VBoxContainer.new()
+	skirmish_menu_container.name = "SkirmishDeployment"
+	skirmish_menu_container.add_theme_constant_override("separation", 7)
+	column.add_child(skirmish_menu_container)
+	var skirmish_intro := _label("Replay the authored battlefield with a selectable opponent policy. Skirmish settings do not alter campaign progress.", 13, Color("#c3d8df"))
+	skirmish_intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	skirmish_intro.custom_minimum_size = Vector2(0.0, 40.0)
+	skirmish_menu_container.add_child(skirmish_intro)
+	skirmish_map_option = OptionButton.new()
+	skirmish_map_option.name = "SkirmishMapOption"
+	skirmish_map_option.custom_minimum_size = Vector2(0.0, 38.0)
+	skirmish_map_option.item_selected.connect(_on_skirmish_map_selected)
+	skirmish_menu_container.add_child(_deployment_option_row("MAP", skirmish_map_option))
+	skirmish_scenario_option = OptionButton.new()
+	skirmish_scenario_option.name = "SkirmishScenarioOption"
+	skirmish_scenario_option.custom_minimum_size = Vector2(0.0, 38.0)
+	skirmish_scenario_option.item_selected.connect(_on_skirmish_scenario_selected)
+	skirmish_menu_container.add_child(_deployment_option_row("SCENARIO", skirmish_scenario_option))
+	skirmish_difficulty_option = OptionButton.new()
+	skirmish_difficulty_option.name = "SkirmishDifficultyOption"
+	skirmish_difficulty_option.custom_minimum_size = Vector2(0.0, 38.0)
+	for difficulty_id in AI_DIFFICULTIES:
+		skirmish_difficulty_option.add_item(difficulty_id.replace("_", " ").to_upper())
+		skirmish_difficulty_option.set_item_metadata(skirmish_difficulty_option.item_count - 1, difficulty_id)
+	skirmish_menu_container.add_child(_deployment_option_row("AI DIFFICULTY", skirmish_difficulty_option))
+	skirmish_intent_option = OptionButton.new()
+	skirmish_intent_option.name = "SkirmishIntentOption"
+	skirmish_intent_option.custom_minimum_size = Vector2(0.0, 38.0)
+	skirmish_menu_container.add_child(_deployment_option_row("AI INTENT", skirmish_intent_option))
+	skirmish_briefing_label = _label("", 13, Color("#ffd36a"))
+	skirmish_briefing_label.name = "SkirmishBriefing"
+	skirmish_briefing_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	skirmish_briefing_label.custom_minimum_size = Vector2(0.0, 58.0)
+	skirmish_menu_container.add_child(skirmish_briefing_label)
+	skirmish_deploy_button = Button.new()
+	skirmish_deploy_button.name = "DeploySkirmishButton"
+	skirmish_deploy_button.text = "DEPLOY SKIRMISH"
+	skirmish_deploy_button.custom_minimum_size = Vector2(0.0, 52.0)
+	skirmish_deploy_button.pressed.connect(_start_skirmish_from_menu)
+	skirmish_menu_container.add_child(skirmish_deploy_button)
+
+	_refresh_skirmish_menu()
+	_set_deployment_mode("campaign")
+
+
+func _deployment_option_row(caption: String, option: OptionButton) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	var label := _label(caption, 12, Color("#8cebf3"))
+	label.custom_minimum_size = Vector2(150.0, 38.0)
+	row.add_child(label)
+	option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(option)
+	return row
+
+
+func _set_deployment_mode(mode: String) -> void:
+	deployment_mode = "skirmish" if mode == "skirmish" else "campaign"
+	if campaign_menu_container:
+		campaign_menu_container.visible = deployment_mode == "campaign"
+	if skirmish_menu_container:
+		skirmish_menu_container.visible = deployment_mode == "skirmish"
+	if campaign_tab_button:
+		campaign_tab_button.disabled = deployment_mode == "campaign"
+	if skirmish_tab_button:
+		skirmish_tab_button.disabled = deployment_mode == "skirmish"
+
+
+func _refresh_skirmish_menu() -> void:
+	if not simulation or not skirmish_map_option or not skirmish_scenario_option:
+		return
+	skirmish_map_option.clear()
+	var maps: Array = simulation.get_skirmish_map_catalog()
+	var selected_map_index := 0
+	for map_index in range(maps.size()):
+		var map_data: Dictionary = maps[map_index]
+		var map_id := str(map_data.get("id", ""))
+		skirmish_map_option.add_item(str(map_data.get("display_name", map_id.replace("_", " ").capitalize())))
+		skirmish_map_option.set_item_metadata(map_index, map_id)
+		if map_id == "relay_crossroads":
+			selected_map_index = map_index
+	if not maps.is_empty():
+		skirmish_map_option.select(selected_map_index)
+	_refresh_skirmish_scenarios()
+	if skirmish_difficulty_option:
+		var standard_index := 0
+		for index in range(skirmish_difficulty_option.item_count):
+			if str(skirmish_difficulty_option.get_item_metadata(index)) == "standard":
+				standard_index = index
+				break
+		skirmish_difficulty_option.select(standard_index)
+
+
+func _refresh_skirmish_scenarios() -> void:
+	if not simulation or not skirmish_map_option or not skirmish_scenario_option:
+		return
+	var map_id := _option_metadata(skirmish_map_option)
+	skirmish_scenario_option.clear()
+	var scenarios: Array = simulation.get_skirmish_scenarios_for_map(map_id)
+	var selected_index := 0
+	for scenario_index in range(scenarios.size()):
+		var scenario: Dictionary = scenarios[scenario_index]
+		var scenario_id := str(scenario.get("id", ""))
+		skirmish_scenario_option.add_item(str(scenario.get("display_name", scenario_id.replace("_", " ").capitalize())))
+		skirmish_scenario_option.set_item_metadata(scenario_index, scenario_id)
+		if scenario_id == "network_hold":
+			selected_index = scenario_index
+	if not scenarios.is_empty():
+		skirmish_scenario_option.select(selected_index)
+	_refresh_skirmish_intents()
+	_on_skirmish_scenario_selected(selected_index)
+
+
+func _refresh_skirmish_intents() -> void:
+	if not simulation or not skirmish_intent_option:
+		return
+	skirmish_intent_option.clear()
+	var intents: Array = simulation.get_ai_intent_catalog()
+	var selected_index := 0
+	for intent_index in range(intents.size()):
+		var intent: Dictionary = intents[intent_index]
+		var intent_id := str(intent.get("id", ""))
+		skirmish_intent_option.add_item(str(intent.get("display_name", intent_id.replace("_", " ").to_upper())))
+		skirmish_intent_option.set_item_metadata(intent_index, intent_id)
+		if intent_id == "secure_then_assault":
+			selected_index = intent_index
+	if not intents.is_empty():
+		skirmish_intent_option.select(selected_index)
+
+
+func _on_skirmish_map_selected(_index: int) -> void:
+	_refresh_skirmish_scenarios()
+
+
+func _on_skirmish_scenario_selected(_index: int) -> void:
+	if not skirmish_briefing_label or not simulation:
+		return
+	var scenario_id := _option_metadata(skirmish_scenario_option)
+	for scenario in simulation.get_skirmish_scenario_catalog():
+		var definition: Dictionary = scenario
+		if str(definition.get("id", "")) == scenario_id:
+			skirmish_briefing_label.text = "%s\n%s" % [str(definition.get("description", "")), str(definition.get("player_objective", ""))]
+			return
+
+
+func _option_metadata(option: OptionButton) -> String:
+	if option == null or option.get_selected() < 0:
+		return ""
+	return str(option.get_item_metadata(option.get_selected()))
+
+
+func _start_skirmish_from_menu() -> void:
+	var map_id := _option_metadata(skirmish_map_option)
+	var selected_scenario_id := _option_metadata(skirmish_scenario_option)
+	var difficulty_id := _option_metadata(skirmish_difficulty_option)
+	var intent_id := _option_metadata(skirmish_intent_option)
+	if map_id.is_empty() or selected_scenario_id.is_empty():
+		return
+	_load_skirmish_match(map_id, {
+		"mode": "skirmish",
+		"scenario_id": selected_scenario_id,
+		"ai_difficulty": difficulty_id,
+		"ai_intent": intent_id,
+	})
+
+
+func _build_match_result_overlay(root: Control) -> void:
+	result_overlay = ColorRect.new()
+	result_overlay.name = "MatchResultOverlay"
+	result_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	result_overlay.color = Color(0.008, 0.025, 0.04, 0.78)
+	result_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	result_overlay.visible = false
+	root.add_child(result_overlay)
+	result_panel = PanelContainer.new()
+	result_panel.name = "MatchResultPanel"
+	result_panel.position = Vector2(315.0, 170.0)
+	result_panel.size = Vector2(650.0, 350.0)
+	result_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.025, 0.075, 0.1, 0.99), Color(0.96, 0.68, 0.28, 0.85)))
+	result_overlay.add_child(result_panel)
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 28)
+	margin.add_theme_constant_override("margin_right", 28)
+	margin.add_theme_constant_override("margin_top", 24)
+	margin.add_theme_constant_override("margin_bottom", 24)
+	result_panel.add_child(margin)
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 12)
+	margin.add_child(column)
+	result_title_label = _label("MATCH COMPLETE", 26, Color("#ffd36a"))
+	result_title_label.name = "ResultTitle"
+	column.add_child(result_title_label)
+	result_detail_label = _label("", 14, Color("#c3d8df"))
+	result_detail_label.name = "ResultDetail"
+	result_detail_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	result_detail_label.custom_minimum_size = Vector2(0.0, 112.0)
+	column.add_child(result_detail_label)
+	var buttons := HBoxContainer.new()
+	buttons.add_theme_constant_override("separation", 10)
+	column.add_child(buttons)
+	rematch_button = Button.new()
+	rematch_button.name = "RematchButton"
+	rematch_button.text = "REMATCH"
+	rematch_button.custom_minimum_size = Vector2(180.0, 48.0)
+	rematch_button.pressed.connect(_restart_match)
+	buttons.add_child(rematch_button)
+	return_deployment_button = Button.new()
+	return_deployment_button.name = "ReturnToDeploymentButton"
+	return_deployment_button.text = "RETURN TO DEPLOYMENT"
+	return_deployment_button.custom_minimum_size = Vector2(230.0, 48.0)
+	return_deployment_button.pressed.connect(_return_to_deployment)
+	buttons.add_child(return_deployment_button)
+
+
+func _show_match_result(event_type: String, payload: Dictionary) -> void:
+	if not result_overlay or not result_title_label or not result_detail_label:
+		return
+	result_visible = true
+	result_overlay.visible = true
+	var won := event_type == "MatchWon"
+	result_title_label.text = "[ VICTORY ]" if won else "[ DEFEAT ]"
+	result_title_label.modulate = Color("#ffd36a") if won else Color("#ff7b86")
+	var mode_text := "SKIRMISH" if simulation.get_match_mode() == "skirmish" else "CAMPAIGN"
+	var detail_lines: PackedStringArray = []
+	detail_lines.append("%s  //  %s" % [mode_text, simulation.get_level_display_name()])
+	if simulation.get_match_mode() == "skirmish":
+		var scenario: Dictionary = simulation.get_scenario_state("player")
+		var progress_ticks := int(scenario.get("progress_ticks", 0))
+		var hold_ticks: int = max(1, int(scenario.get("hold_ticks", 1)))
+		detail_lines.append("%s — %ds / %ds" % [str(scenario.get("display_name", "SKIRMISH")), int(progress_ticks * simulation.TICK_SECONDS), int(hold_ticks * simulation.TICK_SECONDS)])
+		detail_lines.append(str(scenario.get("objective_text", "")))
+		detail_lines.append(str(payload.get("message", "Match complete.")))
+	else:
+		detail_lines.append(str(payload.get("message", "Match complete.")))
+	result_detail_label.text = "\n".join(detail_lines)
+
+
+func _hide_match_result() -> void:
+	result_visible = false
+	if result_overlay:
+		result_overlay.visible = false
+
+
+func _return_to_deployment() -> void:
+	_hide_match_result()
+	_set_start_menu_visible(true)
+	_set_deployment_mode(deployment_mode if simulation.get_match_mode() == "skirmish" else "campaign")
+	_refresh_skirmish_menu()
 
 
 func _finish_left_click() -> void:
@@ -1010,7 +1305,7 @@ func _sync_views(frame_delta: float = 0.0) -> void:
 			selected_ids.erase(selected_id)
 	if not state["resource_nodes"].has(selected_resource_id):
 		selected_resource_id = ""
-	WorldViewSynchronizerScript.sync(self, state, selected_ids, unit_views, building_views, control_views, resource_views, selected_resource_id, objective_target_point_id, minimap, frame_delta)
+	WorldViewSynchronizerScript.sync(self, state, selected_ids, unit_views, building_views, control_views, resource_views, selected_resource_id, objective_target_point_ids, minimap, frame_delta)
 	var terrain: Dictionary = simulation.get_level_terrain()
 	for entity_id in unit_views:
 		if state["units"].has(entity_id):
@@ -1021,7 +1316,7 @@ func _sync_views(frame_delta: float = 0.0) -> void:
 	if fog_view:
 		fog_view.sync(state.get("visibility", {}))
 	if minimap:
-		minimap.set_selection(selected_ids, selected_resource_id, objective_target_point_id)
+		minimap.set_selection(selected_ids, selected_resource_id, objective_target_point_ids)
 
 
 func _on_minimap_world_position_clicked(world_position: Vector3) -> void:
@@ -1041,7 +1336,7 @@ func _create_control_view(point: Dictionary) -> Node3D:
 
 
 func _update_control_view(view: Node3D, point: Dictionary) -> void:
-	WorldViewSynchronizerScript.update_control_view(view, point, objective_target_point_id)
+	WorldViewSynchronizerScript.update_control_view(view, point, objective_target_point_ids)
 
 
 func _update_selected_visuals() -> void:
@@ -1051,17 +1346,7 @@ func _update_selected_visuals() -> void:
 		building_views[entity_id].selection_disc.visible = selected_ids.has(entity_id)
 
 
-func _restart_match() -> void:
-	_cancel_build_mode()
-	_cancel_collector_assignment(false)
-	attack_move_mode = false
-	patrol_mode = false
-	selected_ids.clear()
-	selected_resource_id = ""
-	control_groups.clear()
-	event_log_label.text = "EVENT LOG\nAwaiting orders..."
-	status_label.modulate = Color("#c3d8df")
-	camera_yaw = 0.0
+func _clear_match_views() -> void:
 	for view in unit_views.values():
 		if is_instance_valid(view):
 			view.queue_free()
@@ -1078,6 +1363,23 @@ func _restart_match() -> void:
 	building_views.clear()
 	control_views.clear()
 	resource_views.clear()
+
+
+func _restart_match() -> void:
+	_hide_match_result()
+	_cancel_build_mode()
+	_cancel_collector_assignment(false)
+	attack_move_mode = false
+	patrol_mode = false
+	selected_ids.clear()
+	selected_resource_id = ""
+	objective_target_point_id = ""
+	objective_target_point_ids = []
+	control_groups.clear()
+	event_log_label.text = "EVENT LOG\nAwaiting orders..."
+	status_label.modulate = Color("#c3d8df")
+	camera_yaw = 0.0
+	_clear_match_views()
 	simulation.restart_match()
 	camera_target = _starting_camera_target()
 	_update_selected_visuals()
@@ -1089,29 +1391,44 @@ func _load_campaign_level(level_id: String) -> void:
 	if campaign_progress and not campaign_progress.is_unlocked(level_id):
 		status_label.text = "Complete Level 1 to unlock Level 2."
 		return
+	_hide_match_result()
 	_cancel_build_mode()
 	_cancel_collector_assignment(false)
 	attack_move_mode = false
 	patrol_mode = false
 	selected_ids.clear()
+	objective_target_point_id = ""
+	objective_target_point_ids = []
 	control_groups.clear()
-	for view in unit_views.values():
-		if is_instance_valid(view):
-			view.queue_free()
-	for view in building_views.values():
-		if is_instance_valid(view):
-			view.queue_free()
-	for view in control_views.values():
-		if is_instance_valid(view):
-			view.queue_free()
-	for view in resource_views.values():
-		if is_instance_valid(view):
-			view.queue_free()
-	unit_views.clear()
-	building_views.clear()
-	control_views.clear()
-	resource_views.clear()
-	simulation.start_match(level_id)
+	_clear_match_views()
+	simulation.start_match(level_id, "", {"mode": "campaign"})
+	_set_deployment_mode("campaign")
+	_set_start_menu_visible(false)
+	camera_target = _starting_camera_target()
+	_update_camera()
+	_build_world_shell()
+	if minimap:
+		var bounds: Vector2 = simulation.get_level_bounds()
+		minimap.map_bounds = Rect2(-bounds.x, -bounds.y, bounds.x * 2.0, bounds.y * 2.0)
+	_update_selected_visuals()
+	_sync_views()
+	_update_hud()
+
+
+func _load_skirmish_match(level_id: String, settings: Dictionary) -> void:
+	_hide_match_result()
+	_cancel_build_mode()
+	_cancel_collector_assignment(false)
+	attack_move_mode = false
+	patrol_mode = false
+	selected_ids.clear()
+	selected_resource_id = ""
+	objective_target_point_id = ""
+	objective_target_point_ids = []
+	control_groups.clear()
+	_clear_match_views()
+	simulation.start_match(level_id, "", settings)
+	_set_deployment_mode("skirmish")
 	_set_start_menu_visible(false)
 	camera_target = _starting_camera_target()
 	_update_camera()
@@ -1131,7 +1448,7 @@ func _set_start_menu_visible(visible: bool) -> void:
 	if start_menu_panel:
 		start_menu_panel.visible = visible
 	if visible and status_label and simulation and not simulation.match_over:
-		status_label.text = "Select a mission to begin deployment."
+		status_label.text = "Select a deployment to begin the match."
 
 func _find_player_building(kind: String) -> String:
 	for building_id in simulation.buildings:
@@ -1183,6 +1500,7 @@ func _mission_text(key: String, values: Dictionary = {}) -> String:
 
 func _set_objective(key: String, values: Dictionary = {}, target_point_id := "") -> void:
 	objective_target_point_id = target_point_id
+	objective_target_point_ids = [] if target_point_id.is_empty() else [target_point_id]
 	var text := _mission_text(key, values)
 	objective_label.text = "OBJECTIVE: %s" % text if not text.is_empty() else "OBJECTIVE"
 
@@ -1192,7 +1510,15 @@ func _update_objective() -> void:
 		return
 	if simulation.match_over:
 		objective_target_point_id = ""
-		objective_label.text = "OBJECTIVE COMPLETE — %s" % _mission_text("match_complete") if simulation.match_winner == "player" else "OBJECTIVE FAILED"
+		objective_target_point_ids = []
+		if simulation.get_match_mode() == "skirmish":
+			var scenario_result: Dictionary = simulation.get_scenario_state("player")
+			objective_label.text = "OBJECTIVE COMPLETE — %s" % str(scenario_result.get("result_reason", "Network objective resolved.")) if simulation.match_winner == "player" else "OBJECTIVE FAILED — %s" % str(scenario_result.get("result_reason", "Network objective lost."))
+		else:
+			objective_label.text = "OBJECTIVE COMPLETE — %s" % _mission_text("match_complete") if simulation.match_winner == "player" else "OBJECTIVE FAILED"
+		return
+	if simulation.get_match_mode() == "skirmish":
+		_update_skirmish_objective()
 		return
 	if _find_player_building("refinery").is_empty():
 		_set_objective("build_processor")
@@ -1240,10 +1566,39 @@ func _update_objective() -> void:
 		_set_objective("bulwark")
 	else:
 		_set_objective("destroy_hq")
+
+
+func _update_skirmish_objective() -> void:
+	var scenario: Dictionary = simulation.get_scenario_state("player")
+	var required_points: Array = scenario.get("required_point_ids", [])
+	objective_target_point_ids = required_points.duplicate()
+	objective_target_point_id = str(required_points[0]) if not required_points.is_empty() else ""
+	var objective_text := str(scenario.get("objective_text", "Hold the required network points."))
+	objective_label.text = "OBJECTIVE: %s — %s" % [str(scenario.get("display_name", "SKIRMISH")).to_upper(), objective_text.to_upper()]
+
+
+func _update_scenario_progress_hud() -> void:
+	if not scenario_progress_label or not simulation or simulation.get_match_mode() != "skirmish":
+		if scenario_progress_label:
+			scenario_progress_label.text = ""
+		return
+	var scenario: Dictionary = simulation.get_scenario_state("player")
+	var progress_seconds := int(float(scenario.get("progress_seconds", 0.0)))
+	var hold_seconds := int(float(scenario.get("hold_ticks", 900)) * simulation.TICK_SECONDS)
+	var minutes := int(progress_seconds / 60)
+	var seconds := progress_seconds % 60
+	var hold_minutes := int(hold_seconds / 60)
+	var hold_remainder := hold_seconds % 60
+	var state_text := "HOLDING" if bool(scenario.get("holding", false)) else "INTERRUPTED"
+	scenario_progress_label.text = "%s  %02d:%02d / %02d:%02d  ·  %s" % [str(scenario.get("display_name", "SKIRMISH")).to_upper(), minutes, seconds, hold_minutes, hold_remainder, state_text]
+	scenario_progress_label.modulate = Color("#7cf1ad") if bool(scenario.get("holding", false)) else Color("#ffbf6a")
+
+
 func _update_hud() -> void:
 	if not simulation:
 		return
 	_update_objective()
+	_update_scenario_progress_hud()
 	credits_label.text = "CREDITS %03d" % int(simulation.player_credits)
 	var territory: Dictionary = simulation.get_territory_summary()
 	territory_label.text = "TERRITORY %d/%d  +%dC/S" % [territory["player"], territory["total"], int(territory.get("player_income_per_second", 0.0))]
@@ -1738,7 +2093,8 @@ func _on_simulation_event(event_type: String, payload: Dictionary) -> void:
 	if event_type == "MatchWon" or event_type == "MatchLost":
 		status_label.text = "[ %s ] %s" % ["VICTORY" if event_type == "MatchWon" else "DEFEAT", payload.get("message", "Match complete")]
 		status_label.modulate = Color("#ffd36a") if event_type == "MatchWon" else Color("#ff7b86")
-	if event_type == "MatchWon" and campaign_progress:
+		_show_match_result(event_type, payload)
+	if event_type == "MatchWon" and campaign_progress and simulation.get_match_mode() == "campaign":
 		var unlocked_id: String = campaign_progress.mark_complete(simulation.get_level_id())
 		if not unlocked_id.is_empty():
 			status_label.text = "LEVEL COMPLETE — Level 2 unlocked. Press F2 to deploy."
@@ -1751,6 +2107,8 @@ func _on_simulation_event(event_type: String, payload: Dictionary) -> void:
 
 
 func _is_player_event(event_type: String, payload: Dictionary) -> bool:
+	if event_type == "MatchWon" or event_type == "MatchLost":
+		return true
 	if payload.has("attacker_team"):
 		return str(payload.get("team", "")) == "player" or str(payload.get("attacker_team", "")) == "player"
 	if payload.has("team"):

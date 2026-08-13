@@ -8,6 +8,7 @@ var map_bounds := Rect2(-60.0, -40.0, 120.0, 80.0)
 var selected_ids: Array = []
 var selected_resource_id := ""
 var objective_target_point_id := ""
+var objective_target_point_ids: Array = []
 var camera_center := Vector3.ZERO
 var camera_half_extents := Vector2(18.0, 12.0)
 
@@ -17,10 +18,14 @@ func set_snapshot(next_snapshot: Dictionary) -> void:
 	queue_redraw()
 
 
-func set_selection(next_selected_ids: Array, next_selected_resource_id: String, next_objective_target_point_id: String) -> void:
+func set_selection(next_selected_ids: Array, next_selected_resource_id: String, next_objective_target_point_id: Variant) -> void:
 	selected_ids = next_selected_ids.duplicate()
 	selected_resource_id = next_selected_resource_id
-	objective_target_point_id = next_objective_target_point_id
+	if next_objective_target_point_id is Array:
+		objective_target_point_ids = next_objective_target_point_id.duplicate()
+	else:
+		objective_target_point_ids = [] if str(next_objective_target_point_id).is_empty() else [str(next_objective_target_point_id)]
+	objective_target_point_id = str(objective_target_point_ids[0]) if not objective_target_point_ids.is_empty() else ""
 	queue_redraw()
 
 
@@ -88,7 +93,7 @@ func _draw() -> void:
 			draw_circle(point_position, 3.0, point_color)
 		if bool(point.get("staging_active", false)):
 			draw_arc(point_position, 5.5, 0.0, TAU, 20, point_color.lightened(0.25), 1.4)
-		if str(point_id) == objective_target_point_id:
+		if str(point_id) in objective_target_point_ids:
 			draw_arc(point_position, 8.0, 0.0, TAU, 24, Color("#ffd36a"), 2.0)
 			draw_line(point_position + Vector2(-5.0, 0.0), point_position + Vector2(5.0, 0.0), Color("#ffd36a"), 1.0)
 	for building_id in snapshot.get("buildings", {}):

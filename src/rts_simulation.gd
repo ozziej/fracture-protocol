@@ -8,6 +8,7 @@ const LogisticsSystemScript = preload("res://src/simulation/rts_logistics_system
 const ForceCapacityScript = preload("res://src/simulation/rts_force_capacity.gd")
 const VisibilitySystemScript = preload("res://src/simulation/rts_visibility_system.gd")
 const FormationLayoutScript = preload("res://src/simulation/rts_formation_layout.gd")
+const ScenarioSystemScript = preload("res://src/simulation/rts_scenario_system.gd")
 
 signal simulation_event(event_type: String, payload: Dictionary)
 
@@ -45,6 +46,8 @@ var player_credits := 850.0
 var enemy_credits := 700.0
 var match_over := false
 var match_winner := ""
+var match_mode := "campaign"
+var scenario_id := ""
 
 var units: Dictionary = {}
 var buildings: Dictionary = {}
@@ -63,6 +66,9 @@ var level_bounds := Vector2(60.0, 40.0)
 var navigation_obstacles: Array = []
 var requested_level_id := ""
 var requested_ai_difficulty := ""
+var requested_ai_intent := ""
+var requested_match_mode := "campaign"
+var requested_scenario_id := ""
 var pending_projectiles: Array = []
 
 var _next_entity_id := 1
@@ -72,6 +78,7 @@ var _event_sequence := 0
 var _ai_controller
 var _logistics_system
 var _visibility_system
+var _scenario_system
 
 
 func _ready() -> void:
@@ -80,17 +87,35 @@ func _ready() -> void:
 
 
 func restart_match() -> void:
-	start_match(requested_level_id, requested_ai_difficulty)
+	start_match(requested_level_id, requested_ai_difficulty, {
+		"mode": requested_match_mode,
+		"scenario_id": requested_scenario_id,
+		"ai_intent": requested_ai_intent,
+	})
 
 
-func start_match(next_level_id := "", ai_difficulty_override := "") -> void:
+func start_match(next_level_id := "", ai_difficulty_override := "", match_settings: Dictionary = {}) -> void:
+	var explicit_settings := not match_settings.is_empty()
 	if not next_level_id.is_empty():
 		requested_level_id = next_level_id
 	if not str(ai_difficulty_override).is_empty():
 		requested_ai_difficulty = str(ai_difficulty_override)
+	if explicit_settings:
+		requested_match_mode = str(match_settings.get("mode", "campaign"))
+		requested_scenario_id = str(match_settings.get("scenario_id", ""))
+		requested_ai_intent = str(match_settings.get("ai_intent", ""))
+		if not str(match_settings.get("ai_difficulty", "")).is_empty():
+			requested_ai_difficulty = str(match_settings.get("ai_difficulty", ""))
+	else:
+		# Existing callers that select a level continue to create campaign matches.
+		# Restart uses explicit settings above so skirmish matches retain their setup.
+		requested_match_mode = "campaign"
+		requested_scenario_id = ""
+		requested_ai_intent = ""
 	_build_definitions()
 	_load_level_data()
 	_configure_level_runtime()
+	match_mode = requested_match_mode if requested_match_mode == "skirmish" else "campaign"
 	current_tick = 0
 	accumulator = 0.0
 	player_credits = 850.0
@@ -110,6 +135,16 @@ func start_match(next_level_id := "", ai_difficulty_override := "") -> void:
 	event_history.clear()
 	pending_projectiles.clear()
 	_ai_controller = null
+	_scenario().clear()
+	if match_mode == "skirmish":
+		if not _scenario().configure(requested_scenario_id, level_id):
+			match_mode = "campaign"
+			requested_match_mode = "campaign"
+			requested_scenario_id = ""
+		else:
+			scenario_id = requested_scenario_id if not requested_scenario_id.is_empty() else _scenario().active_scenario_id
+	if match_mode != "skirmish":
+		scenario_id = ""
 	if _visibility_system == null:
 		_visibility_system = VisibilitySystemScript.new(self)
 	_visibility_system.reset()
@@ -119,7 +154,7 @@ func start_match(next_level_id := "", ai_difficulty_override := "") -> void:
 	else:
 		_setup_match_from_level()
 	_ai_controller = AiControllerScript.new(self)
-	_ai_controller.configure(requested_ai_difficulty)
+	_ai_controller.configure(requested_ai_difficulty, requested_ai_intent)
 
 	_emit_event("MatchStarted", {
 		"tick": current_tick,
@@ -303,6 +338,46 @@ func is_team_allowed(team: String, category: String, id: String) -> bool:
 
 func get_level_briefing() -> String:
 	return str(level_definition.get("briefing", ""))
+
+
+func get_level_display_name() -> String:
+	return str(level_definition.get("display_name", level_id.replace("_", " ").capitalize()))
+
+
+func get_match_mode() -> String:
+	return match_mode
+
+
+func get_scenario_id() -> String:
+	return scenario_id
+
+
+func get_scenario_state(viewer_team := "") -> Dictionary:
+	return _scenario().get_state(str(viewer_team))
+
+
+func get_skirmish_map_catalog() -> Array:
+	return _scenario().get_map_catalog()
+
+
+func get_skirmish_scenario_catalog() -> Array:
+	return _scenario().get_catalog()
+
+
+func get_skirmish_scenarios_for_map(map_id: String) -> Array:
+	return _scenario().get_scenarios_for_map(map_id)
+
+
+func get_ai_intent_catalog() -> Array:
+	var result: Array = []
+	var intents: Dictionary = level_definition.get("ai_intents", {})
+	for intent_id in intents:
+		var intent: Dictionary = intents[intent_id].duplicate(true)
+		intent["id"] = str(intent_id)
+		result.append(intent)
+	return result
+
+
 func step(delta: float) -> void:
 	if match_over:
 		return
@@ -325,6 +400,7 @@ func step_fixed() -> void:
 	_update_control_points()
 	_update_supply_states()
 	_update_forward_staging_states()
+	_scenario().update()
 	_update_production()
 	_update_units()
 	_update_projectiles()
@@ -354,6 +430,10 @@ func get_state(viewer_team := "") -> Dictionary:
 		"control_points": control_points,
 		"resource_nodes": resource_nodes,
 		"match_over": match_over,
+		"match_winner": match_winner,
+		"match_mode": match_mode,
+		"scenario_id": scenario_id,
+		"scenario": _scenario().get_state(str(viewer_team)),
 	}
 	if str(viewer_team).is_empty():
 		return state
@@ -451,6 +531,7 @@ func set_ai_difficulty(difficulty_id: String) -> void:
 
 
 func set_ai_intent(intent_id: String) -> void:
+	requested_ai_intent = intent_id
 	_ensure_ai_controller()
 	_ai_controller.set_intent(intent_id)
 
@@ -1797,6 +1878,12 @@ func _logistics():
 	return _logistics_system
 
 
+func _scenario():
+	if _scenario_system == null:
+		_scenario_system = ScenarioSystemScript.new(self)
+	return _scenario_system
+
+
 func _update_ai() -> void:
 	if _ai_controller == null:
 		_ai_controller = AiControllerScript.new(self)
@@ -1833,6 +1920,21 @@ func _check_victory() -> void:
 		match_over = true
 		match_winner = "player"
 		_emit_event("MatchWon", {"message": "Enemy Command Hub destroyed. The relay network is yours."})
+		return
+	if match_mode == "skirmish":
+		var scenario_result: Dictionary = _scenario().get_result()
+		var scenario_winner := str(scenario_result.get("winner", ""))
+		if scenario_winner.is_empty():
+			return
+		match_over = true
+		match_winner = scenario_winner
+		var result_event := "MatchWon" if scenario_winner == "player" else "MatchLost"
+		_emit_event(result_event, {
+			"scenario_id": scenario_id,
+			"result_type": "scenario",
+			"team": scenario_winner,
+			"message": str(scenario_result.get("reason", "Scenario complete.")),
+		})
 
 
 func _apply_damage(target_id: String, damage: float, attacker_id: String) -> void:
