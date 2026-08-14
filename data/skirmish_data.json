@@ -92,6 +92,65 @@
           ]
         }
       }
+    },
+    {
+      "id": "network_sever",
+      "display_name": "Network Sever",
+      "description": "Establish a connected relay chain, then defend it against a sustained assault on Central Relay.",
+      "objective_type": "defend_network",
+      "defend_ticks": 900,
+      "sever_ticks": 150,
+      "progress_event_interval_ticks": 10,
+      "maps": ["relay_divide", "relay_crossroads"],
+      "player_required_points": ["central_relay", "network_east"],
+      "enemy_required_points": ["central_relay", "network_east"],
+      "key_point_id": "central_relay",
+      "player_objective": "Connect and defend Central Relay + East Network",
+      "enemy_objective": "Sever the player network at Central Relay",
+      "player_win_message": "The relay network held for 90 cumulative seconds. The Coalition line is secure.",
+      "enemy_win_message": "Central Relay remained severed for 15 seconds. The Coalition network has fractured.",
+      "briefing_message": "Build the chain, keep Central Relay connected, and recover quickly when the network is severed.",
+      "interruption_message": "NETWORK SEVERED — restore Central Relay + East Network before the 15-second failure timer expires.",
+      "victory_message": "NETWORK DEFENCE COMPLETE — the connected relay chain is secure.",
+      "defeat_message": "NETWORK LOST — the relay chain remained severed too long.",
+      "default_ai_intent": "sever_network",
+      "default_ai_difficulty": "standard",
+      "map_overrides": {
+        "relay_divide": {
+          "control_points": [
+            {
+              "id": "network_east",
+              "display_name": "East Network",
+              "position": {"x": 24, "y": 0, "z": -14},
+              "radius": 4.5,
+              "supports_staging": true,
+              "strategic_role": "forward_staging",
+              "role_label": "MIDFIELD STAGING",
+              "role_description": "A contested midfield staging site that extends the relay line.",
+              "income_per_second": 12,
+              "supply_link_bonus": 0,
+              "capture_rate_multiplier": 1.0
+            }
+          ]
+        },
+        "relay_crossroads": {
+          "control_points": [
+            {
+              "id": "network_east",
+              "display_name": "East Network",
+              "position": {"x": 24, "y": 0, "z": -14},
+              "radius": 5.5,
+              "supports_staging": true,
+              "strategic_role": "forward_staging",
+              "role_label": "MIDFIELD STAGING",
+              "role_description": "A contested midfield staging site that extends the relay line.",
+              "income_per_second": 12,
+              "supply_link_bonus": 0,
+              "capture_rate_multiplier": 1.0
+            }
+          ]
+        }
+      }
     }
   ]
 }

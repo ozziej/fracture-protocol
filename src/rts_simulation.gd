@@ -43,6 +43,7 @@ const REPAIR_STATION_RADIUS := 7.5
 const RESOURCE_EPSILON := 0.01
 const ADVANCED_TARGETING_RANGE_MULTIPLIER := 1.18
 const ADVANCED_TARGETING_VISION_MULTIPLIER := 1.15
+const UNDER_FIRE_FEEDBACK_TICKS := 18
 # Player units may opportunistically engage contacts, but an auto-acquired
 # target must not pull them away from the route or supply line indefinitely.
 const PLAYER_AUTO_PURSUIT_TICKS := 30
@@ -68,6 +69,8 @@ var technology_definitions: Dictionary = {}
 var team_technologies: Dictionary = {"player": {}, "enemy": {}}
 var command_queue: Array = []
 var event_history: Array = []
+var match_stats: Dictionary = {}
+var match_result_payload: Dictionary = {}
 var level_id := ""
 var level_definition: Dictionary = {}
 var level_rules: Dictionary = {}
@@ -142,6 +145,8 @@ func start_match(next_level_id := "", ai_difficulty_override := "", match_settin
 	team_technologies = {"player": {}, "enemy": {}}
 	command_queue.clear()
 	event_history.clear()
+	match_stats = _new_match_stats()
+	match_result_payload = {}
 	pending_projectiles.clear()
 	_ai_controller = null
 	_scenario().clear()
@@ -371,12 +376,43 @@ func get_match_mode() -> String:
 	return match_mode
 
 
+func get_match_summary() -> Dictionary:
+	var territory: Dictionary = get_territory_summary()
+	var limits: Dictionary = get_limit_summary("player")
+	var player_units: Dictionary = limits.get("units", {})
+	var scenario: Dictionary = get_scenario_state("player") if match_mode == "skirmish" else {}
+	var summary := match_stats.duplicate(true)
+	summary["duration_seconds"] = current_tick * TICK_SECONDS
+	summary["winner"] = match_winner
+	summary["result_reason"] = str(match_result_payload.get("message", ""))
+	summary["result_type"] = str(match_result_payload.get("result_type", "hq"))
+	summary["player_territory"] = int(territory.get("player", 0))
+	summary["enemy_territory"] = int(territory.get("enemy", 0))
+	summary["territory_total"] = int(territory.get("total", 0))
+	summary["player_income_per_second"] = float(territory.get("player_income_per_second", 0.0))
+	summary["player_current_force"] = int(player_units.get("current", 0))
+	summary["player_max_force"] = int(player_units.get("max", 0))
+	summary["scenario_objective_type"] = str(scenario.get("objective_type", ""))
+	summary["scenario_progress_seconds"] = float(scenario.get("progress_seconds", 0.0))
+	summary["scenario_hold_seconds"] = float(scenario.get("hold_ticks", 0)) * TICK_SECONDS
+	summary["scenario_target_seconds"] = float(scenario.get("target_seconds", scenario.get("hold_ticks", 0) * TICK_SECONDS))
+	summary["scenario_network_online"] = bool(scenario.get("network_online", scenario.get("holding", false)))
+	summary["scenario_network_armed"] = bool(scenario.get("network_armed", false))
+	summary["scenario_disruption_seconds"] = float(scenario.get("disruption_seconds", 0.0))
+	summary["scenario_sever_seconds"] = float(scenario.get("sever_seconds", 0.0))
+	return summary
+
+
 func get_scenario_id() -> String:
 	return scenario_id
 
 
 func get_scenario_state(viewer_team := "") -> Dictionary:
 	return _scenario().get_state(str(viewer_team))
+
+
+func get_scenario_default_ai_intent() -> String:
+	return _scenario().get_default_ai_intent()
 
 
 func get_skirmish_map_catalog() -> Array:
@@ -420,6 +456,7 @@ func step_fixed() -> void:
 	_update_construction()
 	_update_upgrades()
 	_update_research()
+	_update_under_fire_feedback()
 	_update_control_points()
 	_update_supply_states()
 	_update_forward_staging_states()
@@ -1573,12 +1610,31 @@ func _fire_weapon(unit: Dictionary, target_id: String, damage_multiplier: float)
 		})
 		_emit_event("ProjectileLaunched", {
 			"attacker_id": unit["id"],
+			"attacker_team": unit["team"],
+			"attacker_kind": unit["kind"],
+			"attacker_display_name": unit["display_name"],
 			"target_id": target_id,
+			"target_team": _entity_team(target_id),
+			"target_kind": _entity_kind(target_id),
+			"target_display_name": _entity_display_name(target_id),
 			"launch_position": launch_position,
 			"impact_position": impact_position,
 			"travel_time": travel_time,
 			"guided": is_technology_unlocked(str(unit["team"]), "advanced_targeting"),
 		})
+		if str(unit.get("team", "")) == "enemy" and _entity_team(target_id) == "player":
+			_emit_event("LauncherThreatWarning", {
+				"attacker_id": unit["id"],
+				"attacker_team": unit["team"],
+				"attacker_kind": unit["kind"],
+				"attacker_display_name": unit["display_name"],
+				"target_id": target_id,
+				"target_team": "player",
+				"target_kind": _entity_kind(target_id),
+				"target_display_name": _entity_display_name(target_id),
+				"position": impact_position,
+				"message": "%s launched a missile at %s — spread out, flank, or break its range." % [unit["display_name"], _entity_display_name(target_id)],
+			})
 		return
 	if buildings.has(target_id):
 		base_damage *= definition.structure_damage_multiplier
@@ -1621,6 +1677,15 @@ func _update_projectiles() -> void:
 			"position": impact_position,
 		})
 		pending_projectiles.remove_at(projectile_index)
+
+
+func _update_under_fire_feedback() -> void:
+	for entity_id in units:
+		var unit: Dictionary = units[entity_id]
+		unit["under_fire"] = int(unit.get("under_fire_until_tick", -1)) >= current_tick
+	for entity_id in buildings:
+		var building: Dictionary = buildings[entity_id]
+		building["under_fire"] = int(building.get("under_fire_until_tick", -1)) >= current_tick
 
 
 
@@ -1755,7 +1820,9 @@ func _refresh_team_combat_stats(team: String) -> void:
 	for entity_id in units:
 		var unit: Dictionary = units[entity_id]
 		if str(unit.get("team", "")) == team and unit_definitions.has(str(unit.get("kind", ""))):
-			unit["vision_range"] = _effective_vision_range(team, unit_definitions[str(unit["kind"])])
+			var definition = unit_definitions[str(unit["kind"])]
+			unit["vision_range"] = _effective_vision_range(team, definition)
+			unit["attack_range"] = _effective_attack_range(team, definition)
 
 
 func _register_enemy_combat_reaction(target_id: String, attacker_id: String) -> void:
@@ -2396,6 +2463,7 @@ func _apply_damage(target_id: String, damage: float, attacker_id: String, is_spl
 	var attacker_position: Vector3 = _get_entity_position(attacker_id)
 	var attacker_team := _entity_team(attacker_id)
 	var attacker_kind := str(units[attacker_id].get("kind", "")) if units.has(attacker_id) else ""
+	var attacker_display_name := _entity_display_name(attacker_id)
 	if units.has(target_id):
 		var target: Dictionary = units[target_id]
 		_cancel_repair_state(target)
@@ -2406,13 +2474,18 @@ func _apply_damage(target_id: String, damage: float, attacker_id: String, is_spl
 			armour_mitigation = min(0.75, armour_mitigation * 1.35)
 		var actual_damage: float = max(1.0, damage * (1.0 - armour_mitigation))
 		target["health"] = max(0.0, float(target["health"]) - actual_damage)
-		_emit_event("UnitDamaged", {"target_id": target_id, "attacker_id": attacker_id, "attacker_kind": attacker_kind, "team": target["team"], "attacker_team": attacker_team, "attacker_position": attacker_position, "target_position": target_position, "damage": actual_damage, "health": target["health"], "max_health": target["max_health"], "is_splash": is_splash})
+		target["under_fire"] = true
+		target["under_fire_until_tick"] = current_tick + UNDER_FIRE_FEEDBACK_TICKS
+		target["last_damage_attacker_id"] = attacker_id
+		target["last_damage_attacker_kind"] = attacker_kind
+		target["last_damage_was_splash"] = is_splash
+		_emit_event("UnitDamaged", {"target_id": target_id, "target_kind": target["kind"], "target_display_name": target["display_name"], "attacker_id": attacker_id, "attacker_kind": attacker_kind, "attacker_display_name": attacker_display_name, "team": target["team"], "attacker_team": attacker_team, "attacker_position": attacker_position, "target_position": target_position, "damage": actual_damage, "health": target["health"], "max_health": target["max_health"], "is_splash": is_splash})
 		_register_enemy_combat_reaction(target_id, attacker_id)
 		if target["kind"] == "collector":
 			_begin_collector_retreat(target_id)
 		if float(target["health"]) <= 0.0:
 			units.erase(target_id)
-			_emit_event("UnitDestroyed", {"unit_id": target_id, "attacker_id": attacker_id, "attacker_team": attacker_team, "attacker_position": attacker_position, "position": target_position, "team": target["team"], "message": "%s destroyed." % unit_definitions[target["kind"]].display_name})
+			_emit_event("UnitDestroyed", {"unit_id": target_id, "target_kind": target["kind"], "target_display_name": target["display_name"], "attacker_id": attacker_id, "attacker_team": attacker_team, "attacker_position": attacker_position, "position": target_position, "team": target["team"], "message": "%s destroyed." % unit_definitions[target["kind"]].display_name})
 	elif buildings.has(target_id):
 		var building: Dictionary = buildings[target_id]
 		if bool(building.get("repair_active", false)):
@@ -2421,10 +2494,15 @@ func _apply_damage(target_id: String, damage: float, attacker_id: String, is_spl
 		var building_position: Vector3 = building["position"]
 		var actual_damage: float = max(1.0, damage)
 		building["health"] = max(0.0, float(building["health"]) - actual_damage)
-		_emit_event("BuildingDamaged", {"building_id": target_id, "attacker_id": attacker_id, "attacker_kind": attacker_kind, "team": building["team"], "attacker_team": attacker_team, "attacker_position": attacker_position, "target_position": building_position, "damage": actual_damage, "health": building["health"], "max_health": building["max_health"]})
+		building["under_fire"] = true
+		building["under_fire_until_tick"] = current_tick + UNDER_FIRE_FEEDBACK_TICKS
+		building["last_damage_attacker_id"] = attacker_id
+		building["last_damage_attacker_kind"] = attacker_kind
+		building["last_damage_was_splash"] = false
+		_emit_event("BuildingDamaged", {"building_id": target_id, "target_kind": building["kind"], "target_display_name": building["display_name"], "attacker_id": attacker_id, "attacker_kind": attacker_kind, "attacker_display_name": attacker_display_name, "team": building["team"], "attacker_team": attacker_team, "attacker_position": attacker_position, "target_position": building_position, "damage": actual_damage, "health": building["health"], "max_health": building["max_health"]})
 		if float(building["health"]) <= 0.0:
 			buildings.erase(target_id)
-			_emit_event("BuildingDestroyed", {"building_id": target_id, "attacker_id": attacker_id, "attacker_team": attacker_team, "attacker_position": attacker_position, "position": building_position, "team": building["team"], "message": "%s destroyed." % building_definitions[building["kind"]].display_name})
+			_emit_event("BuildingDestroyed", {"building_id": target_id, "target_kind": building["kind"], "target_display_name": building["display_name"], "attacker_id": attacker_id, "attacker_team": attacker_team, "attacker_position": attacker_position, "position": building_position, "team": building["team"], "message": "%s destroyed." % building_definitions[building["kind"]].display_name})
 
 
 func _entity_team(entity_id: String) -> String:
@@ -2433,6 +2511,22 @@ func _entity_team(entity_id: String) -> String:
 	if buildings.has(entity_id):
 		return str(buildings[entity_id].get("team", ""))
 	return ""
+
+
+func _entity_kind(entity_id: String) -> String:
+	if units.has(entity_id):
+		return str(units[entity_id].get("kind", ""))
+	if buildings.has(entity_id):
+		return str(buildings[entity_id].get("kind", ""))
+	return ""
+
+
+func _entity_display_name(entity_id: String) -> String:
+	if units.has(entity_id):
+		return str(units[entity_id].get("display_name", units[entity_id].get("kind", "UNIT")))
+	if buildings.has(entity_id):
+		return str(buildings[entity_id].get("display_name", buildings[entity_id].get("kind", "BUILDING")))
+	return entity_id
 
 
 
@@ -2635,7 +2729,16 @@ func _add_unit(team: String, kind: String, position: Vector3) -> String:
 		"order": "idle",
 		"health": definition.max_health,
 		"max_health": definition.max_health,
+		"attack_range": _effective_attack_range(team, definition),
+		"minimum_attack_range": float(definition.minimum_attack_range),
+		"attack_damage": float(definition.attack_damage),
+		"projectile_mode": str(definition.projectile_mode),
 		"vision_range": _effective_vision_range(team, definition),
+		"under_fire": false,
+		"under_fire_until_tick": -1,
+		"last_damage_attacker_id": "",
+		"last_damage_attacker_kind": "",
+		"last_damage_was_splash": false,
 		"cooldown": 0.0,
 		"supply_state": "connected",
 		"supply_reason": "Initial deployment",
@@ -2677,6 +2780,11 @@ func _add_building(team: String, kind: String, position: Vector3, under_construc
 		"health": definition.max_health,
 		"max_health": definition.max_health,
 		"vision_range": definition.vision_range,
+		"under_fire": false,
+		"under_fire_until_tick": -1,
+		"last_damage_attacker_id": "",
+		"last_damage_attacker_kind": "",
+		"last_damage_was_splash": false,
 		"complete": complete,
 		"construction_progress": 1.0 if complete else 0.0,
 		"queue": [],
@@ -2789,7 +2897,69 @@ func _emit_event(event_type: String, payload: Dictionary) -> void:
 	event["event_type"] = event_type
 	event["tick"] = current_tick
 	event["sequence"] = _event_sequence
+	_record_match_stat(event_type, event)
+	if event_type == "MatchWon" or event_type == "MatchLost":
+		match_result_payload = event.duplicate(true)
 	event_history.append(event)
 	if event_history.size() > 100:
 		event_history.pop_front()
 	simulation_event.emit(event_type, event)
+
+
+func _new_match_stats() -> Dictionary:
+	return {
+		"player_credits_from_collectors": 0.0,
+		"player_credits_from_territory": 0.0,
+		"player_units_produced": 0,
+		"enemy_units_produced": 0,
+		"player_units_lost": 0,
+		"enemy_units_lost": 0,
+		"player_buildings_lost": 0,
+		"enemy_buildings_lost": 0,
+		"player_damage_dealt": 0.0,
+		"enemy_damage_dealt": 0.0,
+		"player_territory_captures": 0,
+		"enemy_territory_captures": 0,
+	}
+
+
+func _record_match_stat(event_type: String, event: Dictionary) -> void:
+	if match_stats.is_empty():
+		match_stats = _new_match_stats()
+	match event_type:
+		"ResourceDelivered":
+			if str(event.get("team", "")) == "player":
+				match_stats["player_credits_from_collectors"] = float(match_stats["player_credits_from_collectors"]) + float(event.get("amount", 0.0))
+		"ResourceChanged":
+			if str(event.get("team", "")) == "player":
+				match_stats["player_credits_from_territory"] = float(match_stats["player_credits_from_territory"]) + float(event.get("amount", 0.0))
+		"ProductionCompleted":
+			var production_team := str(event.get("team", ""))
+			if production_team == "player":
+				match_stats["player_units_produced"] = int(match_stats["player_units_produced"]) + 1
+			elif production_team == "enemy":
+				match_stats["enemy_units_produced"] = int(match_stats["enemy_units_produced"]) + 1
+		"UnitDestroyed":
+			var lost_unit_team := str(event.get("team", ""))
+			if lost_unit_team == "player":
+				match_stats["player_units_lost"] = int(match_stats["player_units_lost"]) + 1
+			elif lost_unit_team == "enemy":
+				match_stats["enemy_units_lost"] = int(match_stats["enemy_units_lost"]) + 1
+		"BuildingDestroyed":
+			var lost_building_team := str(event.get("team", ""))
+			if lost_building_team == "player":
+				match_stats["player_buildings_lost"] = int(match_stats["player_buildings_lost"]) + 1
+			elif lost_building_team == "enemy":
+				match_stats["enemy_buildings_lost"] = int(match_stats["enemy_buildings_lost"]) + 1
+		"UnitDamaged", "BuildingDamaged":
+			var attacking_team := str(event.get("attacker_team", ""))
+			if attacking_team == "player":
+				match_stats["player_damage_dealt"] = float(match_stats["player_damage_dealt"]) + float(event.get("damage", 0.0))
+			elif attacking_team == "enemy":
+				match_stats["enemy_damage_dealt"] = float(match_stats["enemy_damage_dealt"]) + float(event.get("damage", 0.0))
+		"TerritoryCaptured":
+			var capturing_team := str(event.get("team", ""))
+			if capturing_team == "player":
+				match_stats["player_territory_captures"] = int(match_stats["player_territory_captures"]) + 1
+			elif capturing_team == "enemy":
+				match_stats["enemy_territory_captures"] = int(match_stats["enemy_territory_captures"]) + 1

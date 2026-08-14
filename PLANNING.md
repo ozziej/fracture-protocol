@@ -20,6 +20,7 @@ The current Godot 4 prototype has a playable local skirmish foundation:
 - Shift-right-click appends serialisable movement waypoints, while `P` patrols between the current position and a chosen destination.
 - Control groups with keyboard focus support, plus visible destination markers and order labels for selected units.
 - Damage events now produce procedural combat tracers, impact flashes, damage readouts, and destruction bursts without requiring final assets.
+- Launcher volleys now emit explicit source/target threat warnings; selected combat units show their effective attack ring and Bulwarks expose their minimum-range dead zone. Damaged entities retain an under-fire marker, splash/source receipt, and response guidance for spreading out, retreating, repairing, flanking, and reinforcing.
 - A connected supply network that begins at the Command Hub and can extend through completed Forward Relays and owned control points.
 - Unsupplied units receive a readable warning plus reduced movement speed and combat damage until they reconnect.
 - Automated verification for movement, supply loss and recovery, relay construction, territory capture, production completion, combat damage, technology gating, and repair orders.

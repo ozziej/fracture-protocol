@@ -35,7 +35,8 @@ static func sync(parent: Node3D, state: Dictionary, selected_ids: Array, unit_vi
 	for point_id in state["control_points"]:
 		if not control_views.has(point_id):
 			control_views[point_id] = create_control_view(parent, state["control_points"][point_id])
-		update_control_view(control_views[point_id], state["control_points"][point_id], objective_target_point_ids)
+		var objective_player_nearby := _player_near_objective(state, state["control_points"][point_id])
+		update_control_view(control_views[point_id], state["control_points"][point_id], objective_target_point_ids, objective_player_nearby)
 	for node_id in state["resource_nodes"]:
 		if not resource_views.has(node_id):
 			var resource_view = ResourceViewScript.new()
@@ -110,6 +111,29 @@ static func create_control_view(parent: Node3D, point: Dictionary) -> Node3D:
 	objective_marker.no_depth_test = true
 	objective_marker.visible = false
 	root.add_child(objective_marker)
+	var objective_proximity_ring := MeshInstance3D.new()
+	objective_proximity_ring.name = "ObjectiveProximityRing"
+	var objective_proximity_mesh := TorusMesh.new()
+	objective_proximity_mesh.inner_radius = float(point["radius"]) + 0.8
+	objective_proximity_mesh.outer_radius = float(point["radius"]) + 1.15
+	objective_proximity_mesh.rings = 40
+	objective_proximity_mesh.ring_segments = 8
+	objective_proximity_ring.mesh = objective_proximity_mesh
+	objective_proximity_ring.position.y = 0.24
+	objective_proximity_ring.material_override = _emissive_material(Color("#ffd36a"), 1.8)
+	objective_proximity_ring.visible = false
+	root.add_child(objective_proximity_ring)
+	var objective_proximity_marker := Label3D.new()
+	objective_proximity_marker.name = "ObjectiveProximityMarker"
+	objective_proximity_marker.text = "▼  OBJECTIVE HERE"
+	objective_proximity_marker.position.y = 8.0
+	objective_proximity_marker.font_size = 32
+	objective_proximity_marker.outline_size = 9
+	objective_proximity_marker.modulate = Color("#fff0a4")
+	objective_proximity_marker.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	objective_proximity_marker.no_depth_test = true
+	objective_proximity_marker.visible = false
+	root.add_child(objective_proximity_marker)
 
 	if point["id"] == "central_relay":
 		var halo := MeshInstance3D.new()
@@ -154,9 +178,14 @@ static func create_control_view(parent: Node3D, point: Dictionary) -> Node3D:
 	return root
 
 
-static func update_control_view(view: Node3D, point: Dictionary, objective_target_point_ids: Variant) -> void:
+static func update_control_view(view: Node3D, point: Dictionary, objective_target_point_ids: Variant, objective_player_nearby := false) -> void:
 	var visibility_state := str(point.get("visibility_state", "visible"))
-	view.visible = visibility_state != "hidden"
+	var is_objective := false
+	if objective_target_point_ids is Array:
+		is_objective = str(point["id"]) in objective_target_point_ids
+	else:
+		is_objective = str(point["id"]) == str(objective_target_point_ids)
+	view.visible = visibility_state != "hidden" or is_objective
 	if not view.visible:
 		return
 	var color := Color("#7f8d95")
@@ -180,15 +209,17 @@ static func update_control_view(view: Node3D, point: Dictionary, objective_targe
 		staging_light.light_color = color.lightened(0.15)
 	var objective_beam := view.get_node_or_null("ObjectiveBeam") as MeshInstance3D
 	var objective_marker := view.get_node_or_null("ObjectiveMarker") as Label3D
-	var is_objective := false
-	if objective_target_point_ids is Array:
-		is_objective = str(point["id"]) in objective_target_point_ids
-	else:
-		is_objective = str(point["id"]) == str(objective_target_point_ids)
+	var objective_proximity_ring := view.get_node_or_null("ObjectiveProximityRing") as MeshInstance3D
+	var objective_proximity_marker := view.get_node_or_null("ObjectiveProximityMarker") as Label3D
 	if objective_beam:
 		objective_beam.visible = is_objective
+		objective_beam.scale = Vector3.ONE * (1.25 if is_objective and objective_player_nearby else 1.0)
 	if objective_marker:
 		objective_marker.visible = is_objective
+	if objective_proximity_ring:
+		objective_proximity_ring.visible = is_objective and objective_player_nearby
+	if objective_proximity_marker:
+		objective_proximity_marker.visible = is_objective and objective_player_nearby
 	var core := view.get_node_or_null("RelayCore") as MeshInstance3D
 	var halo := view.get_node_or_null("RelayHalo") as MeshInstance3D
 	if core:
@@ -208,6 +239,16 @@ static func update_control_view(view: Node3D, point: Dictionary, objective_targe
 	if staging_active:
 		label.text += "\nONLINE — REPAIR / RALLY"
 	label.modulate = color.lightened(0.35)
+
+
+static func _player_near_objective(state: Dictionary, point: Dictionary) -> bool:
+	var point_position: Vector3 = point["position"]
+	var proximity_radius: float = float(point.get("radius", 4.5)) + 10.0
+	for unit_id in state.get("units", {}):
+		var unit: Dictionary = state["units"][unit_id]
+		if str(unit.get("team", "")) == "player" and unit["position"].distance_to(point_position) <= proximity_radius:
+			return true
+	return false
 
 
 static func _material(color: Color, roughness: float, metallic: float) -> StandardMaterial3D:

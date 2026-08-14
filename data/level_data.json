@@ -52,6 +52,10 @@
     "hold_network": {
       "display_name": "HOLD THE NETWORK",
       "message": "Secure the forward site, defend the relay network, and engage forces that threaten it."
+    },
+    "sever_network": {
+      "display_name": "SEVER PLAYER NETWORK",
+      "message": "Contest Central Relay and break the connected forward network before it can stabilize."
     }
   },
   "base_maps": {

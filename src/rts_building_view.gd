@@ -14,6 +14,7 @@ var antenna_mesh: MeshInstance3D
 var rally_marker: MeshInstance3D
 var selection_disc: MeshInstance3D
 var target_flash_disc: MeshInstance3D
+var under_fire_ring: MeshInstance3D
 var repair_zone: MeshInstance3D
 var repair_zone_ring: MeshInstance3D
 var visual_body_height := 0.0
@@ -21,6 +22,7 @@ var visual_antenna_height := 0.0
 var health_back: MeshInstance3D
 var health_front: MeshInstance3D
 var name_label: Label3D
+var under_fire_marker: Label3D
 var status_billboard: Node3D
 var asset_visual: Node3D
 var asset_variant := ""
@@ -41,6 +43,11 @@ func sync(data: Dictionary, selected: bool) -> void:
 	global_position = data["position"]
 	_sync_status_billboard()
 	selection_disc.visible = selected
+	var under_fire := bool(data.get("under_fire", false))
+	if under_fire_ring:
+		under_fire_ring.visible = under_fire
+	if under_fire_marker:
+		under_fire_marker.visible = under_fire
 	if repair_zone:
 		var zone_visible := repair_radius > 0.0 and team == "player" and bool(data.get("complete", false))
 		repair_zone.visible = zone_visible
@@ -79,6 +86,8 @@ func sync(data: Dictionary, selected: bool) -> void:
 		var research_total: float = max(0.1, float(data.get("research_total", 0.0)))
 		var research_progress: float = clamp(1.0 - float(data.get("research_remaining", 0.0)) / research_total, 0.0, 1.0)
 		label_text += "\nRESEARCH %s %d%%" % [research_id.replace("_", "-").to_upper(), int(research_progress * 100.0)]
+	if under_fire:
+		label_text += "\n! UNDER FIRE"
 	name_label.text = label_text
 
 
@@ -215,6 +224,19 @@ func _build_visuals() -> void:
 	target_flash_disc.visible = false
 	add_child(target_flash_disc)
 
+	var threat_disc := TorusMesh.new()
+	threat_disc.inner_radius = max(body_size.x, body_size.z) * 0.76
+	threat_disc.outer_radius = max(body_size.x, body_size.z) * 0.86
+	threat_disc.rings = 40
+	threat_disc.ring_segments = 8
+	under_fire_ring = MeshInstance3D.new()
+	under_fire_ring.name = "UnderFire"
+	under_fire_ring.mesh = threat_disc
+	under_fire_ring.material_override = _material(Color(1.0, 0.28, 0.24, 0.9))
+	under_fire_ring.position.y = 0.1
+	under_fire_ring.visible = false
+	add_child(under_fire_ring)
+
 	if kind == "assembly_bay":
 		var rally_mesh := CylinderMesh.new()
 		rally_mesh.top_radius = 0.82
@@ -249,6 +271,18 @@ func _build_visuals() -> void:
 	name_label.billboard = BaseMaterial3D.BILLBOARD_DISABLED
 	name_label.no_depth_test = true
 	status_billboard.add_child(name_label)
+	under_fire_marker = Label3D.new()
+	under_fire_marker.name = "UnderFireMarker"
+	under_fire_marker.text = "! UNDER FIRE"
+	under_fire_marker.position = Vector3(0.0, body_size.y + 3.45, 0.0)
+	under_fire_marker.font_size = 30
+	under_fire_marker.modulate = Color("#ff7b86")
+	under_fire_marker.outline_size = 8
+	under_fire_marker.outline_modulate = Color(0.01, 0.02, 0.04, 0.92)
+	under_fire_marker.billboard = BaseMaterial3D.BILLBOARD_DISABLED
+	under_fire_marker.no_depth_test = true
+	under_fire_marker.visible = false
+	status_billboard.add_child(under_fire_marker)
 
 
 func _sync_status_billboard() -> void:

@@ -11,6 +11,9 @@ var kind := ""
 var body_mesh: MeshInstance3D
 var selection_disc: MeshInstance3D
 var target_flash_disc: MeshInstance3D
+var attack_range_ring: MeshInstance3D
+var minimum_range_ring: MeshInstance3D
+var under_fire_ring: MeshInstance3D
 var order_line: MeshInstance3D
 var order_target: MeshInstance3D
 var health_back: MeshInstance3D
@@ -18,6 +21,7 @@ var health_front: MeshInstance3D
 var cargo_back: MeshInstance3D
 var cargo_front: MeshInstance3D
 var name_label: Label3D
+var under_fire_marker: Label3D
 var status_billboard: Node3D
 var asset_visual: Node3D
 var team_marker: MeshInstance3D
@@ -52,6 +56,20 @@ func sync(data: Dictionary, selected: bool, frame_delta: float = 0.0) -> void:
 	_sync_status_billboard()
 	last_authoritative_position = desired_position
 	selection_disc.visible = selected
+	var attack_range := float(data.get("attack_range", 0.0))
+	var minimum_attack_range := float(data.get("minimum_attack_range", 0.0))
+	var show_attack_range := selected and team == "player" and kind != "collector" and attack_range > 0.0
+	if attack_range_ring:
+		attack_range_ring.visible = show_attack_range
+		attack_range_ring.scale = Vector3.ONE * max(0.1, attack_range)
+	if minimum_range_ring:
+		minimum_range_ring.visible = show_attack_range and minimum_attack_range > 0.0
+		minimum_range_ring.scale = Vector3.ONE * max(0.1, minimum_attack_range)
+	var under_fire := bool(data.get("under_fire", false))
+	if under_fire_ring:
+		under_fire_ring.visible = under_fire
+	if under_fire_marker:
+		under_fire_marker.visible = under_fire
 	var health_ratio: float = clamp(float(data["health"]) / max(1.0, float(data["max_health"])), 0.0, 1.0)
 	_set_progress_bar(health_front, health_ratio, 1.58, 1.42)
 	if cargo_front and cargo_back:
@@ -70,6 +88,8 @@ func sync(data: Dictionary, selected: bool, frame_delta: float = 0.0) -> void:
 		label_text += "\nQUEUE " + str(queued_waypoint_count)
 	if supply_state == "unsupplied":
 		label_text += "\n! UNSUPPLIED"
+	if under_fire:
+		label_text += "\n! UNDER FIRE"
 	var collector_state: String = str(data.get("collector_state", ""))
 	if not collector_state.is_empty():
 		var collector_route_label := collector_state.replace("_", "-").to_upper()
@@ -231,6 +251,45 @@ func _build_visuals() -> void:
 	target_flash_disc.visible = false
 	add_child(target_flash_disc)
 
+	var range_disc := TorusMesh.new()
+	range_disc.inner_radius = 0.98
+	range_disc.outer_radius = 1.03
+	range_disc.rings = 48
+	range_disc.ring_segments = 8
+	attack_range_ring = MeshInstance3D.new()
+	attack_range_ring.name = "AttackRange"
+	attack_range_ring.mesh = range_disc
+	attack_range_ring.material_override = _material(Color(0.98, 0.72, 0.28, 0.28))
+	attack_range_ring.position.y = 0.065
+	attack_range_ring.visible = false
+	add_child(attack_range_ring)
+
+	var minimum_disc := TorusMesh.new()
+	minimum_disc.inner_radius = 0.98
+	minimum_disc.outer_radius = 1.04
+	minimum_disc.rings = 48
+	minimum_disc.ring_segments = 8
+	minimum_range_ring = MeshInstance3D.new()
+	minimum_range_ring.name = "MinimumAttackRange"
+	minimum_range_ring.mesh = minimum_disc
+	minimum_range_ring.material_override = _material(Color(1.0, 0.35, 0.30, 0.48))
+	minimum_range_ring.position.y = 0.07
+	minimum_range_ring.visible = false
+	add_child(minimum_range_ring)
+
+	var threat_disc := TorusMesh.new()
+	threat_disc.inner_radius = 1.03
+	threat_disc.outer_radius = 1.18
+	threat_disc.rings = 28
+	threat_disc.ring_segments = 8
+	under_fire_ring = MeshInstance3D.new()
+	under_fire_ring.name = "UnderFire"
+	under_fire_ring.mesh = threat_disc
+	under_fire_ring.material_override = _material(Color(1.0, 0.28, 0.24, 0.9))
+	under_fire_ring.position.y = 0.1
+	under_fire_ring.visible = false
+	add_child(under_fire_ring)
+
 	var order_beam := BoxMesh.new()
 	order_beam.size = Vector3(0.09, 0.04, 1.0)
 	order_line = MeshInstance3D.new()
@@ -279,6 +338,18 @@ func _build_visuals() -> void:
 	name_label.billboard = BaseMaterial3D.BILLBOARD_DISABLED
 	name_label.no_depth_test = true
 	status_billboard.add_child(name_label)
+	under_fire_marker = Label3D.new()
+	under_fire_marker.name = "UnderFireMarker"
+	under_fire_marker.text = "! UNDER FIRE"
+	under_fire_marker.position = Vector3(0.0, definition_height + 1.08, 0.0)
+	under_fire_marker.font_size = 28
+	under_fire_marker.modulate = Color("#ff7b86")
+	under_fire_marker.outline_size = 8
+	under_fire_marker.outline_modulate = Color(0.01, 0.02, 0.04, 0.92)
+	under_fire_marker.billboard = BaseMaterial3D.BILLBOARD_DISABLED
+	under_fire_marker.no_depth_test = true
+	under_fire_marker.visible = false
+	status_billboard.add_child(under_fire_marker)
 
 
 func _sync_status_billboard() -> void:

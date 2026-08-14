@@ -27,8 +27,8 @@ func _initialize() -> void:
 		failures.append("skirmish settings should apply the requested AI intent")
 	if simulation.get_skirmish_map_catalog().size() != 2:
 		failures.append("skirmish catalog should expose both authored maps")
-	if simulation.get_skirmish_scenarios_for_map("relay_crossroads").size() != 1:
-		failures.append("network hold should be available on Relay Crossroads")
+	if simulation.get_skirmish_scenarios_for_map("relay_crossroads").size() != 2:
+		failures.append("both authored network scenarios should be available on Relay Crossroads")
 	var initial_scenario: Dictionary = simulation.get_scenario_state("player")
 	if not bool(initial_scenario.get("active", false)) or int(initial_scenario.get("hold_ticks", 0)) != 900:
 		failures.append("network hold should expose its active 90-second objective")

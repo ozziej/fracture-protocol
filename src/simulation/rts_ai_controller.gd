@@ -125,7 +125,10 @@ func update() -> void:
 
 
 func _refresh_policy(requested_difficulty := "", requested_intent := "") -> void:
-	var resolved: Dictionary = AiProfileScript.resolve(simulation.level_definition, requested_difficulty, requested_intent)
+	var effective_intent := requested_intent
+	if effective_intent.is_empty() and simulation.get_match_mode() == "skirmish":
+		effective_intent = simulation.get_scenario_default_ai_intent()
+	var resolved: Dictionary = AiProfileScript.resolve(simulation.level_definition, requested_difficulty, effective_intent)
 	profile = resolved.get("profile", {}).duplicate(true)
 	difficulty_id = str(resolved.get("difficulty", "standard"))
 	intent_id = str(resolved.get("intent", "secure_then_assault"))
@@ -136,6 +139,13 @@ func _refresh_policy(requested_difficulty := "", requested_intent := "") -> void
 		var network_points: Array = simulation.get_scenario_state("enemy").get("required_point_ids", [])
 		if network_points.size() > 1:
 			target_point_id = str(network_points[network_points.size() - 1])
+	if intent_id == "sever_network" and simulation.get_match_mode() == "skirmish":
+		var scenario_state: Dictionary = simulation.get_scenario_state("enemy")
+		target_point_id = str(scenario_state.get("key_point_id", "central_relay"))
+		if target_point_id.is_empty():
+			var protected_points: Array = scenario_state.get("required_point_ids", [])
+			if not protected_points.is_empty():
+				target_point_id = str(protected_points[0])
 	map_tactic_id = str(resolved.get("map_tactic_id", "relay_first"))
 	map_tactic_display_name = str(resolved.get("map_tactic_display_name", map_tactic_id.replace("_", " ").to_upper()))
 	map_tactic_message = str(resolved.get("map_tactic_message", "Secure the authored forward network before the main assault."))
@@ -317,7 +327,7 @@ func _phase_display_name(value: String) -> String:
 
 
 func _intent_requires_staging() -> bool:
-	return intent_id == "secure_then_assault" or intent_id == "hold_network"
+	return intent_id == "secure_then_assault" or intent_id == "hold_network" or intent_id == "sever_network"
 
 
 func _has_enemy_unit_near_position(position: Vector3, radius: float) -> bool:
@@ -495,7 +505,7 @@ func _manage_combat() -> void:
 		return
 	if _intent_requires_staging() and not target_point_id.is_empty() and simulation.control_points.has(target_point_id) and not simulation._is_forward_staging_active("enemy", target_point_id) and not immediate_hq_threat:
 		return
-	if intent_id == "hold_network" and not immediate_hq_threat:
+	if (intent_id == "hold_network" or intent_id == "sever_network") and not immediate_hq_threat:
 		var network_target := _nearest_player_unit_to(simulation.control_points[target_point_id]["position"] if simulation.control_points.has(target_point_id) else simulation.buildings[enemy_hq]["position"])
 		if network_target.is_empty():
 			return
@@ -531,7 +541,7 @@ func _select_attack_target(player_hq: String, enemy_hq: String) -> String:
 		var raid_target := _nearest_player_economic_target(simulation.buildings[enemy_hq]["position"])
 		if not raid_target.is_empty():
 			return raid_target
-	if intent_id == "hold_network" and not target_point_id.is_empty() and simulation.control_points.has(target_point_id):
+	if (intent_id == "hold_network" or intent_id == "sever_network") and not target_point_id.is_empty() and simulation.control_points.has(target_point_id):
 		var network_target := _nearest_player_unit_to(simulation.control_points[target_point_id]["position"])
 		if not network_target.is_empty():
 			return network_target

@@ -136,18 +136,30 @@ stateless with respect to campaign saves. Map and scenario choices come from
 the simulation catalog, and AI difficulty/intent are passed into the existing
 AI profile/controller boundary rather than being special-cased in the UI.
 
-The first scenario is `network_hold`: the player must own and maintain active,
-connected staging at Central Relay and West Crossing for 900 fixed ticks
-(90 seconds). The enemy uses the mirrored Central Relay and East Crossing
-requirements. Losing a required point resets that side's hold progress. The
-normal Command Hub victory condition remains active in parallel, so a skirmish
-can still end immediately through HQ destruction.
+The skirmish catalog includes `network_hold` and `network_sever`. `network_hold`
+requires each side to own and maintain its authored connected relay chain for
+900 fixed ticks (90 seconds); losing a required point resets that side's hold
+progress. `network_sever` is asymmetric: the player builds a connected Central
+Relay + East Network chain, accumulates 900 online ticks without losing prior
+progress, and must recover within 150 continuous offline ticks after the chain
+has first armed. Its AI intent targets Central Relay using the normal staging,
+capture, production, and combat rules. The normal Command Hub victory
+condition remains active in parallel, so either skirmish can still end
+immediately through HQ destruction.
 
 Scenario state is included in the simulation snapshot for HUD and replay/test
 consumers. Objective markers are represented as an array of point IDs so the
-world view and minimap can highlight every required site. Match result UI is
-event-driven and offers Rematch or Return to Deployment; neither action grants
-or removes campaign progress.
+world view and minimap can highlight every required site. The tactical HUD
+uses high-contrast objective rings, proximity markers, and a blocking mission
+briefing modal at deployment so the player receives the objective before the
+simulation starts. Combat readability follows the same presentation boundary:
+launcher volleys emit source/target threat events, damage events carry attacker
+and splash metadata, and selected combat units render their effective range
+(including the Bulwark minimum-range dead zone). Units and structures retain a
+short-lived under-fire state so the world view and HUD can tell the player when
+to spread out, flank, retreat to repair, or reinforce from production. Match
+result UI is event-driven and offers Rematch or Return to Deployment; neither
+action grants or removes campaign progress.
 
 ## Extension rules
 

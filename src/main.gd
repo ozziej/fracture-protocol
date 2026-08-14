@@ -56,8 +56,10 @@ var collector_assignment_unit_id := ""
 var credits_label: Label
 var territory_label: Label
 var supply_label: Label
-var technology_label: Label
 var force_label: Label
+var match_context_label: Label
+var match_time_label: Label
+var top_status_icons: Dictionary = {}
 var selected_label: Label
 var selected_icon: Control
 var selected_info_panel: PanelContainer
@@ -65,6 +67,10 @@ var objective_label: Label
 var scenario_progress_label: Label
 var status_label: Label
 var event_log_label: Label
+var combat_alert_panel: PanelContainer
+var combat_alert_label: Label
+var combat_alert_remaining := 0.0
+var damage_feedback_last_tick: Dictionary = {}
 var build_button: Button
 var queue_button: Button
 var heavy_queue_button: Button
@@ -97,9 +103,16 @@ var result_overlay: ColorRect
 var result_panel: PanelContainer
 var result_title_label: Label
 var result_detail_label: Label
+var result_summary_label: Label
 var rematch_button: Button
 var return_deployment_button: Button
 var result_visible := false
+var objective_briefing_overlay: ColorRect
+var objective_briefing_panel: PanelContainer
+var objective_briefing_title_label: Label
+var objective_briefing_body_label: Label
+var objective_briefing_acknowledge_button: Button
+var objective_briefing_visible := false
 var combat_effect_sequence := 0
 var combat_effects
 var objective_target_point_id := ""
@@ -136,7 +149,11 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_process_camera_input(delta)
-	if not start_menu_visible:
+	if combat_alert_remaining > 0.0:
+		combat_alert_remaining = max(0.0, combat_alert_remaining - delta)
+		if combat_alert_remaining <= 0.0 and combat_alert_panel:
+			combat_alert_panel.visible = false
+	if not start_menu_visible and not objective_briefing_visible:
 		simulation.step(delta)
 	_sync_views(delta)
 	_update_camera()
@@ -333,10 +350,15 @@ func _build_ui() -> void:
 	var title := _label("FRACTURE PROTOCOL", 21, Color("#d6fbff"))
 	title.custom_minimum_size.x = 235.0
 	top_row.add_child(title)
-	var top_hint := _label("LIVE TACTICAL FEED", 10, Color(0.58, 0.78, 0.82, 0.78))
-	top_hint.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	top_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	top_row.add_child(top_hint)
+	match_context_label = _label("DEPLOYMENT  //  CAMPAIGN", 10, Color(0.58, 0.78, 0.82, 0.78))
+	match_context_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	match_context_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	match_context_label.clip_text = true
+	top_row.add_child(match_context_label)
+	match_time_label = _label("TIME 00:00", 11, Color("#ffd36a"))
+	match_time_label.custom_minimum_size.x = 82.0
+	match_time_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	top_row.add_child(match_time_label)
 
 	var top_stats_scroll := ScrollContainer.new()
 	top_stats_scroll.name = "TopStatsScroll"
@@ -351,15 +373,16 @@ func _build_ui() -> void:
 	top_stats_row.add_theme_constant_override("separation", 7)
 	top_stats_scroll.add_child(top_stats_row)
 	credits_label = _label("CREDITS 850", 13, Color("#ffd36a"))
-	top_stats_row.add_child(_create_status_chip("CreditsChip", credits_label, 128.0, Color("#ffd36a")))
+	top_stats_row.add_child(_create_status_chip("CreditsChip", credits_label, 128.0, Color("#ffd36a"), "resource"))
 	territory_label = _label("TERRITORY 0/3", 13, Color("#8cebf3"))
-	top_stats_row.add_child(_create_status_chip("TerritoryChip", territory_label, 166.0, Color("#8cebf3")))
+	territory_label.custom_minimum_size.x = 168.0
+	var territory_chip := _create_status_chip("TerritoryChip", territory_label, 222.0, Color("#8cebf3"), "forward_relay")
+	territory_label.clip_text = false
+	top_stats_row.add_child(territory_chip)
 	supply_label = _label("SUPPLY CONNECTED", 13, Color("#7cf1ad"))
-	top_stats_row.add_child(_create_status_chip("SupplyChip", supply_label, 184.0, Color("#7cf1ad")))
-	technology_label = _label("TECH LOCKED", 13, Color("#ffbf6a"))
-	top_stats_row.add_child(_create_status_chip("TechnologyChip", technology_label, 246.0, Color("#ffbf6a")))
+	top_stats_row.add_child(_create_status_chip("SupplyChip", supply_label, 184.0, Color("#7cf1ad"), "route"))
 	force_label = _label("FORCE 4/24", 13, Color("#c3d8df"))
-	top_stats_row.add_child(_create_status_chip("ForceChip", force_label, 128.0, Color("#c3d8df")))
+	top_stats_row.add_child(_create_status_chip("ForceChip", force_label, 128.0, Color("#c3d8df"), "mixed"))
 
 	objective_label = _label("OBJECTIVE", 15, Color("#ffd36a"))
 	objective_label.set_anchors_preset(Control.PRESET_TOP_WIDE)
@@ -402,6 +425,7 @@ func _build_ui() -> void:
 	event_log_label.add_theme_constant_override("shadow_offset_x", 2)
 	event_log_label.add_theme_constant_override("shadow_offset_y", 2)
 	root.add_child(event_log_label)
+	_build_combat_alert(root)
 
 	bottom_panel = PanelContainer.new()
 	bottom_panel.name = "ContextActionPanel"
@@ -535,6 +559,34 @@ func _build_ui() -> void:
 	root.add_child(selection_marquee)
 	_build_campaign_start_menu(root)
 	_build_match_result_overlay(root)
+	_build_objective_briefing(root)
+
+
+func _build_combat_alert(root: Control) -> void:
+	combat_alert_panel = PanelContainer.new()
+	combat_alert_panel.name = "CombatAlertPanel"
+	combat_alert_panel.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	combat_alert_panel.offset_left = -478.0
+	combat_alert_panel.offset_right = -22.0
+	combat_alert_panel.offset_top = 207.0
+	combat_alert_panel.offset_bottom = 267.0
+	combat_alert_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	combat_alert_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.18, 0.035, 0.055, 0.94), Color(1.0, 0.36, 0.32, 0.9)))
+	combat_alert_label = _label("THREAT WARNING", 13, Color("#fff0d0"))
+	combat_alert_label.name = "CombatAlertLabel"
+	combat_alert_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	combat_alert_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	combat_alert_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 12)
+	margin.add_theme_constant_override("margin_right", 12)
+	margin.add_theme_constant_override("margin_top", 5)
+	margin.add_theme_constant_override("margin_bottom", 5)
+	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	margin.add_child(combat_alert_label)
+	combat_alert_panel.add_child(margin)
+	root.add_child(combat_alert_panel)
+	combat_alert_panel.visible = false
 
 
 func _build_campaign_start_menu(root: Control) -> void:
@@ -723,13 +775,20 @@ func _refresh_skirmish_intents() -> void:
 		return
 	skirmish_intent_option.clear()
 	var intents: Array = simulation.get_ai_intent_catalog()
+	var selected_scenario_id := _option_metadata(skirmish_scenario_option)
+	var scenario_default_intent := "secure_then_assault"
+	for scenario in simulation.get_skirmish_scenario_catalog():
+		var definition: Dictionary = scenario
+		if str(definition.get("id", "")) == selected_scenario_id:
+			scenario_default_intent = str(definition.get("default_ai_intent", scenario_default_intent))
+			break
 	var selected_index := 0
 	for intent_index in range(intents.size()):
 		var intent: Dictionary = intents[intent_index]
 		var intent_id := str(intent.get("id", ""))
 		skirmish_intent_option.add_item(str(intent.get("display_name", intent_id.replace("_", " ").to_upper())))
 		skirmish_intent_option.set_item_metadata(intent_index, intent_id)
-		if intent_id == "secure_then_assault":
+		if intent_id == scenario_default_intent:
 			selected_index = intent_index
 	if not intents.is_empty():
 		skirmish_intent_option.select(selected_index)
@@ -740,13 +799,17 @@ func _on_skirmish_map_selected(_index: int) -> void:
 
 
 func _on_skirmish_scenario_selected(_index: int) -> void:
-	if not skirmish_briefing_label or not simulation:
+	if not simulation:
+		return
+	_refresh_skirmish_intents()
+	if not skirmish_briefing_label:
 		return
 	var scenario_id := _option_metadata(skirmish_scenario_option)
 	for scenario in simulation.get_skirmish_scenario_catalog():
 		var definition: Dictionary = scenario
 		if str(definition.get("id", "")) == scenario_id:
-			skirmish_briefing_label.text = "%s\n%s" % [str(definition.get("description", "")), str(definition.get("player_objective", ""))]
+			var briefing := str(definition.get("briefing_message", definition.get("description", "")))
+			skirmish_briefing_label.text = "%s\n%s" % [briefing, str(definition.get("player_objective", ""))]
 			return
 
 
@@ -781,8 +844,11 @@ func _build_match_result_overlay(root: Control) -> void:
 	root.add_child(result_overlay)
 	result_panel = PanelContainer.new()
 	result_panel.name = "MatchResultPanel"
-	result_panel.position = Vector2(315.0, 170.0)
-	result_panel.size = Vector2(650.0, 350.0)
+	result_panel.set_anchors_preset(Control.PRESET_CENTER)
+	result_panel.offset_left = -330.0
+	result_panel.offset_right = 330.0
+	result_panel.offset_top = -235.0
+	result_panel.offset_bottom = 235.0
 	result_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.025, 0.075, 0.1, 0.99), Color(0.96, 0.68, 0.28, 0.85)))
 	result_overlay.add_child(result_panel)
 	var margin := MarginContainer.new()
@@ -800,8 +866,13 @@ func _build_match_result_overlay(root: Control) -> void:
 	result_detail_label = _label("", 14, Color("#c3d8df"))
 	result_detail_label.name = "ResultDetail"
 	result_detail_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	result_detail_label.custom_minimum_size = Vector2(0.0, 112.0)
+	result_detail_label.custom_minimum_size = Vector2(0.0, 74.0)
 	column.add_child(result_detail_label)
+	result_summary_label = _label("", 13, Color("#d6fbff"))
+	result_summary_label.name = "ResultSummary"
+	result_summary_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	result_summary_label.custom_minimum_size = Vector2(0.0, 148.0)
+	column.add_child(result_summary_label)
 	var buttons := HBoxContainer.new()
 	buttons.add_theme_constant_override("separation", 10)
 	column.add_child(buttons)
@@ -819,9 +890,101 @@ func _build_match_result_overlay(root: Control) -> void:
 	buttons.add_child(return_deployment_button)
 
 
+func _build_objective_briefing(root: Control) -> void:
+	objective_briefing_overlay = ColorRect.new()
+	objective_briefing_overlay.name = "ObjectiveBriefingOverlay"
+	objective_briefing_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	objective_briefing_overlay.color = Color(0.008, 0.025, 0.04, 0.78)
+	objective_briefing_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	root.add_child(objective_briefing_overlay)
+
+	objective_briefing_panel = PanelContainer.new()
+	objective_briefing_panel.name = "ObjectiveBriefingPanel"
+	objective_briefing_panel.set_anchors_preset(Control.PRESET_CENTER)
+	objective_briefing_panel.offset_left = -350.0
+	objective_briefing_panel.offset_right = 350.0
+	objective_briefing_panel.offset_top = -215.0
+	objective_briefing_panel.offset_bottom = 215.0
+	objective_briefing_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.025, 0.075, 0.1, 0.99), Color(0.96, 0.68, 0.28, 0.9)))
+	objective_briefing_overlay.add_child(objective_briefing_panel)
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 28)
+	margin.add_theme_constant_override("margin_right", 28)
+	margin.add_theme_constant_override("margin_top", 24)
+	margin.add_theme_constant_override("margin_bottom", 24)
+	objective_briefing_panel.add_child(margin)
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 10)
+	margin.add_child(column)
+	objective_briefing_title_label = _label("MISSION BRIEFING", 24, Color("#ffd36a"))
+	objective_briefing_title_label.name = "ObjectiveBriefingTitle"
+	column.add_child(objective_briefing_title_label)
+	var rule := HSeparator.new()
+	column.add_child(rule)
+	objective_briefing_body_label = _label("", 15, Color("#d6fbff"))
+	objective_briefing_body_label.name = "ObjectiveBriefingBody"
+	objective_briefing_body_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	objective_briefing_body_label.custom_minimum_size = Vector2(0.0, 270.0)
+	column.add_child(objective_briefing_body_label)
+	objective_briefing_acknowledge_button = Button.new()
+	objective_briefing_acknowledge_button.name = "ObjectiveBriefingAcknowledgeButton"
+	objective_briefing_acknowledge_button.text = "UNDERSTOOD — BEGIN OPERATIONS"
+	objective_briefing_acknowledge_button.custom_minimum_size = Vector2(0.0, 48.0)
+	objective_briefing_acknowledge_button.pressed.connect(_hide_objective_briefing)
+	column.add_child(objective_briefing_acknowledge_button)
+	objective_briefing_overlay.visible = false
+
+
+func _show_objective_briefing() -> void:
+	if not objective_briefing_overlay or not simulation:
+		return
+	var lines: PackedStringArray = []
+	if simulation.get_match_mode() == "skirmish":
+		var scenario: Dictionary = simulation.get_scenario_state("player")
+		var scenario_name := str(scenario.get("display_name", "SKIRMISH")).to_upper()
+		objective_briefing_title_label.text = "MISSION BRIEFING  //  %s" % scenario_name
+		lines.append("PRIMARY OBJECTIVE")
+		lines.append(str(scenario.get("objective_text", "Complete the authored skirmish objective.")))
+		lines.append("")
+		lines.append(str(scenario.get("briefing_message", scenario.get("description", ""))))
+		var required_names: Array = scenario.get("required_point_names", [])
+		if not required_names.is_empty():
+			lines.append("")
+			lines.append("OBJECTIVE SITES  //  %s" % "  +  ".join(PackedStringArray(required_names)))
+		lines.append("")
+		if str(scenario.get("objective_type", "")) == "defend_network":
+			lines.append("Defence progress is cumulative while the chain is online. If NETWORK SEVERED appears, restore the marked sites before the failure timer expires.")
+		else:
+			lines.append("Keep the marked sites connected and watch the objective progress bar for interruptions.")
+	else:
+		objective_briefing_title_label.text = "MISSION BRIEFING  //  %s" % simulation.get_level_display_name().to_upper()
+		lines.append("PRIMARY OBJECTIVE")
+		lines.append(simulation.get_level_briefing())
+		var objective_text: Dictionary = simulation.get_level_objective_text()
+		var first_action := str(objective_text.get("build_processor", "Follow the objective bar and yellow markers to establish your forward network."))
+		lines.append("")
+		lines.append("FIRST ACTION")
+		lines.append(first_action)
+		lines.append("")
+		lines.append("The objective bar, yellow tactical-map circles, and world markers will guide you through the next step.")
+	objective_briefing_body_label.text = "\n".join(lines)
+	objective_briefing_visible = true
+	objective_briefing_overlay.visible = true
+	objective_briefing_acknowledge_button.grab_focus()
+
+
+func _hide_objective_briefing() -> void:
+	objective_briefing_visible = false
+	if objective_briefing_overlay:
+		objective_briefing_overlay.visible = false
+	if status_label and simulation and not simulation.match_over:
+		status_label.text = "Orders are live — follow the objective markers."
+
+
 func _show_match_result(event_type: String, payload: Dictionary) -> void:
 	if not result_overlay or not result_title_label or not result_detail_label:
 		return
+	_hide_objective_briefing()
 	result_visible = true
 	result_overlay.visible = true
 	var won := event_type == "MatchWon"
@@ -832,14 +995,26 @@ func _show_match_result(event_type: String, payload: Dictionary) -> void:
 	detail_lines.append("%s  //  %s" % [mode_text, simulation.get_level_display_name()])
 	if simulation.get_match_mode() == "skirmish":
 		var scenario: Dictionary = simulation.get_scenario_state("player")
-		var progress_ticks := int(scenario.get("progress_ticks", 0))
-		var hold_ticks: int = max(1, int(scenario.get("hold_ticks", 1)))
-		detail_lines.append("%s — %ds / %ds" % [str(scenario.get("display_name", "SKIRMISH")), int(progress_ticks * simulation.TICK_SECONDS), int(hold_ticks * simulation.TICK_SECONDS)])
+		var progress_seconds := float(scenario.get("progress_seconds", 0.0))
+		var target_seconds := float(scenario.get("target_seconds", scenario.get("hold_ticks", 1) * simulation.TICK_SECONDS))
+		if str(scenario.get("objective_type", "")) == "defend_network":
+			detail_lines.append("NETWORK DEFENCE — %s / %s" % [_format_duration(progress_seconds), _format_duration(target_seconds)])
+			if bool(scenario.get("network_online", false)):
+				detail_lines.append("NETWORK STATUS — ONLINE")
+			else:
+				detail_lines.append("NETWORK STATUS — SEVERED   SEVER TIMER %s / %s" % [
+					_format_duration(float(scenario.get("disruption_seconds", 0.0))),
+					_format_duration(float(scenario.get("sever_seconds", 0.0))),
+				])
+		else:
+			detail_lines.append("%s — %ds / %ds" % [str(scenario.get("display_name", "SKIRMISH")), int(progress_seconds), int(target_seconds)])
 		detail_lines.append(str(scenario.get("objective_text", "")))
 		detail_lines.append(str(payload.get("message", "Match complete.")))
 	else:
 		detail_lines.append(str(payload.get("message", "Match complete.")))
 	result_detail_label.text = "\n".join(detail_lines)
+	if result_summary_label:
+		result_summary_label.text = _format_match_summary(simulation.get_match_summary())
 
 
 func _hide_match_result() -> void:
@@ -1074,7 +1249,12 @@ func _target_detail(data: Dictionary) -> String:
 	if data.has("kind") and simulation.unit_definitions.has(str(data["kind"])):
 		var definition = simulation.unit_definitions[str(data["kind"])]
 		var range_value: float = simulation.get_effective_attack_range(str(data.get("team", "enemy")), str(data["kind"]))
-		return "TARGET %s\n%s   DMG %d   RANGE %.1f" % [str(data.get("display_name", data.get("kind", "UNIT"))).to_upper(), health_text, int(definition.attack_damage), range_value]
+		var counterplay := ""
+		if str(data.get("team", "")) == "enemy" and str(data.get("kind", "")) == "bulwark":
+			counterplay = "\nCOUNTERPLAY  RUSH INSIDE %.1f OR FLANK  ·  KEEP FORCE SPREAD" % float(data.get("minimum_attack_range", definition.minimum_attack_range))
+		elif str(data.get("team", "")) == "enemy":
+			counterplay = "\nCOUNTERPLAY  FOCUS FIRE  ·  RETREAT DAMAGED UNITS TO REPAIR"
+		return "TARGET %s\n%s   DMG %d   RANGE %.1f%s" % [str(data.get("display_name", data.get("kind", "UNIT"))).to_upper(), health_text, int(definition.attack_damage), range_value, counterplay]
 	return "TARGET %s\n%s   STRUCTURE" % [str(data.get("display_name", data.get("kind", "BUILDING"))).to_upper(), health_text]
 
 
@@ -1562,6 +1742,7 @@ func _clear_match_views() -> void:
 
 func _restart_match() -> void:
 	_hide_match_result()
+	_hide_objective_briefing()
 	_cancel_build_mode()
 	_cancel_collector_assignment(false)
 	attack_move_mode = false
@@ -1573,6 +1754,7 @@ func _restart_match() -> void:
 	objective_target_point_ids = []
 	control_groups.clear()
 	event_log_label.text = "EVENT LOG\nAwaiting orders..."
+	_clear_combat_feedback()
 	status_label.modulate = Color("#c3d8df")
 	camera_yaw = 0.0
 	_clear_match_views()
@@ -1581,6 +1763,7 @@ func _restart_match() -> void:
 	_update_selected_visuals()
 	_sync_views()
 	_update_hud()
+	_show_objective_briefing()
 
 
 func _load_campaign_level(level_id: String) -> void:
@@ -1597,6 +1780,7 @@ func _load_campaign_level(level_id: String) -> void:
 	objective_target_point_id = ""
 	objective_target_point_ids = []
 	control_groups.clear()
+	_clear_combat_feedback()
 	_clear_match_views()
 	simulation.start_match(level_id, "", {"mode": "campaign"})
 	_set_deployment_mode("campaign")
@@ -1610,6 +1794,7 @@ func _load_campaign_level(level_id: String) -> void:
 	_update_selected_visuals()
 	_sync_views()
 	_update_hud()
+	_show_objective_briefing()
 
 
 func _load_skirmish_match(level_id: String, settings: Dictionary) -> void:
@@ -1624,6 +1809,7 @@ func _load_skirmish_match(level_id: String, settings: Dictionary) -> void:
 	objective_target_point_id = ""
 	objective_target_point_ids = []
 	control_groups.clear()
+	_clear_combat_feedback()
 	_clear_match_views()
 	simulation.start_match(level_id, "", settings)
 	_set_deployment_mode("skirmish")
@@ -1637,10 +1823,13 @@ func _load_skirmish_match(level_id: String, settings: Dictionary) -> void:
 	_update_selected_visuals()
 	_sync_views()
 	_update_hud()
+	_show_objective_briefing()
 
 
 func _set_start_menu_visible(visible: bool) -> void:
 	start_menu_visible = visible
+	if visible:
+		_hide_objective_briefing()
 	if start_menu_overlay:
 		start_menu_overlay.visible = visible
 	if start_menu_panel:
@@ -1781,6 +1970,23 @@ func _update_scenario_progress_hud() -> void:
 			scenario_progress_label.text = ""
 		return
 	var scenario: Dictionary = simulation.get_scenario_state("player")
+	if str(scenario.get("objective_type", "")) == "defend_network":
+		var defence_seconds := float(scenario.get("progress_seconds", 0.0))
+		var target_seconds := float(scenario.get("target_seconds", 90.0))
+		var sever_seconds := float(scenario.get("disruption_seconds", 0.0))
+		var sever_limit_seconds := float(scenario.get("sever_seconds", 15.0))
+		if bool(scenario.get("network_online", false)):
+			scenario_progress_label.text = "NETWORK ONLINE  ·  DEFENCE %s / %s" % [_format_duration(defence_seconds), _format_duration(target_seconds)]
+			scenario_progress_label.modulate = Color("#7cf1ad")
+		else:
+			scenario_progress_label.text = "NETWORK SEVERED  ·  DEFENCE %s / %s  ·  SEVER TIMER %s / %s" % [
+				_format_duration(defence_seconds),
+				_format_duration(target_seconds),
+				_format_duration(sever_seconds),
+				_format_duration(sever_limit_seconds),
+			]
+			scenario_progress_label.modulate = Color("#ff7b86")
+		return
 	var progress_seconds := int(float(scenario.get("progress_seconds", 0.0)))
 	var hold_seconds := int(float(scenario.get("hold_ticks", 900)) * simulation.TICK_SECONDS)
 	var minutes := int(progress_seconds / 60)
@@ -1797,9 +2003,22 @@ func _update_hud() -> void:
 		return
 	_update_objective()
 	_update_scenario_progress_hud()
+	if match_context_label:
+		var mode_text := "SKIRMISH" if simulation.get_match_mode() == "skirmish" else "CAMPAIGN"
+		var context_text := mode_text
+		if simulation.get_match_mode() == "skirmish":
+			var scenario: Dictionary = simulation.get_scenario_state("player")
+			context_text += "  //  " + str(scenario.get("display_name", "NETWORK HOLD")).to_upper()
+		else:
+			context_text += "  //  " + simulation.get_level_display_name().to_upper()
+		match_context_label.text = context_text
+		match_context_label.tooltip_text = "Current deployment: %s" % context_text
+	if match_time_label:
+		match_time_label.text = "TIME %s" % _format_duration(float(simulation.current_tick) * simulation.TICK_SECONDS)
 	credits_label.text = "CREDITS %03d" % int(simulation.player_credits)
+	credits_label.tooltip_text = "Available credits. Collector deliveries and connected territory add to this total."
 	var territory: Dictionary = simulation.get_territory_summary()
-	territory_label.text = "TERRITORY %d/%d  +%dC/S" % [territory["player"], territory["total"], int(territory.get("player_income_per_second", 0.0))]
+	territory_label.text = "TERRITORY %d/%d  ·  +%d C/S" % [territory["player"], territory["total"], int(territory.get("player_income_per_second", 0.0))]
 	territory_label.tooltip_text = _territory_tooltip(territory)
 	var supply: Dictionary = simulation.get_supply_summary("player")
 	var unsupplied_units: int = int(supply["unsupplied_units"])
@@ -1807,27 +2026,19 @@ func _update_hud() -> void:
 	if unsupplied_units > 0:
 		supply_state = "%d UNSUPPLIED" % unsupplied_units
 	supply_label.text = "SUPPLY %s" % supply_state
-	supply_label.modulate = Color("#ffbf6a") if unsupplied_units > 0 else Color("#7cf1ad")
+	var supply_accent := Color("#ffbf6a") if unsupplied_units > 0 else Color("#7cf1ad")
+	supply_label.modulate = supply_accent
+	if top_status_icons.has("SupplyChip"):
+		top_status_icons["SupplyChip"].set_icon("route", supply_accent)
 	supply_label.tooltip_text = "Connected units are within the Hub, Relay, or connected forward-base network. Unsupplied units move and fire at reduced effectiveness."
 	var limits: Dictionary = simulation.get_limit_summary("player")
 	var unit_limits: Dictionary = limits["units"]
-	force_label.text = "FORCE %d/%d" % [int(unit_limits["current"]) + int(unit_limits["queued"]), int(unit_limits["max"])]
-	force_label.modulate = Color("#ff7b86") if int(unit_limits["current"]) + int(unit_limits["queued"]) >= int(unit_limits["max"]) else Color("#c3d8df")
-	var research_status: Dictionary = simulation.get_research_status("player")
-	var targeting_online: bool = simulation.is_technology_unlocked("player", "advanced_targeting")
-	var active_research_id: String = str(research_status.get("active_id", ""))
-	if targeting_online:
-		technology_label.text = "TECH TARGETING +18% R / +15% V"
-		technology_label.tooltip_text = "Advanced Targeting: weapon range +18%, vision range +15%, and Bulwark production unlocked."
-		technology_label.modulate = Color("#7cf1ad")
-	elif not active_research_id.is_empty():
-		var research_total: float = max(0.1, float(research_status.get("total", 0.0)))
-		var research_progress: int = int(clamp(1.0 - float(research_status.get("remaining", 0.0)) / research_total, 0.0, 1.0) * 100.0)
-		technology_label.text = "TECH %d%%" % research_progress
-		technology_label.modulate = Color("#ffd36a")
-	else:
-		technology_label.text = "TECH LOCKED"
-		technology_label.modulate = Color("#ffbf6a")
+	var force_total := int(unit_limits["current"]) + int(unit_limits["queued"])
+	force_label.text = "FORCE %d/%d" % [force_total, int(unit_limits["max"])]
+	var force_accent := Color("#ff7b86") if force_total >= int(unit_limits["max"]) else Color("#c3d8df")
+	force_label.modulate = force_accent
+	if top_status_icons.has("ForceChip"):
+		top_status_icons["ForceChip"].set_icon("mixed", force_accent)
 	if mission_one_button:
 		mission_one_button.disabled = false
 	if mission_two_button:
@@ -1894,6 +2105,52 @@ func _territory_tooltip(territory: Dictionary) -> String:
 		lines.append("Active staging sites: %d — forward rally support available" % staging_sites)
 	if lines.size() == 1:
 		lines.append("Capture a point to unlock its authored strategic role.")
+	return "\n".join(lines)
+
+
+func _format_duration(seconds: float) -> String:
+	var total_seconds: int = maxi(0, int(floor(seconds)))
+	return "%02d:%02d" % [int(total_seconds / 60), total_seconds % 60]
+
+
+func _format_match_summary(summary: Dictionary) -> String:
+	var collector_income := int(round(float(summary.get("player_credits_from_collectors", 0.0))))
+	var territory_income := int(round(float(summary.get("player_credits_from_territory", 0.0))))
+	var total_income := collector_income + territory_income
+	var lines: PackedStringArray = []
+	lines.append("MATCH TIME %s    TERRITORY %d/%d" % [
+		_format_duration(float(summary.get("duration_seconds", 0.0))),
+		int(summary.get("player_territory", 0)),
+		int(summary.get("territory_total", 0)),
+	])
+	lines.append("INCOME +%d C    FIELD DELIVERED %d C    TERRITORY +%d C/S" % [
+		total_income,
+		collector_income,
+		int(round(float(summary.get("player_income_per_second", 0.0)))),
+	])
+	lines.append("FORCE LOST %d    ENEMY LOST %d    FORCE NOW %d/%d" % [
+		int(summary.get("player_units_lost", 0)),
+		int(summary.get("enemy_units_lost", 0)),
+		int(summary.get("player_current_force", 0)),
+		int(summary.get("player_max_force", 0)),
+	])
+	lines.append("PRODUCTION %d FRIENDLY / %d ENEMY    DAMAGE DEALT %d" % [
+		int(summary.get("player_units_produced", 0)),
+		int(summary.get("enemy_units_produced", 0)),
+		int(round(float(summary.get("player_damage_dealt", 0.0)))),
+	])
+	if str(summary.get("scenario_objective_type", "")) == "defend_network":
+		lines.append("NETWORK DEFENCE %s / %s    SEVER TIMER %s / %s" % [
+			_format_duration(float(summary.get("scenario_progress_seconds", 0.0))),
+			_format_duration(float(summary.get("scenario_target_seconds", 0.0))),
+			_format_duration(float(summary.get("scenario_disruption_seconds", 0.0))),
+			_format_duration(float(summary.get("scenario_sever_seconds", 0.0))),
+		])
+	elif float(summary.get("scenario_hold_seconds", 0.0)) > 0.0:
+		lines.append("NETWORK HOLD %s / %s" % [
+			_format_duration(float(summary.get("scenario_progress_seconds", 0.0))),
+			_format_duration(float(summary.get("scenario_hold_seconds", 0.0))),
+		])
 	return "\n".join(lines)
 
 
@@ -2354,9 +2611,12 @@ func _selection_detail(data: Dictionary) -> String:
 			role_hint = str(tags[0])
 			if tags.size() > 1:
 				role_hint += " · " + str(tags[1])
-		var effective_range: float = simulation.get_effective_attack_range(str(data.get("team", "player")), str(data["kind"]))
-		var targeting_text := "  TARGETING +18%%" if simulation.is_technology_unlocked(str(data.get("team", "player")), "advanced_targeting") else ""
-		role_text = "\nROLE %s  DMG %d  RANGE %.1f  ARM %d%s" % [role_hint, int(selected_definition.attack_damage), effective_range, int(selected_definition.armour), targeting_text]
+			var effective_range: float = simulation.get_effective_attack_range(str(data.get("team", "player")), str(data["kind"]))
+			var targeting_text := "  TARGETING +18%%" if simulation.is_technology_unlocked(str(data.get("team", "player")), "advanced_targeting") else ""
+			role_text = "\nROLE %s  DMG %d  RANGE %.1f  ARM %d%s" % [role_hint, int(selected_definition.attack_damage), effective_range, int(selected_definition.armour), targeting_text]
+			var guidance := _selection_guidance(data)
+			if not guidance.is_empty():
+				role_text += "\nGUIDANCE  " + guidance
 		var waypoint_count: int = data.get("command_waypoints", []).size()
 		if waypoint_count > 0:
 			force_text += "   WAYPOINTS %d" % waypoint_count
@@ -2443,9 +2703,25 @@ func _selection_card_text(data: Dictionary) -> String:
 		state = "ORDER " + str(data.get("order", "awaiting")).to_upper()
 		if not str(data.get("collector_state", "")).is_empty():
 			state = str(data.get("collector_state", "")).replace("_", " ").to_upper()
+	var guidance := _selection_guidance(data)
+	if not guidance.is_empty():
+		state = guidance
 	if selected_ids.size() > 1:
 		return "%s\nHP %d/%d\n%s" % [display_name, health, maximum, _selection_composition()]
 	return "%s\nHP %d/%d\n%s" % [display_name, health, maximum, state]
+
+
+func _selection_guidance(data: Dictionary) -> String:
+	if bool(data.get("under_fire", false)):
+		return "UNDER FIRE — RETREAT / REPAIR"
+	var health_ratio: float = float(data.get("health", 0.0)) / max(1.0, float(data.get("max_health", 1.0)))
+	if health_ratio < 0.72 and data.has("order"):
+		if simulation.get_repair_station_id("player", data.get("position", Vector3.ZERO)).is_empty():
+			return "DAMAGED — MOVE TO GREEN REPAIR CIRCLE"
+		return "DAMAGED — PRESS Y TO REPAIR"
+	if str(data.get("kind", "")) == "bulwark":
+		return "SIEGE — HOLD RANGE / FLANK LAUNCHERS"
+	return ""
 
 
 func _selection_title() -> String:
@@ -2481,18 +2757,103 @@ func _selection_composition() -> String:
 		parts.append("%s %d" % [display_name, int(counts[display_name])])
 	return " · ".join(parts)
 
+
+func _clear_combat_feedback() -> void:
+	damage_feedback_last_tick.clear()
+	combat_alert_remaining = 0.0
+	if combat_alert_panel:
+		combat_alert_panel.visible = false
+
+
+func _show_combat_alert(title: String, message: String, accent: Color) -> void:
+	if not combat_alert_panel or not combat_alert_label:
+		return
+	combat_alert_label.text = "%s\n%s" % [title, message]
+	combat_alert_label.modulate = Color("#fff0d0")
+	combat_alert_panel.add_theme_stylebox_override("panel", _panel_style(Color(accent.r * 0.22, accent.g * 0.16, accent.b * 0.18, 0.96), Color(accent.r, accent.g, accent.b, 0.92)))
+	combat_alert_panel.visible = true
+	combat_alert_remaining = 3.6
+
+
+func _append_event_log(message: String, tick := -1) -> void:
+	if message.is_empty() or not event_log_label:
+		return
+	var lines: PackedStringArray = event_log_label.text.split("\n")
+	var event_tick := int(simulation.current_tick) if tick < 0 and simulation else tick
+	lines.append("[%03d] %s" % [event_tick, message])
+	while lines.size() > 5:
+		lines.remove_at(0)
+	event_log_label.text = "EVENT LOG\n" + "\n".join(lines.slice(1))
+
+
+func _feedback_entity_name(payload: Dictionary, prefix: String, fallback: String) -> String:
+	var display_name := str(payload.get("%s_display_name" % prefix, ""))
+	if not display_name.is_empty():
+		return display_name
+	var kind := str(payload.get("%s_kind" % prefix, ""))
+	if not kind.is_empty():
+		if simulation and simulation.unit_definitions.has(kind):
+			return str(simulation.unit_definitions[kind].display_name)
+		if simulation and simulation.building_definitions.has(kind):
+			return str(simulation.building_definitions[kind].display_name)
+	return fallback
+
+
+func _combat_feedback_message(event_type: String, payload: Dictionary) -> String:
+	if event_type != "UnitDamaged" and event_type != "BuildingDamaged":
+		return ""
+	if str(payload.get("team", "")) != "player" or str(payload.get("attacker_team", "")) != "enemy":
+		return ""
+	var target_id := str(payload.get("target_id", payload.get("building_id", "")))
+	var last_tick := int(damage_feedback_last_tick.get(target_id, -1000))
+	var event_tick := int(payload.get("tick", simulation.current_tick if simulation else 0))
+	if event_tick - last_tick < 12:
+		return ""
+	damage_feedback_last_tick[target_id] = event_tick
+	var attacker_name := _feedback_entity_name(payload, "attacker", "Enemy weapon")
+	var target_name := _feedback_entity_name(payload, "target", "Friendly unit")
+	var splash_text := " — SPLASH" if bool(payload.get("is_splash", false)) else ""
+	var health_ratio: float = float(payload.get("health", 0.0)) / max(1.0, float(payload.get("max_health", 1.0)))
+	var response := "RETREAT / REPAIR" if health_ratio <= 0.45 else "SPREAD OUT / BREAK CONTACT"
+	var prefix := "BASE UNDER FIRE" if event_type == "BuildingDamaged" else "UNDER FIRE"
+	return "%s — %s hit %s for %d HP%s. %s." % [prefix, attacker_name, target_name, int(round(float(payload.get("damage", 0.0)))), splash_text, response]
+
+
 func _on_simulation_event(event_type: String, payload: Dictionary) -> void:
 	if combat_effects:
 		combat_effects.present(self, simulation, event_type, payload)
 	if not status_label or not event_log_label:
 		return
 	var feedback_message: String = str(payload.get("message", payload.get("reason", "")))
+	if event_type == "LauncherThreatWarning":
+		feedback_message = str(payload.get("message", "ENEMY LAUNCHER FIRE — spread out, flank, or break its range."))
+		status_label.text = "THREAT WARNING — %s" % feedback_message
+		status_label.modulate = Color("#ff7b86")
+		_show_combat_alert("LAUNCHER THREAT", feedback_message, Color("#ff7b86"))
+		_append_event_log(feedback_message, int(payload.get("tick", simulation.current_tick)))
+		return
 	if event_type == "AIIntentDeclared" or event_type == "AIPhaseChanged" or event_type == "AIPostureChanged":
 		if not feedback_message.is_empty():
 			status_label.text = "OPPONENT INTEL — %s" % feedback_message
 		return
 	if not _is_player_event(event_type, payload):
 		return
+	var combat_message := _combat_feedback_message(event_type, payload)
+	if not combat_message.is_empty():
+		feedback_message = combat_message
+		status_label.text = feedback_message
+		status_label.modulate = Color("#ff7b86")
+		_show_combat_alert("COMBAT WARNING", feedback_message, Color("#ff7b86"))
+	elif event_type == "UnitDestroyed" and str(payload.get("team", "")) == "player":
+		feedback_message = "UNIT LOST — %s Reinforce from an Assembly Bay; pull damaged survivors back to repair." % feedback_message
+		status_label.text = feedback_message
+		status_label.modulate = Color("#ffbf6a")
+		_show_combat_alert("FORCE DEPLETED", feedback_message, Color("#ffbf6a"))
+	elif event_type == "BuildingDestroyed" and str(payload.get("team", "")) == "player":
+		feedback_message = "STRUCTURE LOST — %s Rebuild the supply or production link before committing another push." % feedback_message
+		status_label.text = feedback_message
+		status_label.modulate = Color("#ff7b86")
+		_show_combat_alert("LOGISTICS WARNING", feedback_message, Color("#ff7b86"))
 	if not feedback_message.is_empty():
 		status_label.text = feedback_message
 	if event_type == "MatchWon" or event_type == "MatchLost":
@@ -2503,12 +2864,7 @@ func _on_simulation_event(event_type: String, payload: Dictionary) -> void:
 		var unlocked_id: String = campaign_progress.mark_complete(simulation.get_level_id())
 		if not unlocked_id.is_empty():
 			status_label.text = "LEVEL COMPLETE — Level 2 unlocked. Press F2 to deploy."
-	var lines: PackedStringArray = event_log_label.text.split("\n")
-	if not feedback_message.is_empty():
-		lines.append("[%03d] %s" % [int(payload.get("tick", 0)), feedback_message])
-	while lines.size() > 5:
-		lines.remove_at(0)
-	event_log_label.text = "EVENT LOG\n" + "\n".join(lines.slice(1))
+	_append_event_log(feedback_message, int(payload.get("tick", simulation.current_tick)))
 
 
 func _is_player_event(event_type: String, payload: Dictionary) -> bool:
@@ -2516,6 +2872,8 @@ func _is_player_event(event_type: String, payload: Dictionary) -> bool:
 		return true
 	if payload.has("attacker_team"):
 		return str(payload.get("team", "")) == "player" or str(payload.get("attacker_team", "")) == "player"
+	if payload.has("target_team"):
+		return str(payload.get("target_team", "")) == "player"
 	if payload.has("team"):
 		return str(payload.get("team", "")) == "player"
 	return event_type == "MatchStarted" or event_type == "MatchWon" or event_type == "MatchLost"
@@ -2542,9 +2900,11 @@ func _pointer_over_ui() -> bool:
 
 
 func _is_dialog_open() -> bool:
-	if start_menu_visible or result_visible:
+	if start_menu_visible or result_visible or objective_briefing_visible:
 		return true
 	if start_menu_overlay and start_menu_overlay.visible:
+		return true
+	if objective_briefing_overlay and objective_briefing_overlay.visible:
 		return true
 	return result_overlay != null and result_overlay.visible
 
@@ -2592,15 +2952,29 @@ func _card_style(background: Color, border: Color) -> StyleBoxFlat:
 	return style
 
 
-func _create_status_chip(chip_name: String, label: Label, minimum_width: float, accent: Color) -> PanelContainer:
+func _create_status_chip(chip_name: String, label: Label, minimum_width: float, accent: Color, icon_key := "") -> PanelContainer:
 	var chip := PanelContainer.new()
 	chip.name = chip_name
 	chip.custom_minimum_size = Vector2(minimum_width, 32.0)
 	chip.add_theme_stylebox_override("panel", _card_style(Color(0.035, 0.105, 0.13, 0.92), Color(accent.r, accent.g, accent.b, 0.42)))
+	var content := HBoxContainer.new()
+	content.name = "StatusContent"
+	content.add_theme_constant_override("separation", 6)
+	content.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	chip.add_child(content)
+	if not str(icon_key).is_empty():
+		var icon := HudIconScript.new()
+		icon.name = "%sIcon" % chip_name
+		icon.custom_minimum_size = Vector2(28.0, 24.0)
+		icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		icon.set_icon(str(icon_key), accent)
+		content.add_child(icon)
+		top_status_icons[chip_name] = icon
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	label.clip_text = true
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	chip.add_child(label)
+	content.add_child(label)
 	return chip
 
 

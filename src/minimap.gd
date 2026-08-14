@@ -3,6 +3,8 @@ extends Control
 
 signal world_position_clicked(world_position: Vector3)
 
+const OBJECTIVE_HIGHLIGHT_RADIUS := 12.0
+
 var snapshot: Dictionary = {}
 var map_bounds := Rect2(-60.0, -40.0, 120.0, 80.0)
 var selected_ids: Array = []
@@ -58,9 +60,12 @@ func _draw() -> void:
 	draw_line(Vector2(map_rect.position.x, map_rect.get_center().y), Vector2(map_rect.end.x, map_rect.get_center().y), Color(0.15, 0.3, 0.32, 0.5), 1.0)
 	draw_line(Vector2(map_rect.get_center().x, map_rect.position.y), Vector2(map_rect.get_center().x, map_rect.end.y), Color(0.15, 0.3, 0.32, 0.5), 1.0)
 	draw_string(ThemeDB.fallback_font, Vector2(10.0, 16.0), "TACTICAL MAP", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(0.61, 0.87, 0.91, 1.0))
+	if not objective_target_point_ids.is_empty():
+		draw_string(ThemeDB.fallback_font, Vector2(max(96.0, size.x - 96.0), 16.0), "OBJECTIVES", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color("#ffd36a"))
 
 	if snapshot.is_empty():
 		return
+	_draw_fog_overlay(map_rect)
 	for resource_id in snapshot.get("resource_nodes", {}):
 		var resource: Dictionary = snapshot["resource_nodes"][resource_id]
 		if str(resource.get("visibility_state", "visible")) == "hidden":
@@ -73,7 +78,8 @@ func _draw() -> void:
 			draw_arc(resource_position, 7.0, 0.0, TAU, 18, Color("#fff0a4"), 1.8)
 	for point_id in snapshot.get("control_points", {}):
 		var point: Dictionary = snapshot["control_points"][point_id]
-		if str(point.get("visibility_state", "visible")) == "hidden":
+		var is_objective := str(point_id) in objective_target_point_ids
+		if str(point.get("visibility_state", "visible")) == "hidden" and not is_objective:
 			continue
 		var point_color := Color(0.7, 0.75, 0.78, 1.0)
 		if point["owner"] == "player":
@@ -81,6 +87,12 @@ func _draw() -> void:
 		elif point["owner"] == "enemy":
 			point_color = Color(0.95, 0.28, 0.37, 1.0)
 		var point_position := _map_point(point["position"], map_rect)
+		var objective_halo_radius := 0.0
+		if is_objective:
+			var pulse := 0.5 + sin(float(Time.get_ticks_msec()) * 0.004) * 0.5
+			objective_halo_radius = OBJECTIVE_HIGHLIGHT_RADIUS + pulse * 2.0
+			draw_circle(point_position, objective_halo_radius, Color(1.0, 0.78, 0.22, 0.12), true)
+			draw_arc(point_position, objective_halo_radius, 0.0, TAU, 32, Color("#ffd36a"), 2.8)
 		if str(point.get("strategic_role", "")) == "network_hub":
 			var diamond := PackedVector2Array([
 				point_position + Vector2(0.0, -5.0),
@@ -93,9 +105,10 @@ func _draw() -> void:
 			draw_circle(point_position, 3.0, point_color)
 		if bool(point.get("staging_active", false)):
 			draw_arc(point_position, 5.5, 0.0, TAU, 20, point_color.lightened(0.25), 1.4)
-		if str(point_id) in objective_target_point_ids:
-			draw_arc(point_position, 8.0, 0.0, TAU, 24, Color("#ffd36a"), 2.0)
-			draw_line(point_position + Vector2(-5.0, 0.0), point_position + Vector2(5.0, 0.0), Color("#ffd36a"), 1.0)
+		if is_objective:
+			draw_arc(point_position, objective_halo_radius + 4.0, 0.0, TAU, 32, Color(1.0, 0.78, 0.22, 0.72), 1.4)
+			draw_line(point_position + Vector2(-7.0, 0.0), point_position + Vector2(7.0, 0.0), Color("#fff0a4"), 1.2)
+			draw_line(point_position + Vector2(0.0, -7.0), point_position + Vector2(0.0, 7.0), Color("#fff0a4"), 1.2)
 	for building_id in snapshot.get("buildings", {}):
 		var building: Dictionary = snapshot["buildings"][building_id]
 		var building_color := Color(0.18, 0.82, 0.93, 1.0) if building["team"] == "player" else Color(0.95, 0.28, 0.37, 1.0)
@@ -107,7 +120,6 @@ func _draw() -> void:
 		if selected_ids.has(unit_id):
 			draw_arc(_map_point(unit["position"], map_rect), 4.5, 0.0, TAU, 14, Color("#d9fbff"), 1.2)
 
-	_draw_fog_overlay(map_rect)
 	_draw_camera_view(map_rect)
 
 
