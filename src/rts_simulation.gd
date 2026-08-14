@@ -2459,6 +2459,26 @@ func _check_victory() -> void:
 		})
 
 
+func _combat_damage_multiplier(attacker_kind: String, target_kind: String) -> float:
+	# Authored counterplay keeps the three combat chassis distinct even when
+	# supply, upgrades, or splash modifiers change their raw weapon values.
+	# Wardens are the durable line vehicle, while Bulwarks are the intended
+	# answer to them and are vulnerable to direct armoured pressure themselves.
+	if target_kind == "warden":
+		if attacker_kind == "bulwark":
+			return 1.35
+		if attacker_kind == "warden":
+			return 0.55
+		return 0.35
+	if target_kind == "bulwark":
+		if attacker_kind == "warden":
+			return 1.35
+		if attacker_kind == "bulwark":
+			return 1.20
+		return 0.95
+	return 1.0
+
+
 func _apply_damage(target_id: String, damage: float, attacker_id: String, is_splash := false) -> void:
 	var attacker_position: Vector3 = _get_entity_position(attacker_id)
 	var attacker_team := _entity_team(attacker_id)
@@ -2472,7 +2492,8 @@ func _apply_damage(target_id: String, damage: float, attacker_id: String, is_spl
 		var armour_mitigation: float = armour / (armour + 24.0) if armour > 0.0 else 0.0
 		if is_splash:
 			armour_mitigation = min(0.75, armour_mitigation * 1.35)
-		var actual_damage: float = max(1.0, damage * (1.0 - armour_mitigation))
+		var matchup_multiplier := _combat_damage_multiplier(attacker_kind, str(target["kind"]))
+		var actual_damage: float = max(1.0, damage * matchup_multiplier * (1.0 - armour_mitigation))
 		target["health"] = max(0.0, float(target["health"]) - actual_damage)
 		target["under_fire"] = true
 		target["under_fire_until_tick"] = current_tick + UNDER_FIRE_FEEDBACK_TICKS

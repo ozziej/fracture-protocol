@@ -61,6 +61,9 @@ It delegates non-interactive presentation work to:
   resource labels, and resource selection feedback.
 - `presentation/rts_combat_effects.gd` for event-driven tracers, missiles,
   impact feedback, and destruction feedback.
+- `presentation/rts_audio_manager.gd` for event-driven SFX, pooled playback,
+  optional music discovery under `res://audio/music`, and pause-menu volume
+  controls. Audio remains presentation-only and never changes simulation state.
 - `presentation/rts_asset_library.gd` for the presentation-only mapping from
   simulation kinds to the Kenney-based GLB exports. Unit and building views
   retain their procedural geometry as a fallback, so an art import failure
@@ -160,6 +163,14 @@ short-lived under-fire state so the world view and HUD can tell the player when
 to spread out, flank, retreat to repair, or reinforce from production. Match
 result UI is event-driven and offers Rematch or Return to Deployment; neither
 action grants or removes campaign progress.
+
+The HUD keeps the persistent Event Log and top-left tactical status as separate
+optional layers. The former top-right combat alert was removed; an in-match
+`Escape` pause menu now halts simulation and camera edge scrolling while
+allowing either layer and contextual hints to be disabled. Command Hub context
+cards expose the existing `relay` building definition, and unit damage applies
+authored Ranger/Bulwark/Warden matchup multipliers in the shared simulation so
+the AI and player use identical counterplay rules.
 
 ## Extension rules
 

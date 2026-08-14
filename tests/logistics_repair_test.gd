@@ -37,6 +37,7 @@ func _initialize() -> void:
 		if not _has_event(simulation, "UnitRepaired", "unit_id", ranger_id):
 			failures.append("continuous unit repair should emit UnitRepaired feedback")
 
+		simulation._cancel_repair_state(simulation.units[ranger_id])
 		simulation.units[ranger_id]["health"] = 20.0
 		simulation.units[ranger_id]["position"] = hub_position
 		simulation.units[ranger_id]["target_position"] = hub_position

@@ -7,6 +7,7 @@ const MinimapScript = preload("res://src/minimap.gd")
 const CampaignProgressScript = preload("res://src/campaign_progress.gd")
 const WorldBuilderScript = preload("res://src/presentation/rts_world_builder.gd")
 const CombatEffectsScript = preload("res://src/presentation/rts_combat_effects.gd")
+const AudioManagerScript = preload("res://src/presentation/rts_audio_manager.gd")
 const WorldViewSynchronizerScript = preload("res://src/presentation/rts_world_view_synchronizer.gd")
 const FogOfWarViewScript = preload("res://src/presentation/rts_fog_of_war_view.gd")
 const HudIconScript = preload("res://src/ui/rts_hud_icon.gd")
@@ -49,6 +50,7 @@ var build_ghost: Node3D
 var build_ghost_mesh: MeshInstance3D
 var build_ghost_label: Label3D
 var build_ghost_valid := false
+var build_range_guides: Dictionary = {}
 var collector_assignment_mode := false
 var collector_assignment_source_id := ""
 var collector_assignment_unit_id := ""
@@ -67,10 +69,20 @@ var objective_label: Label
 var scenario_progress_label: Label
 var status_label: Label
 var event_log_label: Label
-var combat_alert_panel: PanelContainer
-var combat_alert_label: Label
-var combat_alert_remaining := 0.0
 var damage_feedback_last_tick: Dictionary = {}
+var pause_menu_overlay: ColorRect
+var pause_menu_panel: PanelContainer
+var pause_menu_visible := false
+var game_log_toggle: CheckButton
+var play_hints_toggle: CheckButton
+var game_log_enabled := true
+var play_hints_enabled := true
+var master_volume_slider: HSlider
+var sfx_volume_slider: HSlider
+var music_volume_slider: HSlider
+var master_volume_value_label: Label
+var sfx_volume_value_label: Label
+var music_volume_value_label: Label
 var build_button: Button
 var queue_button: Button
 var heavy_queue_button: Button
@@ -115,6 +127,7 @@ var objective_briefing_acknowledge_button: Button
 var objective_briefing_visible := false
 var combat_effect_sequence := 0
 var combat_effects
+var audio_manager
 var objective_target_point_id := ""
 var objective_target_point_ids: Array = []
 var build_source_id := ""
@@ -134,6 +147,9 @@ func _ready() -> void:
 	_build_camera()
 	campaign_progress = CampaignProgressScript.new()
 	combat_effects = CombatEffectsScript.new()
+	audio_manager = AudioManagerScript.new()
+	audio_manager.name = "AudioManager"
+	add_child(audio_manager)
 	simulation = SimulationScript.new()
 	add_child(simulation)
 	simulation.simulation_event.connect(_on_simulation_event)
@@ -149,16 +165,13 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_process_camera_input(delta)
-	if combat_alert_remaining > 0.0:
-		combat_alert_remaining = max(0.0, combat_alert_remaining - delta)
-		if combat_alert_remaining <= 0.0 and combat_alert_panel:
-			combat_alert_panel.visible = false
-	if not start_menu_visible and not objective_briefing_visible:
+	if not start_menu_visible and not objective_briefing_visible and not pause_menu_visible:
 		simulation.step(delta)
 	_sync_views(delta)
 	_update_camera()
 	_update_hud()
 	_update_build_ghost()
+	_update_build_range_guides()
 	if dragging:
 		_update_selection_marquee()
 
@@ -245,6 +258,17 @@ func _unhandled_input(event: InputEvent) -> void:
 			_issue_context_order(event.position, event.shift_pressed)
 		return
 	if event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode == KEY_ESCAPE:
+			if collector_assignment_mode or not build_mode.is_empty() or attack_move_mode or patrol_mode:
+				_cancel_build_mode()
+				_cancel_collector_assignment()
+				attack_move_mode = false
+				patrol_mode = false
+				return
+			_toggle_pause_menu()
+			return
+		if pause_menu_visible:
+			return
 		if event.keycode >= KEY_0 and event.keycode <= KEY_9:
 			_handle_control_group(event.keycode - KEY_0, event.ctrl_pressed or event.meta_pressed)
 			return
@@ -281,17 +305,9 @@ func _unhandled_input(event: InputEvent) -> void:
 				camera_yaw = clamp(camera_yaw - deg_to_rad(8.0), -0.78, 0.78)
 			KEY_H:
 				_focus_selection()
-			KEY_ESCAPE:
-				_cancel_build_mode()
-				_cancel_collector_assignment()
-				attack_move_mode = false
-				patrol_mode = false
-				selected_ids.clear()
-				selected_resource_id = ""
-				inspected_target_id = ""
-				_update_selected_visuals()
 			KEY_SPACE:
-				status_label.text = "Simulation is live — orders resolve on the fixed tick."
+				if play_hints_enabled:
+					status_label.text = "Simulation is live — orders resolve on the fixed tick."
 
 
 func _build_environment() -> void:
@@ -380,9 +396,11 @@ func _build_ui() -> void:
 	territory_label.clip_text = false
 	top_stats_row.add_child(territory_chip)
 	supply_label = _label("SUPPLY CONNECTED", 13, Color("#7cf1ad"))
-	top_stats_row.add_child(_create_status_chip("SupplyChip", supply_label, 184.0, Color("#7cf1ad"), "route"))
 	force_label = _label("FORCE 4/24", 13, Color("#c3d8df"))
 	top_stats_row.add_child(_create_status_chip("ForceChip", force_label, 128.0, Color("#c3d8df"), "mixed"))
+	# Keep the operational supply warning at the end of the row, where it can
+	# use the remaining HUD width without pushing the core economy stats away.
+	top_stats_row.add_child(_create_status_chip("SupplyChip", supply_label, 184.0, Color("#7cf1ad"), "route"))
 
 	objective_label = _label("OBJECTIVE", 15, Color("#ffd36a"))
 	objective_label.set_anchors_preset(Control.PRESET_TOP_WIDE)
@@ -425,7 +443,6 @@ func _build_ui() -> void:
 	event_log_label.add_theme_constant_override("shadow_offset_x", 2)
 	event_log_label.add_theme_constant_override("shadow_offset_y", 2)
 	root.add_child(event_log_label)
-	_build_combat_alert(root)
 
 	bottom_panel = PanelContainer.new()
 	bottom_panel.name = "ContextActionPanel"
@@ -560,33 +577,188 @@ func _build_ui() -> void:
 	_build_campaign_start_menu(root)
 	_build_match_result_overlay(root)
 	_build_objective_briefing(root)
+	_build_pause_menu(root)
+	if audio_manager:
+		audio_manager.wire_ui(self)
 
 
-func _build_combat_alert(root: Control) -> void:
-	combat_alert_panel = PanelContainer.new()
-	combat_alert_panel.name = "CombatAlertPanel"
-	combat_alert_panel.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	combat_alert_panel.offset_left = -478.0
-	combat_alert_panel.offset_right = -22.0
-	combat_alert_panel.offset_top = 207.0
-	combat_alert_panel.offset_bottom = 267.0
-	combat_alert_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	combat_alert_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.18, 0.035, 0.055, 0.94), Color(1.0, 0.36, 0.32, 0.9)))
-	combat_alert_label = _label("THREAT WARNING", 13, Color("#fff0d0"))
-	combat_alert_label.name = "CombatAlertLabel"
-	combat_alert_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	combat_alert_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	combat_alert_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+func _build_pause_menu(root: Control) -> void:
+	pause_menu_overlay = ColorRect.new()
+	pause_menu_overlay.name = "PauseMenuOverlay"
+	pause_menu_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	pause_menu_overlay.color = Color(0.008, 0.025, 0.04, 0.84)
+	pause_menu_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	root.add_child(pause_menu_overlay)
+
+	pause_menu_panel = PanelContainer.new()
+	pause_menu_panel.name = "PauseMenuPanel"
+	pause_menu_panel.set_anchors_preset(Control.PRESET_CENTER)
+	pause_menu_panel.offset_left = -250.0
+	pause_menu_panel.offset_right = 250.0
+	pause_menu_panel.offset_top = -270.0
+	pause_menu_panel.offset_bottom = 270.0
+	pause_menu_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.025, 0.075, 0.1, 0.99), Color(0.18, 0.7, 0.78, 0.9)))
+	pause_menu_overlay.add_child(pause_menu_panel)
 	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 12)
-	margin.add_theme_constant_override("margin_right", 12)
-	margin.add_theme_constant_override("margin_top", 5)
-	margin.add_theme_constant_override("margin_bottom", 5)
-	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	margin.add_child(combat_alert_label)
-	combat_alert_panel.add_child(margin)
-	root.add_child(combat_alert_panel)
-	combat_alert_panel.visible = false
+	margin.add_theme_constant_override("margin_left", 28)
+	margin.add_theme_constant_override("margin_right", 28)
+	margin.add_theme_constant_override("margin_top", 24)
+	margin.add_theme_constant_override("margin_bottom", 24)
+	pause_menu_panel.add_child(margin)
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 8)
+	margin.add_child(column)
+	var title := _label("PAUSED", 26, Color("#d6fbff"))
+	column.add_child(title)
+	var subtitle := _label("Simulation paused. Configure the information layer before resuming.", 13, Color("#c3d8df"))
+	subtitle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	column.add_child(subtitle)
+	var separator := HSeparator.new()
+	column.add_child(separator)
+	game_log_toggle = CheckButton.new()
+	game_log_toggle.name = "GameLogToggle"
+	game_log_toggle.text = "GAME LOG"
+	game_log_toggle.tooltip_text = "Show or hide the bottom-left event log."
+	game_log_toggle.button_pressed = game_log_enabled
+	game_log_toggle.toggled.connect(_on_game_log_toggled)
+	column.add_child(game_log_toggle)
+	play_hints_toggle = CheckButton.new()
+	play_hints_toggle.name = "PlayHintsToggle"
+	play_hints_toggle.text = "PLAY HINTS"
+	play_hints_toggle.tooltip_text = "Show or hide combat warnings and contextual counterplay guidance."
+	play_hints_toggle.button_pressed = play_hints_enabled
+	play_hints_toggle.toggled.connect(_on_play_hints_toggled)
+	column.add_child(play_hints_toggle)
+	var hint := _label("Hints include the top-left tactical status and selection guidance. Objective and result screens remain available.", 12, Color("#8ca9b5"))
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	column.add_child(hint)
+	var audio_separator := HSeparator.new()
+	column.add_child(audio_separator)
+	var audio_title := _label("AUDIO", 15, Color("#ffd36a"))
+	column.add_child(audio_title)
+	var master_control := _create_volume_control("MasterVolume", "MASTER", 100.0, Callable(self, "_on_master_volume_changed"))
+	master_volume_slider = master_control["slider"] as HSlider
+	master_volume_value_label = master_control["value_label"] as Label
+	column.add_child(master_control["row"])
+	var sfx_control := _create_volume_control("SfxVolume", "EFFECTS", 85.0, Callable(self, "_on_sfx_volume_changed"))
+	sfx_volume_slider = sfx_control["slider"] as HSlider
+	sfx_volume_value_label = sfx_control["value_label"] as Label
+	column.add_child(sfx_control["row"])
+	var music_control := _create_volume_control("MusicVolume", "MUSIC", 70.0, Callable(self, "_on_music_volume_changed"))
+	music_volume_slider = music_control["slider"] as HSlider
+	music_volume_value_label = music_control["value_label"] as Label
+	music_volume_slider.tooltip_text = "Music bus ready. Add tracks under res://audio/music when available."
+	column.add_child(music_control["row"])
+	var music_note := _label("Music bus ready — no music track loaded.", 11, Color("#8ca9b5"))
+	music_note.name = "MusicTrackStatus"
+	if audio_manager and audio_manager.music_track_loaded:
+		music_note.text = "Music track loaded."
+	column.add_child(music_note)
+	var resume_button := Button.new()
+	resume_button.name = "ResumeButton"
+	resume_button.text = "RESUME"
+	resume_button.custom_minimum_size = Vector2(0.0, 48.0)
+	resume_button.pressed.connect(_hide_pause_menu)
+	column.add_child(resume_button)
+	pause_menu_overlay.visible = false
+
+
+func _toggle_pause_menu() -> void:
+	if start_menu_visible or result_visible or objective_briefing_visible:
+		return
+	if pause_menu_visible:
+		_hide_pause_menu()
+	else:
+		_show_pause_menu()
+
+
+func _show_pause_menu() -> void:
+	_cancel_build_mode()
+	_cancel_collector_assignment(false)
+	attack_move_mode = false
+	patrol_mode = false
+	pause_menu_visible = true
+	if pause_menu_overlay:
+		pause_menu_overlay.visible = true
+	if game_log_toggle:
+		game_log_toggle.button_pressed = game_log_enabled
+	if play_hints_toggle:
+		play_hints_toggle.button_pressed = play_hints_enabled
+	if audio_manager:
+		if master_volume_slider:
+			master_volume_slider.value = audio_manager.master_volume * 100.0
+		if sfx_volume_slider:
+			sfx_volume_slider.value = audio_manager.sfx_volume * 100.0
+		if music_volume_slider:
+			music_volume_slider.value = audio_manager.music_volume * 100.0
+
+
+func _hide_pause_menu() -> void:
+	pause_menu_visible = false
+	if pause_menu_overlay:
+		pause_menu_overlay.visible = false
+
+
+func _on_game_log_toggled(enabled: bool) -> void:
+	game_log_enabled = enabled
+	if event_log_label:
+		event_log_label.visible = enabled
+
+
+func _on_play_hints_toggled(enabled: bool) -> void:
+	play_hints_enabled = enabled
+	if status_label:
+		status_label.visible = enabled
+	_update_hud()
+
+
+func _on_master_volume_changed(value: float) -> void:
+	if audio_manager:
+		audio_manager.set_master_volume(value / 100.0)
+	_update_volume_label(master_volume_value_label, value)
+
+
+func _on_sfx_volume_changed(value: float) -> void:
+	if audio_manager:
+		audio_manager.set_sfx_volume(value / 100.0)
+	_update_volume_label(sfx_volume_value_label, value)
+
+
+func _on_music_volume_changed(value: float) -> void:
+	if audio_manager:
+		audio_manager.set_music_volume(value / 100.0)
+	_update_volume_label(music_volume_value_label, value)
+
+
+func _update_volume_label(label: Label, value: float) -> void:
+	if label:
+		label.text = "%d%%" % int(round(value))
+
+
+func _create_volume_control(control_name: String, label_text: String, initial_value: float, callback: Callable) -> Dictionary:
+	var row := HBoxContainer.new()
+	row.name = control_name
+	row.add_theme_constant_override("separation", 8)
+	var label := _label(label_text, 12, Color("#d6fbff"))
+	label.custom_minimum_size.x = 92.0
+	row.add_child(label)
+	var slider := HSlider.new()
+	slider.name = "%sSlider" % control_name
+	slider.min_value = 0.0
+	slider.max_value = 100.0
+	slider.step = 1.0
+	slider.value = initial_value
+	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	slider.custom_minimum_size.y = 24.0
+	slider.focus_mode = Control.FOCUS_NONE
+	slider.value_changed.connect(callback)
+	row.add_child(slider)
+	var value_label := _label("%d%%" % int(initial_value), 11, Color("#ffd36a"))
+	value_label.name = "%sValue" % control_name
+	value_label.custom_minimum_size.x = 42.0
+	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	row.add_child(value_label)
+	return {"row": row, "slider": slider, "value_label": value_label}
 
 
 func _build_campaign_start_menu(root: Control) -> void:
@@ -984,6 +1156,7 @@ func _hide_objective_briefing() -> void:
 func _show_match_result(event_type: String, payload: Dictionary) -> void:
 	if not result_overlay or not result_title_label or not result_detail_label:
 		return
+	_hide_pause_menu()
 	_hide_objective_briefing()
 	result_visible = true
 	result_overlay.visible = true
@@ -1250,10 +1423,11 @@ func _target_detail(data: Dictionary) -> String:
 		var definition = simulation.unit_definitions[str(data["kind"])]
 		var range_value: float = simulation.get_effective_attack_range(str(data.get("team", "enemy")), str(data["kind"]))
 		var counterplay := ""
-		if str(data.get("team", "")) == "enemy" and str(data.get("kind", "")) == "bulwark":
-			counterplay = "\nCOUNTERPLAY  RUSH INSIDE %.1f OR FLANK  ·  KEEP FORCE SPREAD" % float(data.get("minimum_attack_range", definition.minimum_attack_range))
-		elif str(data.get("team", "")) == "enemy":
-			counterplay = "\nCOUNTERPLAY  FOCUS FIRE  ·  RETREAT DAMAGED UNITS TO REPAIR"
+		if play_hints_enabled:
+			if str(data.get("team", "")) == "enemy" and str(data.get("kind", "")) == "bulwark":
+				counterplay = "\nCOUNTERPLAY  RUSH INSIDE %.1f OR FLANK  ·  KEEP FORCE SPREAD" % float(data.get("minimum_attack_range", definition.minimum_attack_range))
+			elif str(data.get("team", "")) == "enemy":
+				counterplay = "\nCOUNTERPLAY  FOCUS FIRE  ·  RETREAT DAMAGED UNITS TO REPAIR"
 		return "TARGET %s\n%s   DMG %d   RANGE %.1f%s" % [str(data.get("display_name", data.get("kind", "UNIT"))).to_upper(), health_text, int(definition.attack_damage), range_value, counterplay]
 	return "TARGET %s\n%s   STRUCTURE" % [str(data.get("display_name", data.get("kind", "BUILDING"))).to_upper(), health_text]
 
@@ -1329,6 +1503,7 @@ func _cancel_build_mode() -> void:
 	build_mode = ""
 	build_source_id = ""
 	build_ghost_valid = false
+	_clear_build_range_guides()
 	build_ghost_mesh = null
 	build_ghost_label = null
 	if build_ghost:
@@ -1393,6 +1568,78 @@ func _update_build_ghost() -> void:
 		else:
 			build_ghost_label.text = "INVALID PLACEMENT\n%s" % str(placement.get("reason", "Cannot build here."))
 		build_ghost_label.modulate = Color("#d9fbff") if build_ghost_valid else Color("#ff9ba3")
+
+
+func _update_build_range_guides() -> void:
+	if build_mode != "relay" or simulation == null or _is_dialog_open():
+		_clear_build_range_guides()
+		return
+	var active_sources: Dictionary = {}
+	for source_id_variant in simulation._get_connected_supply_source_ids("player"):
+		var source_id := str(source_id_variant)
+		var source_position := _network_source_position(source_id)
+		if source_position == Vector3.INF:
+			continue
+		active_sources[source_id] = true
+		var guide: Node3D
+		if build_range_guides.has(source_id) and is_instance_valid(build_range_guides[source_id]):
+			guide = build_range_guides[source_id]
+		else:
+			guide = _create_build_range_guide(source_id)
+			build_range_guides[source_id] = guide
+		guide.position = Vector3(source_position.x, 0.0, source_position.z)
+		guide.visible = true
+	for source_id in build_range_guides.keys().duplicate():
+		if not active_sources.has(source_id):
+			var stale_guide: Node3D = build_range_guides[source_id]
+			if is_instance_valid(stale_guide):
+				stale_guide.queue_free()
+			build_range_guides.erase(source_id)
+
+
+func _clear_build_range_guides() -> void:
+	for guide_variant in build_range_guides.values():
+		var guide: Node3D = guide_variant
+		if is_instance_valid(guide):
+			guide.queue_free()
+	build_range_guides.clear()
+
+
+func _network_source_position(source_id: String) -> Vector3:
+	if simulation.buildings.has(source_id):
+		return simulation.buildings[source_id]["position"]
+	if simulation.control_points.has(source_id):
+		return simulation.control_points[source_id]["position"]
+	return Vector3.INF
+
+
+func _create_build_range_guide(source_id: String) -> Node3D:
+	var guide := Node3D.new()
+	guide.name = "RelayLinkRange_%s" % source_id
+	var fill_mesh := CylinderMesh.new()
+	fill_mesh.top_radius = simulation.SUPPLY_LINK_RADIUS
+	fill_mesh.bottom_radius = simulation.SUPPLY_LINK_RADIUS
+	fill_mesh.height = 0.018
+	fill_mesh.radial_segments = 96
+	var fill := MeshInstance3D.new()
+	fill.name = "LinkRangeArea"
+	fill.mesh = fill_mesh
+	fill.material_override = _material(Color(0.12, 0.82, 0.92, 0.045), 0.5, 0.05)
+	fill.position.y = 0.025
+	guide.add_child(fill)
+	var ring_mesh := TorusMesh.new()
+	ring_mesh.outer_radius = simulation.SUPPLY_LINK_RADIUS
+	ring_mesh.inner_radius = simulation.SUPPLY_LINK_RADIUS - 0.18
+	ring_mesh.rings = 96
+	ring_mesh.ring_segments = 8
+	var ring := MeshInstance3D.new()
+	ring.name = "LinkRangeRing"
+	ring.mesh = ring_mesh
+	ring.material_override = _emissive_material(Color("#52e7ef"), 1.25)
+	ring.position.y = 0.08
+	guide.add_child(ring)
+	add_child(guide)
+	return guide
 
 
 func _find_player_assembly_bay() -> String:
@@ -1631,6 +1878,8 @@ func _has_damaged_selection() -> bool:
 
 
 func _process_camera_input(delta: float) -> void:
+	if pause_menu_visible:
+		return
 	var input_vector := Vector2.ZERO
 	if Input.is_action_pressed("camera_left"):
 		input_vector.x -= 1.0
@@ -1718,10 +1967,11 @@ func _update_selected_visuals() -> void:
 	for entity_id in unit_views:
 		unit_views[entity_id].selection_disc.visible = selected_ids.has(entity_id)
 	for entity_id in building_views:
-		building_views[entity_id].selection_disc.visible = selected_ids.has(entity_id)
+		building_views[entity_id].set_selected(selected_ids.has(entity_id))
 
 
 func _clear_match_views() -> void:
+	_clear_build_range_guides()
 	for view in unit_views.values():
 		if is_instance_valid(view):
 			view.queue_free()
@@ -1741,6 +1991,7 @@ func _clear_match_views() -> void:
 
 
 func _restart_match() -> void:
+	_hide_pause_menu()
 	_hide_match_result()
 	_hide_objective_briefing()
 	_cancel_build_mode()
@@ -1770,6 +2021,7 @@ func _load_campaign_level(level_id: String) -> void:
 	if campaign_progress and not campaign_progress.is_unlocked(level_id):
 		status_label.text = "Complete Level 1 to unlock Level 2."
 		return
+	_hide_pause_menu()
 	_hide_match_result()
 	_cancel_build_mode()
 	_cancel_collector_assignment(false)
@@ -1798,6 +2050,7 @@ func _load_campaign_level(level_id: String) -> void:
 
 
 func _load_skirmish_match(level_id: String, settings: Dictionary) -> void:
+	_hide_pause_menu()
 	_hide_match_result()
 	_cancel_build_mode()
 	_cancel_collector_assignment(false)
@@ -1829,6 +2082,7 @@ func _load_skirmish_match(level_id: String, settings: Dictionary) -> void:
 func _set_start_menu_visible(visible: bool) -> void:
 	start_menu_visible = visible
 	if visible:
+		_hide_pause_menu()
 		_hide_objective_briefing()
 	if start_menu_overlay:
 		start_menu_overlay.visible = visible
@@ -2001,6 +2255,10 @@ func _update_scenario_progress_hud() -> void:
 func _update_hud() -> void:
 	if not simulation:
 		return
+	if status_label:
+		status_label.visible = play_hints_enabled
+	if event_log_label:
+		event_log_label.visible = game_log_enabled
 	_update_objective()
 	_update_scenario_progress_hud()
 	if match_context_label:
@@ -2492,7 +2750,7 @@ func _context_card_accent(icon_key: String) -> Color:
 			return Color("#ff9f43")
 		"repair", "collector", "refinery", "refining":
 			return Color("#7cf1ad")
-		"targeting", "tech_centre", "forward_relay", "route":
+		"targeting", "tech_centre", "relay", "forward_relay", "route":
 			return Color("#8cebf3")
 		"ranger", "raider", "assembly_bay":
 			return Color("#d6fbff")
@@ -2521,6 +2779,9 @@ func _update_context_cards() -> void:
 					var tech_state := _building_context_state("tech_centre", "assembly_bay")
 					if bool(tech_state.get("visible", false)):
 						cards[2] = {"action": "build:tech_centre", "label": "◈ TECH CENTRE\n%d" % int(simulation.building_definitions["tech_centre"].cost), "visible": true, "disabled": tech_state.get("disabled", false), "reason": tech_state.get("reason", "")}
+					var relay_state := _building_context_state("relay")
+					if bool(relay_state.get("visible", false)):
+						cards[3] = {"action": "build:relay", "label": "◈ FORWARD RELAY\n%d" % int(simulation.building_definitions["relay"].cost), "visible": true, "disabled": relay_state.get("disabled", false), "reason": relay_state.get("reason", "")}
 				"refinery":
 					var collector_state := _unit_context_state("collector", building)
 					if bool(collector_state.get("visible", false)):
@@ -2691,7 +2952,7 @@ func _selection_icon_key(data: Dictionary, enemy := false) -> String:
 	var kind := str(data.get("kind", "unit"))
 	if data.has("order"):
 		return kind if ["ranger", "warden", "bulwark", "raider", "collector"].has(kind) else "unit"
-	return kind if ["command_hub", "assembly_bay", "refinery", "tech_centre", "storage_silo", "forward_relay"].has(kind) else "unit"
+	return kind if ["command_hub", "assembly_bay", "refinery", "tech_centre", "storage_silo", "relay", "forward_relay"].has(kind) else "unit"
 
 
 func _selection_card_text(data: Dictionary) -> String:
@@ -2712,6 +2973,8 @@ func _selection_card_text(data: Dictionary) -> String:
 
 
 func _selection_guidance(data: Dictionary) -> String:
+	if not play_hints_enabled:
+		return ""
 	if bool(data.get("under_fire", false)):
 		return "UNDER FIRE — RETREAT / REPAIR"
 	var health_ratio: float = float(data.get("health", 0.0)) / max(1.0, float(data.get("max_health", 1.0)))
@@ -2760,23 +3023,10 @@ func _selection_composition() -> String:
 
 func _clear_combat_feedback() -> void:
 	damage_feedback_last_tick.clear()
-	combat_alert_remaining = 0.0
-	if combat_alert_panel:
-		combat_alert_panel.visible = false
-
-
-func _show_combat_alert(title: String, message: String, accent: Color) -> void:
-	if not combat_alert_panel or not combat_alert_label:
-		return
-	combat_alert_label.text = "%s\n%s" % [title, message]
-	combat_alert_label.modulate = Color("#fff0d0")
-	combat_alert_panel.add_theme_stylebox_override("panel", _panel_style(Color(accent.r * 0.22, accent.g * 0.16, accent.b * 0.18, 0.96), Color(accent.r, accent.g, accent.b, 0.92)))
-	combat_alert_panel.visible = true
-	combat_alert_remaining = 3.6
 
 
 func _append_event_log(message: String, tick := -1) -> void:
-	if message.is_empty() or not event_log_label:
+	if not game_log_enabled or message.is_empty() or not event_log_label:
 		return
 	var lines: PackedStringArray = event_log_label.text.split("\n")
 	var event_tick := int(simulation.current_tick) if tick < 0 and simulation else tick
@@ -2820,6 +3070,8 @@ func _combat_feedback_message(event_type: String, payload: Dictionary) -> String
 
 
 func _on_simulation_event(event_type: String, payload: Dictionary) -> void:
+	if audio_manager:
+		audio_manager.handle_simulation_event(simulation, event_type, payload)
 	if combat_effects:
 		combat_effects.present(self, simulation, event_type, payload)
 	if not status_label or not event_log_label:
@@ -2827,13 +3079,13 @@ func _on_simulation_event(event_type: String, payload: Dictionary) -> void:
 	var feedback_message: String = str(payload.get("message", payload.get("reason", "")))
 	if event_type == "LauncherThreatWarning":
 		feedback_message = str(payload.get("message", "ENEMY LAUNCHER FIRE — spread out, flank, or break its range."))
-		status_label.text = "THREAT WARNING — %s" % feedback_message
-		status_label.modulate = Color("#ff7b86")
-		_show_combat_alert("LAUNCHER THREAT", feedback_message, Color("#ff7b86"))
+		if play_hints_enabled:
+			status_label.text = "THREAT WARNING — %s" % feedback_message
+			status_label.modulate = Color("#ff7b86")
 		_append_event_log(feedback_message, int(payload.get("tick", simulation.current_tick)))
 		return
 	if event_type == "AIIntentDeclared" or event_type == "AIPhaseChanged" or event_type == "AIPostureChanged":
-		if not feedback_message.is_empty():
+		if play_hints_enabled and not feedback_message.is_empty():
 			status_label.text = "OPPONENT INTEL — %s" % feedback_message
 		return
 	if not _is_player_event(event_type, payload):
@@ -2841,29 +3093,32 @@ func _on_simulation_event(event_type: String, payload: Dictionary) -> void:
 	var combat_message := _combat_feedback_message(event_type, payload)
 	if not combat_message.is_empty():
 		feedback_message = combat_message
-		status_label.text = feedback_message
-		status_label.modulate = Color("#ff7b86")
-		_show_combat_alert("COMBAT WARNING", feedback_message, Color("#ff7b86"))
+		if play_hints_enabled:
+			status_label.text = feedback_message
+			status_label.modulate = Color("#ff7b86")
 	elif event_type == "UnitDestroyed" and str(payload.get("team", "")) == "player":
-		feedback_message = "UNIT LOST — %s Reinforce from an Assembly Bay; pull damaged survivors back to repair." % feedback_message
-		status_label.text = feedback_message
-		status_label.modulate = Color("#ffbf6a")
-		_show_combat_alert("FORCE DEPLETED", feedback_message, Color("#ffbf6a"))
+		if play_hints_enabled:
+			feedback_message = "UNIT LOST — %s Reinforce from an Assembly Bay; pull damaged survivors back to repair." % feedback_message
+			status_label.text = feedback_message
+			status_label.modulate = Color("#ffbf6a")
 	elif event_type == "BuildingDestroyed" and str(payload.get("team", "")) == "player":
-		feedback_message = "STRUCTURE LOST — %s Rebuild the supply or production link before committing another push." % feedback_message
-		status_label.text = feedback_message
-		status_label.modulate = Color("#ff7b86")
-		_show_combat_alert("LOGISTICS WARNING", feedback_message, Color("#ff7b86"))
+		if play_hints_enabled:
+			feedback_message = "STRUCTURE LOST — %s Rebuild the supply or production link before committing another push." % feedback_message
+			status_label.text = feedback_message
+			status_label.modulate = Color("#ff7b86")
 	if not feedback_message.is_empty():
-		status_label.text = feedback_message
+		if play_hints_enabled:
+			status_label.text = feedback_message
 	if event_type == "MatchWon" or event_type == "MatchLost":
-		status_label.text = "[ %s ] %s" % ["VICTORY" if event_type == "MatchWon" else "DEFEAT", payload.get("message", "Match complete")]
-		status_label.modulate = Color("#ffd36a") if event_type == "MatchWon" else Color("#ff7b86")
+		if play_hints_enabled:
+			status_label.text = "[ %s ] %s" % ["VICTORY" if event_type == "MatchWon" else "DEFEAT", payload.get("message", "Match complete")]
+			status_label.modulate = Color("#ffd36a") if event_type == "MatchWon" else Color("#ff7b86")
 		_show_match_result(event_type, payload)
 	if event_type == "MatchWon" and campaign_progress and simulation.get_match_mode() == "campaign":
 		var unlocked_id: String = campaign_progress.mark_complete(simulation.get_level_id())
 		if not unlocked_id.is_empty():
-			status_label.text = "LEVEL COMPLETE — Level 2 unlocked. Press F2 to deploy."
+			if play_hints_enabled:
+				status_label.text = "LEVEL COMPLETE — Level 2 unlocked. Press F2 to deploy."
 	_append_event_log(feedback_message, int(payload.get("tick", simulation.current_tick)))
 
 
@@ -2900,11 +3155,13 @@ func _pointer_over_ui() -> bool:
 
 
 func _is_dialog_open() -> bool:
-	if start_menu_visible or result_visible or objective_briefing_visible:
+	if start_menu_visible or result_visible or objective_briefing_visible or pause_menu_visible:
 		return true
 	if start_menu_overlay and start_menu_overlay.visible:
 		return true
 	if objective_briefing_overlay and objective_briefing_overlay.visible:
+		return true
+	if pause_menu_overlay and pause_menu_overlay.visible:
 		return true
 	return result_overlay != null and result_overlay.visible
 

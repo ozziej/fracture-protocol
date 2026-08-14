@@ -71,8 +71,8 @@ func _initialize() -> void:
 		"tick": 5,
 		"message": "Bulwark launched a missile at Ranger — spread out, flank, or break its range.",
 	})
-	if main.combat_alert_panel == null or not main.combat_alert_panel.visible or main.combat_alert_label.text.find("LAUNCHER THREAT") < 0:
-		failures.append("HUD should show a dedicated launcher threat alert")
+	if main.find_child("CombatAlertPanel", true, false) != null:
+		failures.append("HUD should not create a duplicate top-right combat alert panel")
 	if main.event_log_label.text.find("spread out") < 0:
 		failures.append("event log should record launcher counterplay guidance")
 	main._on_simulation_event("UnitDamaged", {

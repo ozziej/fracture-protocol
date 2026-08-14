@@ -3,10 +3,12 @@ extends Node3D
 
 const AssetLibraryScript = preload("res://src/presentation/rts_asset_library.gd")
 const BillboardHelperScript = preload("res://src/presentation/rts_billboard_helper.gd")
+const SimulationScript = preload("res://src/rts_simulation.gd")
 
 var entity_id := ""
 var team := "neutral"
 var kind := ""
+var complete := false
 var repair_radius := 0.0
 var body_mesh: MeshInstance3D
 var cap_mesh: MeshInstance3D
@@ -17,6 +19,8 @@ var target_flash_disc: MeshInstance3D
 var under_fire_ring: MeshInstance3D
 var repair_zone: MeshInstance3D
 var repair_zone_ring: MeshInstance3D
+var network_link_zone: MeshInstance3D
+var network_link_zone_ring: MeshInstance3D
 var visual_body_height := 0.0
 var visual_antenna_height := 0.0
 var health_back: MeshInstance3D
@@ -34,6 +38,7 @@ func setup(data: Dictionary) -> void:
 	entity_id = data["id"]
 	team = data["team"]
 	kind = data["kind"]
+	complete = bool(data.get("complete", false))
 	repair_radius = float(data.get("repair_radius", 0.0))
 	_build_visuals()
 	sync(data, false)
@@ -41,8 +46,9 @@ func setup(data: Dictionary) -> void:
 
 func sync(data: Dictionary, selected: bool) -> void:
 	global_position = data["position"]
+	complete = bool(data.get("complete", false))
 	_sync_status_billboard()
-	selection_disc.visible = selected
+	set_selected(selected)
 	var under_fire := bool(data.get("under_fire", false))
 	if under_fire_ring:
 		under_fire_ring.visible = under_fire
@@ -52,6 +58,10 @@ func sync(data: Dictionary, selected: bool) -> void:
 		var zone_visible := repair_radius > 0.0 and team == "player" and bool(data.get("complete", false))
 		repair_zone.visible = zone_visible
 		repair_zone_ring.visible = zone_visible
+	if network_link_zone:
+		var link_visible := selected and team == "player" and complete
+		network_link_zone.visible = link_visible
+		network_link_zone_ring.visible = link_visible
 	if rally_marker:
 		var rally_position: Vector3 = data.get("rally_position", data["position"])
 		rally_marker.position = Vector3(rally_position.x - data["position"].x, 0.08, rally_position.z - data["position"].z)
@@ -100,6 +110,15 @@ func flash_target() -> void:
 	tween.tween_property(target_flash_disc, "scale", Vector3.ONE * 1.38, 0.14)
 	tween.tween_interval(0.2)
 	tween.tween_callback(Callable(self, "_hide_target_flash"))
+
+
+func set_selected(selected: bool) -> void:
+	if selection_disc:
+		selection_disc.visible = selected
+	if network_link_zone:
+		var link_visible := selected and team == "player" and complete and (kind == "command_hub" or kind == "relay")
+		network_link_zone.visible = link_visible
+		network_link_zone_ring.visible = link_visible
 
 
 func _hide_target_flash() -> void:
@@ -165,6 +184,31 @@ func _build_visuals() -> void:
 		add_child(antenna_mesh)
 
 	_attach_asset_visual()
+	if kind == "command_hub" or kind == "relay":
+		var link_mesh := CylinderMesh.new()
+		link_mesh.top_radius = SimulationScript.SUPPLY_LINK_RADIUS
+		link_mesh.bottom_radius = SimulationScript.SUPPLY_LINK_RADIUS
+		link_mesh.height = 0.018
+		link_mesh.radial_segments = 96
+		network_link_zone = MeshInstance3D.new()
+		network_link_zone.name = "NetworkLinkInfluence"
+		network_link_zone.mesh = link_mesh
+		network_link_zone.material_override = _material(Color(0.12, 0.82, 0.92, 0.045))
+		network_link_zone.position.y = 0.025
+		network_link_zone.visible = false
+		add_child(network_link_zone)
+		var link_ring_mesh := TorusMesh.new()
+		link_ring_mesh.outer_radius = SimulationScript.SUPPLY_LINK_RADIUS
+		link_ring_mesh.inner_radius = SimulationScript.SUPPLY_LINK_RADIUS - 0.18
+		link_ring_mesh.rings = 96
+		link_ring_mesh.ring_segments = 8
+		network_link_zone_ring = MeshInstance3D.new()
+		network_link_zone_ring.name = "NetworkLinkInfluenceRing"
+		network_link_zone_ring.mesh = link_ring_mesh
+		network_link_zone_ring.material_override = _material(Color("#52e7ef"))
+		network_link_zone_ring.position.y = 0.08
+		network_link_zone_ring.visible = false
+		add_child(network_link_zone_ring)
 	if repair_radius > 0.0:
 		var zone_mesh := CylinderMesh.new()
 		zone_mesh.top_radius = repair_radius
