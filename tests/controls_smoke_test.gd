@@ -24,6 +24,24 @@ func _initialize() -> void:
 	var viewport_rect: Rect2 = main.get_viewport().get_visible_rect()
 	if minimap_rect.position.x < 0.0 or minimap_rect.position.y < 0.0 or minimap_rect.end.x > viewport_rect.end.x or minimap_rect.end.y > viewport_rect.end.y:
 		failures.append("minimap should be visible inside the tactical HUD")
+	var bottom_panel_rect: Rect2 = main.bottom_panel.get_global_rect()
+	if bottom_panel_rect.position.x < viewport_rect.position.x or bottom_panel_rect.end.x > viewport_rect.end.x or bottom_panel_rect.end.y > viewport_rect.end.y:
+		failures.append("context action panel should stay inside the viewport at the current window size")
+	if main.action_card_icons.size() != 6 or main.action_card_titles.size() != 6 or main.action_card_prices.size() != 6:
+		failures.append("context actions should expose six compact icon cards")
+	for action_button in [main.build_button, main.queue_button, main.heavy_queue_button, main.research_button, main.repair_button, main.collector_button]:
+		if action_button.text != "":
+			failures.append("context action cards should use icon and price content instead of a long button label")
+		var hover_style := action_button.get_theme_stylebox("hover") as StyleBoxFlat
+		if hover_style == null or hover_style.corner_radius_top_left < 8:
+			failures.append("context action cards should retain rounded hover-aware styling")
+	if not main._pointer_over_ui():
+		failures.append("deployment dialog should block battlefield pointer input")
+	main.pointer_inside_viewport = false
+	main.pointer_position = Vector2(0.0, 0.0)
+	if not main._pointer_over_ui():
+		failures.append("pointer outside the window should block camera edge scrolling")
+	main.pointer_inside_viewport = true
 	if main.minimap.map_bounds != Rect2(-115.0, -75.0, 230.0, 150.0):
 		failures.append("minimap should use the authored level bounds")
 	if main.simulation.control_points["west_crossing"]["owner"] != "neutral":
@@ -44,6 +62,13 @@ func _initialize() -> void:
 		failures.append("switching to Level 2 should rebuild the minimap bounds")
 	if main.minimap.mouse_filter != Control.MOUSE_FILTER_STOP:
 		failures.append("minimap should capture tactical clicks instead of ignoring input")
+	main.dragging = true
+	main.drag_start = Vector2(280.0, 280.0)
+	main.drag_current = Vector2(440.0, 380.0)
+	var hud_release := _mouse_event(Vector2(640.0, 680.0), MOUSE_BUTTON_LEFT, false)
+	main._input(hud_release)
+	if main.dragging or main.selection_marquee.visible:
+		failures.append("drag selection should finish when the release lands over the HUD")
 	var camera_before_minimap_click: Vector3 = main.camera_target
 	var minimap_click := InputEventMouseButton.new()
 	minimap_click.button_index = MOUSE_BUTTON_LEFT
@@ -54,10 +79,44 @@ func _initialize() -> void:
 		failures.append("clicking the minimap should pan the camera to the tactical location")
 	var level_two_refinery_id := _find_entity(main.simulation.buildings, "refinery", "player")
 	var level_two_hub_id := _find_entity(main.simulation.buildings, "command_hub", "player")
+	var level_two_assembly_id := _find_entity(main.simulation.buildings, "assembly_bay", "player")
 	var level_two_collector_id: String = main.simulation._add_collector("player", "north_field", level_two_refinery_id, level_two_hub_id, main.simulation.buildings[level_two_refinery_id]["position"])
+	if level_two_assembly_id.is_empty():
+		failures.append("Level 2 should include a player Assembly Bay for the compact fabrication card")
+	else:
+		main.selected_ids = [level_two_assembly_id]
+		main._update_hud()
+		if main.action_card_titles[3].text != "FABRICATION" or str(main.action_card_prices[3].text).find("C") < 0:
+			failures.append("Assembly Bay fabrication should be presented as a named icon card with its price below")
+		if main.selected_label.text.find("ASSEMBLY BAY") < 0 or main.selected_label.text.find("HP") < 0:
+			failures.append("selected building card should show the building name and HP beside its icon")
+		if main.selected_icon.get_asset_path() != "res://kenney_space-kit/Side/hangar_largeA.png":
+			failures.append("Assembly Bay HUD icon should use its matching Kenney side-view asset")
+		var queue_building: Dictionary = main.simulation.buildings[level_two_assembly_id]
+		queue_building["queue"] = [{"unit_type": "bulwark", "remaining": 7.0, "total": 12.0, "cost": 210.0}]
+		main._update_production_queue_ui()
+		var queue_scroll: Node = main.find_child("ProductionQueueScroll", true, false)
+		if queue_scroll == null or main.queue_buttons.size() != 5 or not main.queue_buttons[0].visible:
+			failures.append("production queue should expose scrollable icon cards")
+		else:
+			if main.queue_buttons[0].text != "":
+				failures.append("production queue cards should use icon and detail labels instead of button text")
+			var queue_hover_style := main.queue_buttons[0].get_theme_stylebox("hover") as StyleBoxFlat
+			if queue_hover_style == null or queue_hover_style.corner_radius_top_left < 8:
+				failures.append("production queue cards should retain rounded hover-aware styling")
+			if main.queue_card_icons[0].get_asset_path() != "res://kenney_space-kit/Side/craft_cargoB.png":
+				failures.append("Bulwark queue card should use its matching Kenney side-view asset")
+			if main.queue_card_titles[0].text.find("BULWARK") < 0 or main.queue_card_refunds[0].text.find("210") < 0:
+				failures.append("production queue card should show unit, progress, and refund details")
+		var top_status_panel: Node = main.find_child("TopStatusPanel", true, false)
+		var top_stats_scroll: Node = main.find_child("TopStatsScroll", true, false)
+		if top_status_panel == null or top_stats_scroll == null:
+			failures.append("top HUD should use a structured status bar with a scrollable stat row")
 	main.simulation.event_history.append({"event_type": "ResourceDelivered", "team": "player"})
 	main._update_objective()
 	main._sync_views()
+	if not main.building_views[level_two_hub_id].repair_zone.visible or not main.building_views[level_two_assembly_id].repair_zone.visible:
+		failures.append("Command Hub and Assembly Bay should show visible green repair influence circles")
 	var west_objective_beam := main.control_views["west_crossing"].get_node_or_null("ObjectiveBeam") as MeshInstance3D
 	if main.objective_target_point_id != "west_crossing" or west_objective_beam == null or not west_objective_beam.visible:
 		failures.append("level-data staging objective should mark West Crossing in the world")
@@ -65,6 +124,44 @@ func _initialize() -> void:
 		failures.append("central relay should expose the representative signal core visual")
 	var tech_centre_id: String = main.simulation._add_building("player", "tech_centre", Vector3(-96.0, 0.0, 38.0))
 	main._sync_views()
+	var target_enemy_id := _find_entity(main.simulation.units, "raider", "enemy")
+	var target_player_id := _find_entity(main.simulation.units, "ranger", "player")
+	if target_enemy_id.is_empty() or target_player_id.is_empty():
+		failures.append("target inspection needs an enemy Raider and player Ranger")
+	else:
+		main.simulation.units[target_enemy_id]["position"] = main.simulation.units[target_player_id]["position"] + Vector3(3.0, 0.0, 0.0)
+		main.simulation.units[target_enemy_id]["target_position"] = main.simulation.units[target_enemy_id]["position"]
+		main.simulation._visibility_system.invalidate()
+		main._sync_views()
+		main._update_camera()
+		var target_screen: Vector2 = main.camera.unproject_position(main.simulation.units[target_enemy_id]["position"] + Vector3.UP * 0.7)
+		main.pointer_position = target_screen
+		main.drag_start = target_screen
+		main.drag_current = target_screen
+		main._finish_left_click()
+		if main.inspected_target_id != target_enemy_id or main.selected_ids.size() != 0:
+			failures.append("left-clicking an enemy should inspect it without selecting it as a friendly unit")
+		var target_detail := main._target_detail(main.simulation.units[target_enemy_id])
+		if target_detail.find("HP") < 0 or target_detail.find("DMG") < 0 or target_detail.find("RANGE") < 0:
+			failures.append("enemy inspection should show health, damage, and attack range")
+		main.selected_ids = [target_player_id]
+		main._issue_context_order(target_screen)
+		if not main.unit_views.has(target_enemy_id) or not main.unit_views[target_enemy_id].target_flash_disc.visible:
+			failures.append("right-clicking an enemy attack target should show a brief highlight flash")
+		main._on_simulation_event("ProjectileLaunched", {
+			"attacker_id": target_enemy_id,
+			"team": "enemy",
+			"launch_position": main.simulation.units[target_enemy_id]["position"],
+			"impact_position": main.simulation.units[target_player_id]["position"],
+			"travel_time": 0.4,
+		})
+		var missile_visible := false
+		for child in main.get_children():
+			if str(child.name).begins_with("MissileProjectile_"):
+				missile_visible = true
+				break
+		if not missile_visible:
+			failures.append("launcher fire should create a visible moving projectile")
 
 	main._on_simulation_event("UnitDamaged", {
 		"attacker_position": main.simulation.buildings[level_two_hub_id]["position"],
@@ -192,6 +289,14 @@ func _key_event(keycode: int, modifier := false) -> InputEventKey:
 	event.keycode = keycode
 	event.pressed = true
 	event.ctrl_pressed = modifier
+	return event
+
+
+func _mouse_event(position: Vector2, button: int, pressed: bool) -> InputEventMouseButton:
+	var event := InputEventMouseButton.new()
+	event.position = position
+	event.button_index = button
+	event.pressed = pressed
 	return event
 
 

@@ -17,19 +17,81 @@
     {
       "id": "network_hold",
       "display_name": "Network Hold",
-      "description": "Own the Central Relay and your forward crossing while they remain connected to your Command Hub.",
+      "description": "Contest the Central Relay and a midfield network site while keeping both connected to your Command Hub.",
       "objective_type": "hold_network",
       "hold_ticks": 900,
       "progress_event_interval_ticks": 10,
       "maps": ["relay_divide", "relay_crossroads"],
-      "player_required_points": ["central_relay", "west_crossing"],
-      "enemy_required_points": ["central_relay", "east_crossing"],
-      "player_objective": "Hold Central Relay + West Crossing",
-      "enemy_objective": "Hold Central Relay + East Crossing",
+      "player_required_points": ["central_relay", "network_east"],
+      "enemy_required_points": ["central_relay", "network_west"],
+      "player_objective": "Hold Central Relay + East Network",
+      "enemy_objective": "Hold Central Relay + West Network",
       "player_win_message": "Network held for 90 seconds. The Coalition relay line is secure.",
       "enemy_win_message": "The Frontier held the network for 90 seconds. The Coalition line has fractured.",
       "default_ai_intent": "secure_then_assault",
-      "default_ai_difficulty": "standard"
+      "default_ai_difficulty": "standard",
+      "map_overrides": {
+        "relay_divide": {
+          "control_points": [
+            {
+              "id": "network_west",
+              "display_name": "West Network",
+              "position": {"x": -24, "y": 0, "z": 14},
+              "radius": 4.5,
+              "supports_staging": true,
+              "strategic_role": "forward_staging",
+              "role_label": "MIDFIELD STAGING",
+              "role_description": "A contested midfield staging site that extends the relay line.",
+              "income_per_second": 12,
+              "supply_link_bonus": 0,
+              "capture_rate_multiplier": 1.0
+            },
+            {
+              "id": "network_east",
+              "display_name": "East Network",
+              "position": {"x": 24, "y": 0, "z": -14},
+              "radius": 4.5,
+              "supports_staging": true,
+              "strategic_role": "forward_staging",
+              "role_label": "MIDFIELD STAGING",
+              "role_description": "A contested midfield staging site that extends the relay line.",
+              "income_per_second": 12,
+              "supply_link_bonus": 0,
+              "capture_rate_multiplier": 1.0
+            }
+          ]
+        },
+        "relay_crossroads": {
+          "control_points": [
+            {
+              "id": "network_west",
+              "display_name": "West Network",
+              "position": {"x": -24, "y": 0, "z": 14},
+              "radius": 5.5,
+              "supports_staging": true,
+              "strategic_role": "forward_staging",
+              "role_label": "MIDFIELD STAGING",
+              "role_description": "A contested midfield staging site that extends the relay line.",
+              "income_per_second": 12,
+              "supply_link_bonus": 0,
+              "capture_rate_multiplier": 1.0
+            },
+            {
+              "id": "network_east",
+              "display_name": "East Network",
+              "position": {"x": 24, "y": 0, "z": -14},
+              "radius": 5.5,
+              "supports_staging": true,
+              "strategic_role": "forward_staging",
+              "role_label": "MIDFIELD STAGING",
+              "role_description": "A contested midfield staging site that extends the relay line.",
+              "income_per_second": 12,
+              "supply_link_bonus": 0,
+              "capture_rate_multiplier": 1.0
+            }
+          ]
+        }
+      }
     }
   ]
 }

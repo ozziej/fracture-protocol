@@ -7,11 +7,15 @@ const BillboardHelperScript = preload("res://src/presentation/rts_billboard_help
 var entity_id := ""
 var team := "neutral"
 var kind := ""
+var repair_radius := 0.0
 var body_mesh: MeshInstance3D
 var cap_mesh: MeshInstance3D
 var antenna_mesh: MeshInstance3D
 var rally_marker: MeshInstance3D
 var selection_disc: MeshInstance3D
+var target_flash_disc: MeshInstance3D
+var repair_zone: MeshInstance3D
+var repair_zone_ring: MeshInstance3D
 var visual_body_height := 0.0
 var visual_antenna_height := 0.0
 var health_back: MeshInstance3D
@@ -28,6 +32,7 @@ func setup(data: Dictionary) -> void:
 	entity_id = data["id"]
 	team = data["team"]
 	kind = data["kind"]
+	repair_radius = float(data.get("repair_radius", 0.0))
 	_build_visuals()
 	sync(data, false)
 
@@ -36,6 +41,10 @@ func sync(data: Dictionary, selected: bool) -> void:
 	global_position = data["position"]
 	_sync_status_billboard()
 	selection_disc.visible = selected
+	if repair_zone:
+		var zone_visible := repair_radius > 0.0 and team == "player" and bool(data.get("complete", false))
+		repair_zone.visible = zone_visible
+		repair_zone_ring.visible = zone_visible
 	if rally_marker:
 		var rally_position: Vector3 = data.get("rally_position", data["position"])
 		rally_marker.position = Vector3(rally_position.x - data["position"].x, 0.08, rally_position.z - data["position"].z)
@@ -71,6 +80,22 @@ func sync(data: Dictionary, selected: bool) -> void:
 		var research_progress: float = clamp(1.0 - float(data.get("research_remaining", 0.0)) / research_total, 0.0, 1.0)
 		label_text += "\nRESEARCH %s %d%%" % [research_id.replace("_", "-").to_upper(), int(research_progress * 100.0)]
 	name_label.text = label_text
+
+
+func flash_target() -> void:
+	if target_flash_disc == null:
+		return
+	target_flash_disc.visible = true
+	target_flash_disc.scale = Vector3.ONE * 0.72
+	var tween := create_tween()
+	tween.tween_property(target_flash_disc, "scale", Vector3.ONE * 1.38, 0.14)
+	tween.tween_interval(0.2)
+	tween.tween_callback(Callable(self, "_hide_target_flash"))
+
+
+func _hide_target_flash() -> void:
+	if target_flash_disc:
+		target_flash_disc.visible = false
 
 
 func _build_visuals() -> void:
@@ -131,6 +156,31 @@ func _build_visuals() -> void:
 		add_child(antenna_mesh)
 
 	_attach_asset_visual()
+	if repair_radius > 0.0:
+		var zone_mesh := CylinderMesh.new()
+		zone_mesh.top_radius = repair_radius
+		zone_mesh.bottom_radius = repair_radius
+		zone_mesh.height = 0.025
+		zone_mesh.radial_segments = 64
+		repair_zone = MeshInstance3D.new()
+		repair_zone.name = "RepairInfluence"
+		repair_zone.mesh = zone_mesh
+		repair_zone.material_override = _material(Color(0.22, 0.95, 0.48, 0.075))
+		repair_zone.position.y = 0.025
+		repair_zone.visible = false
+		add_child(repair_zone)
+		var ring_mesh := TorusMesh.new()
+		ring_mesh.outer_radius = repair_radius
+		ring_mesh.inner_radius = max(0.1, repair_radius - 0.16)
+		ring_mesh.rings = 64
+		ring_mesh.ring_segments = 8
+		repair_zone_ring = MeshInstance3D.new()
+		repair_zone_ring.name = "RepairInfluenceRing"
+		repair_zone_ring.mesh = ring_mesh
+		repair_zone_ring.material_override = _material(Color(0.3, 1.0, 0.58, 0.82))
+		repair_zone_ring.position.y = 0.07
+		repair_zone_ring.visible = false
+		add_child(repair_zone_ring)
 	var marker_mesh := BoxMesh.new()
 	marker_mesh.size = Vector3(minf(body_size.x * 0.22, 1.05), 0.10, 0.28)
 	team_marker = MeshInstance3D.new()
@@ -151,6 +201,19 @@ func _build_visuals() -> void:
 	selection_disc.position.y = 0.07
 	selection_disc.visible = false
 	add_child(selection_disc)
+
+	var target_disc := TorusMesh.new()
+	target_disc.outer_radius = max(body_size.x, body_size.z) * 0.82
+	target_disc.inner_radius = max(0.2, target_disc.outer_radius - 0.22)
+	target_disc.rings = 32
+	target_disc.ring_segments = 8
+	target_flash_disc = MeshInstance3D.new()
+	target_flash_disc.name = "TargetFlash"
+	target_flash_disc.mesh = target_disc
+	target_flash_disc.material_override = _material(Color("#ff6b5f"))
+	target_flash_disc.position.y = 0.09
+	target_flash_disc.visible = false
+	add_child(target_flash_disc)
 
 	if kind == "assembly_bay":
 		var rally_mesh := CylinderMesh.new()

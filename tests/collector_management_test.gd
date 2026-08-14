@@ -36,9 +36,9 @@ func _initialize() -> void:
 		if simulation.units.size() <= units_before_queue:
 			failures.append("Assembly Bay should produce a replacement Collector")
 		else:
-			var replacement_id := _find_unassigned_collector(simulation, collector_id)
+			var replacement_id := _find_auto_started_collector(simulation, collector_id)
 			if replacement_id.is_empty():
-				failures.append("a newly produced Collector should begin unassigned")
+				failures.append("a newly produced Collector should auto-start toward a nearby field")
 			else:
 				simulation.issue_command("assign_collector", "player", {
 					"collector_id": replacement_id,
@@ -46,7 +46,7 @@ func _initialize() -> void:
 					"destination_id": refinery_id,
 				})
 				_run_ticks(simulation, 1)
-				if simulation.units[replacement_id]["collector_state"] == "unassigned":
+				if simulation.units[replacement_id]["collector_state"] == "awaiting_source":
 					failures.append("replacement Collector should accept a new route")
 
 		simulation.restart_match()
@@ -78,10 +78,10 @@ func _find_entity(entities: Dictionary, kind: String, team: String) -> String:
 	return ""
 
 
-func _find_unassigned_collector(simulation, excluded_id: String) -> String:
+func _find_auto_started_collector(simulation, excluded_id: String) -> String:
 	for entity_id in simulation.units:
 		var unit: Dictionary = simulation.units[entity_id]
-		if entity_id != excluded_id and unit["team"] == "player" and unit["kind"] == "collector" and unit["collector_state"] == "unassigned":
+		if entity_id != excluded_id and unit["team"] == "player" and unit["kind"] == "collector" and unit["collector_source_id"] == "north_field":
 			return entity_id
 	return ""
 

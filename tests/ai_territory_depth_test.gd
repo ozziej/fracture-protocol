@@ -67,8 +67,8 @@ func _initialize() -> void:
 	var west: Dictionary = territory_sim.control_points["west_crossing"]
 	if str(central.get("strategic_role", "")) != "network_hub" or float(central.get("income_per_second", 0.0)) != 15.0 or float(central.get("supply_link_bonus", 0.0)) != 10.0:
 		failures.append("Central Relay should expose its authored network-hub payoff")
-	if str(west.get("strategic_role", "")) != "forward_staging" or float(west.get("repair_amount_multiplier", 0.0)) != 1.25:
-		failures.append("West Crossing should expose its authored staging repair payoff")
+	if str(west.get("strategic_role", "")) != "forward_staging":
+		failures.append("West Crossing should expose its authored forward-staging role")
 	central["owner"] = "player"
 	central["capture_progress"] = 100.0
 	var territory_summary: Dictionary = territory_sim.get_territory_summary()
@@ -93,8 +93,8 @@ func _initialize() -> void:
 	territory_sim._update_forward_staging_states()
 	territory_sim.issue_command("repair", "player", {"entity_ids": [ranger_id]})
 	_step_without_ai(territory_sim, 1)
-	if not bool(west.get("staging_active", false)) or float(territory_sim.units[ranger_id]["health"]) != 70.0:
-		failures.append("an active staging point should apply its authored repair multiplier")
+	if not bool(west.get("staging_active", false)) or territory_sim.get_repair_station_id("player", hub_position).is_empty() or float(territory_sim.units[ranger_id]["health"]) != 60.0:
+		failures.append("a Command Hub repair circle should apply the standard repair pulse")
 
 	if failures.is_empty():
 		print("AI_TERRITORY_DEPTH_PASS")

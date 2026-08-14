@@ -135,6 +135,14 @@ func get_scenarios_for_map(level_id: String) -> Array:
 	return result
 
 
+func get_control_point_overrides(level_id: String) -> Array:
+	if active_scenario_id.is_empty():
+		return []
+	var map_overrides: Dictionary = active_definition.get("map_overrides", {})
+	var level_override: Dictionary = map_overrides.get(level_id, {})
+	return level_override.get("control_points", []).duplicate(true)
+
+
 func _team_holds_network(team: String) -> bool:
 	var points_key := "%s_required_points" % team
 	var required_points: Array = active_definition.get(points_key, [])

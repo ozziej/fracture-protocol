@@ -26,10 +26,12 @@ func _initialize() -> void:
 			failures.append("a captured connected West Crossing should become an active forward staging site")
 		else:
 			simulation.units[ranger_id]["health"] = 20.0
+			simulation.units[ranger_id]["position"] = simulation.buildings[assembly_id]["position"]
+			simulation.units[ranger_id]["target_position"] = simulation.units[ranger_id]["position"]
 			simulation.issue_command("repair", "player", {"entity_ids": [ranger_id]})
 			_step_without_ai(simulation, 1)
 			if float(simulation.units[ranger_id]["health"]) <= 20.0:
-				failures.append("a damaged unit should receive a paid repair inside an active staging radius")
+				failures.append("a damaged unit should receive a paid repair inside the Assembly Bay repair circle")
 			simulation.issue_command("set_rally_point", "player", {"building_id": assembly_id, "control_point_id": "west_crossing"})
 			_step_without_ai(simulation, 1)
 			var assembly: Dictionary = simulation.buildings[assembly_id]

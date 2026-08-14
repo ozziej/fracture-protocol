@@ -33,13 +33,13 @@ func _initialize() -> void:
 	if not bool(initial_scenario.get("active", false)) or int(initial_scenario.get("hold_ticks", 0)) != 900:
 		failures.append("network hold should expose its active 90-second objective")
 
-	_prepare_network_hold(simulation, "player", ["central_relay", "west_crossing"])
+	_prepare_network_hold(simulation, "player", ["central_relay", "network_east"])
 	_step_without_ai(simulation, 5)
 	var holding_scenario: Dictionary = simulation.get_scenario_state("player")
 	if int(holding_scenario.get("progress_ticks", 0)) != 5 or not bool(holding_scenario.get("holding", false)):
 		failures.append("network hold should accumulate only while both required sites are active")
 
-	simulation.control_points["west_crossing"]["owner"] = "neutral"
+	simulation.control_points["network_east"]["owner"] = "neutral"
 	simulation._update_forward_staging_states()
 	simulation._ai_timer = 0.0
 	simulation.step_fixed()
@@ -56,7 +56,7 @@ func _initialize() -> void:
 	var win_simulation = SimulationScript.new()
 	root.add_child(win_simulation)
 	win_simulation.start_match("relay_divide", "", {"mode": "skirmish", "scenario_id": "network_hold"})
-	_prepare_network_hold(win_simulation, "player", ["central_relay", "west_crossing"])
+	_prepare_network_hold(win_simulation, "player", ["central_relay", "network_east"])
 	_step_without_ai(win_simulation, 900)
 	if not win_simulation.match_over or win_simulation.match_winner != "player":
 		failures.append("completing network hold should win a skirmish match")
@@ -66,7 +66,7 @@ func _initialize() -> void:
 	var enemy_simulation = SimulationScript.new()
 	root.add_child(enemy_simulation)
 	enemy_simulation.start_match("relay_divide", "", {"mode": "skirmish", "scenario_id": "network_hold"})
-	_prepare_network_hold(enemy_simulation, "enemy", ["central_relay", "east_crossing"])
+	_prepare_network_hold(enemy_simulation, "enemy", ["central_relay", "network_west"])
 	_step_without_ai(enemy_simulation, 900)
 	if not enemy_simulation.match_over or enemy_simulation.match_winner != "enemy":
 		failures.append("enemy network hold completion should defeat the player")
@@ -85,7 +85,7 @@ func _initialize() -> void:
 	})
 	if main.start_menu_panel.visible or main.deployment_mode != "skirmish":
 		failures.append("deploying a skirmish should close the deployment menu")
-	if main.objective_target_point_ids != ["central_relay", "west_crossing"]:
+	if main.objective_target_point_ids != ["central_relay", "network_east"]:
 		failures.append("skirmish HUD should highlight all required network points")
 	main._show_match_result("MatchWon", {"message": "Network held for 90 seconds."})
 	if not main.result_visible or not main.result_overlay.visible:

@@ -605,8 +605,7 @@
           "role_description": "Extends nearby supply links and yields +15 credits/sec.",
           "income_per_second": 15,
           "supply_link_bonus": 10,
-          "capture_rate_multiplier": 0.8,
-          "repair_amount_multiplier": 1.0
+          "capture_rate_multiplier": 0.8
         },
         {
           "id": "east_crossing",
@@ -620,11 +619,10 @@
           "supports_staging": true,
           "strategic_role": "forward_staging",
           "role_label": "FORWARD STAGING",
-          "role_description": "Enables paid field repair and Assembly Bay rally when connected.",
+          "role_description": "Enables a forward Assembly Bay rally when connected.",
           "income_per_second": 10,
           "supply_link_bonus": 0,
-          "capture_rate_multiplier": 1.0,
-          "repair_amount_multiplier": 1.25
+          "capture_rate_multiplier": 1.0
         },
         {
           "id": "west_crossing",
@@ -638,11 +636,10 @@
           "supports_staging": true,
           "strategic_role": "forward_staging",
           "role_label": "FORWARD STAGING",
-          "role_description": "Enables paid field repair and Assembly Bay rally when connected.",
+          "role_description": "Enables a forward Assembly Bay rally when connected.",
           "income_per_second": 10,
           "supply_link_bonus": 0,
-          "capture_rate_multiplier": 1.0,
-          "repair_amount_multiplier": 1.25
+          "capture_rate_multiplier": 1.0
         }
       ]
     },
@@ -1282,8 +1279,7 @@
           "role_description": "Extends nearby supply links and yields +15 credits/sec.",
           "income_per_second": 15,
           "supply_link_bonus": 10,
-          "capture_rate_multiplier": 0.8,
-          "repair_amount_multiplier": 1.0
+          "capture_rate_multiplier": 0.8
       },
       {
         "id": "east_crossing",
@@ -1297,11 +1293,10 @@
           "supports_staging": true,
           "strategic_role": "forward_staging",
           "role_label": "FORWARD STAGING",
-          "role_description": "Enables paid field repair and Assembly Bay rally when connected.",
+          "role_description": "Enables a forward Assembly Bay rally when connected.",
           "income_per_second": 10,
           "supply_link_bonus": 0,
-          "capture_rate_multiplier": 1.0,
-          "repair_amount_multiplier": 1.25
+          "capture_rate_multiplier": 1.0
       },
       {
         "id": "west_crossing",
@@ -1315,11 +1310,10 @@
           "supports_staging": true,
           "strategic_role": "forward_staging",
           "role_label": "FORWARD STAGING",
-          "role_description": "Enables paid field repair and Assembly Bay rally when connected.",
+          "role_description": "Enables a forward Assembly Bay rally when connected.",
           "income_per_second": 10,
           "supply_link_bonus": 0,
-          "capture_rate_multiplier": 1.0,
-          "repair_amount_multiplier": 1.25
+          "capture_rate_multiplier": 1.0
       }
     ]
     }
@@ -1334,11 +1328,11 @@
       "objective_text": {
         "build_processor": "Select the Command Hub and build a Resource Processor.",
         "collector_missing": "Select the Resource Processor and queue a Collector.",
-        "collector_unassigned": "Select the Collector and right-click an Energy Field to assign its route.",
+        "collector_unassigned": "Collectors auto-search within 6 blocks for a nearby Energy Field. Assign a different route only when you need to change it.",
         "collector_delivery": "Protect the Collector route until energy reaches the Resource Processor.",
         "build_assembly": "Select the Command Hub and build an Assembly Bay.",
         "staging_secure": "Secure and connect {point} to establish a forward staging site.",
-        "staging_rally": "Assign {point} as the Assembly Bay staging rally, then use it as a forward repair point.",
+        "staging_rally": "Assign {point} as the Assembly Bay staging rally, then reinforce the connected network from it.",
         "build_tech": "Build a Tech Centre from the Command Hub.",
         "research_available": "Select the Tech Centre and research Advanced Targeting.",
         "research_active": "Advanced Targeting is researching. Protect the Tech Centre until it comes online.",
@@ -1358,7 +1352,10 @@
           "relay": 4
         },
         "collector_speed_multiplier": 0.78,
-        "collector_load_seconds": 2.5,
+        "collector_transfer_seconds": 4.0,
+        "collector_auto_search_radius": 24.0,
+        "upgrades_enabled": false,
+        "allowed_upgrades": [],
         "production_time_multiplier": 1.5,
         "collector_production_time_multiplier": 1.6
       },
@@ -1512,11 +1509,11 @@
       "objective_text": {
         "build_processor": "Select the Command Hub and build a Resource Processor.",
         "collector_missing": "Select the Resource Processor and queue a Collector.",
-        "collector_unassigned": "Select the Collector and right-click an Energy Field to assign its route.",
+        "collector_unassigned": "Collectors auto-search within 6 blocks for a nearby Energy Field. Assign a different route only when you need to change it.",
         "collector_delivery": "Protect the Collector route until energy reaches the Resource Processor.",
         "build_assembly": "Select the Command Hub and build an Assembly Bay.",
         "staging_secure": "Secure and connect {point} to establish a forward staging site.",
-        "staging_rally": "Assign {point} as the Assembly Bay staging rally, then use it as a forward repair point.",
+        "staging_rally": "Assign {point} as the Assembly Bay staging rally, then reinforce the connected network from it.",
         "build_tech": "Build a Tech Centre from the Command Hub.",
         "research_available": "Select the Tech Centre and research Advanced Targeting.",
         "research_active": "Advanced Targeting is researching. Protect the Tech Centre until it comes online.",
@@ -1536,7 +1533,13 @@
           "relay": 4
         },
         "collector_speed_multiplier": 0.78,
-        "collector_load_seconds": 2.5,
+        "collector_transfer_seconds": 4.0,
+        "collector_auto_search_radius": 24.0,
+        "upgrades_enabled": true,
+        "allowed_upgrades": [
+          "refining_efficiency",
+          "fabrication_systems"
+        ],
         "production_time_multiplier": 1.5,
         "collector_production_time_multiplier": 1.6
       },

@@ -18,7 +18,7 @@ static func populate(unit_definitions: Dictionary, building_definitions: Diction
 	var targeting = TechnologyDefinitionScript.new()
 	targeting.id = "advanced_targeting"
 	targeting.display_name = "Advanced Targeting"
-	targeting.description = "Unlocks Bulwark production at the Assembly Bay."
+	targeting.description = "Unlocks Bulwark production, extends weapon range by 18%, and vision by 15%."
 	targeting.cost = 300
 	targeting.research_time = 8.0
 	technology_definitions[targeting.id] = targeting
@@ -93,12 +93,13 @@ static func populate(unit_definitions: Dictionary, building_definitions: Diction
 	bulwark.speed = 2.6
 	bulwark.attack_range = 20.0
 	bulwark.minimum_attack_range = 8.0
-	bulwark.attack_damage = 70.0
+	bulwark.attack_damage = 58.0
 	bulwark.attack_cooldown = 3.6
 	bulwark.armour = 3.0
-	bulwark.structure_damage_multiplier = 1.65
-	bulwark.splash_radius = 2.8
-	bulwark.splash_minimum_multiplier = 0.4
+	bulwark.structure_damage_multiplier = 1.8
+	bulwark.splash_radius = 2.4
+	bulwark.splash_minimum_multiplier = 0.18
+	bulwark.splash_damage_multiplier = 0.38
 	bulwark.projectile_mode = "arc_missile"
 	bulwark.vision_range = 18.0
 	bulwark.body_scale = Vector3(1.4, 0.8, 1.15)
@@ -142,7 +143,7 @@ static func populate(unit_definitions: Dictionary, building_definitions: Diction
 	refinery.upgrade_id = "refining_efficiency"
 	refinery.upgrade_cost = 200
 	refinery.upgrade_time = 6.0
-	refinery.upgrade_effect = "delivery_value"
+	refinery.upgrade_effect = "transfer_speed"
 	refinery.role = "economy"
 	refinery.cost = 250
 	refinery.build_time = 4.5

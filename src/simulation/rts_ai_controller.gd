@@ -132,6 +132,10 @@ func _refresh_policy(requested_difficulty := "", requested_intent := "") -> void
 	intent_display_name = str(resolved.get("intent_display_name", "SECURE THEN ASSAULT"))
 	intent_message = str(resolved.get("intent_message", "Secure the forward network, then assault the enemy command hub."))
 	target_point_id = str(resolved.get("target_point_id", ""))
+	if intent_id == "hold_network" and simulation.get_match_mode() == "skirmish":
+		var network_points: Array = simulation.get_scenario_state("enemy").get("required_point_ids", [])
+		if network_points.size() > 1:
+			target_point_id = str(network_points[network_points.size() - 1])
 	map_tactic_id = str(resolved.get("map_tactic_id", "relay_first"))
 	map_tactic_display_name = str(resolved.get("map_tactic_display_name", map_tactic_id.replace("_", " ").to_upper()))
 	map_tactic_message = str(resolved.get("map_tactic_message", "Secure the authored forward network before the main assault."))
@@ -332,9 +336,9 @@ func _manage_repairs() -> void:
 	var retreat_ratio: float = clamp(float(profile.get("retreat_health_ratio", 0.45)), 0.1, 0.95)
 	for entity_id in simulation.units:
 		var unit: Dictionary = simulation.units[entity_id]
-		if unit["team"] != "enemy" or float(unit["health"]) >= float(unit["max_health"]):
+		if unit["team"] != "enemy" or float(unit["health"]) >= float(unit["max_health"]) or bool(unit.get("repair_active", false)):
 			continue
-		if simulation._is_repair_station_nearby("enemy", unit["position"]) and float(unit["health"]) <= float(unit["max_health"]) * repair_ratio:
+		if simulation._is_repair_station_nearby("enemy", unit["position"]) and float(unit["health"]) <= float(unit["max_health"]) * repair_ratio + 0.01:
 			repair_ids.append(entity_id)
 		elif unit["kind"] != "collector" and float(unit["health"]) <= float(unit["max_health"]) * retreat_ratio and str(unit.get("attack_target", "")).is_empty():
 			var home_id: String = simulation._first_building_for_team("enemy", "command_hub")
@@ -347,6 +351,13 @@ func _manage_repairs() -> void:
 		if building["team"] == "enemy" and building["complete"] and float(building["health"]) < float(building["max_health"]) and simulation.enemy_credits >= simulation.REPAIR_BUILDING_COST:
 			simulation.issue_command("repair", "enemy", {"entity_ids": [building_id]})
 			break
+
+
+func _is_repair_candidate(unit: Dictionary) -> bool:
+	if unit["team"] != "enemy" or unit["kind"] == "collector" or bool(unit.get("repair_active", false)):
+		return false
+	var repair_ratio: float = clamp(float(profile.get("repair_health_ratio", 0.45)), 0.1, 0.95)
+	return float(unit["health"]) < float(unit["max_health"]) and float(unit["health"]) <= float(unit["max_health"]) * repair_ratio + 0.01 and simulation._is_repair_station_nearby("enemy", unit["position"])
 
 
 func _manage_collectors() -> void:
@@ -434,13 +445,13 @@ func _manage_staging() -> void:
 		var player_hq_position: Vector3 = simulation.buildings[player_hq_id]["position"] if not player_hq_id.is_empty() else Vector3.INF
 		for entity_id in simulation.units:
 			var unit: Dictionary = simulation.units[entity_id]
-			if unit["team"] == "enemy" and unit["kind"] != "collector" and unit["position"].distance_to(player_hq_position) > 20.0 and (unit["order"] == "idle" or unit["order"] == "move" or unit["order"] == "attack_move"):
+			if unit["team"] == "enemy" and unit["kind"] != "collector" and not _is_repair_candidate(unit) and not bool(unit.get("repair_active", false)) and unit["position"].distance_to(player_hq_position) > 20.0 and (unit["order"] == "idle" or unit["order"] == "move" or unit["order"] == "attack_move"):
 				capture_group.append(entity_id)
 		var capture_group_size: int = max(1, int(profile.get("capture_group_size", 3)))
 		if capture_group.size() < capture_group_size:
 			return
 		capture_group = capture_group.slice(0, capture_group_size)
-		simulation.issue_command("move", "enemy", {"entity_ids": capture_group, "position": simulation.control_points[point_id]["position"]})
+		simulation.issue_command("attack_move", "enemy", {"entity_ids": capture_group, "position": simulation.control_points[point_id]["position"]})
 		return
 	var assembly: Dictionary = simulation.buildings[assembly_id]
 	if str(assembly.get("rally_mode", "ground")) != "control_point" or str(assembly.get("rally_point_id", "")) != point_id or bool(assembly.get("rally_suspended", false)):
@@ -471,7 +482,10 @@ func _manage_combat() -> void:
 	var opening_attack_delay: int = int(float(ai_config.get("opening_attack_delay_ticks", 0)) * float(profile.get("opening_attack_delay_multiplier", 1.0)) * map_tactic_attack_delay_multiplier)
 	var immediate_hq_threat: bool = _has_enemy_unit_near_position(simulation.buildings[player_hq]["position"], 20.0)
 	if posture == "defensive":
-		var defensive_target := _nearest_player_unit_to(simulation.buildings[enemy_hq]["position"], 24.0)
+		var defensive_anchor: Vector3 = simulation.buildings[enemy_hq]["position"]
+		if not target_point_id.is_empty() and simulation.control_points.has(target_point_id):
+			defensive_anchor = simulation.control_points[target_point_id]["position"]
+		var defensive_target := _nearest_player_unit_to(defensive_anchor, 70.0)
 		if defensive_target.is_empty() and not immediate_hq_threat:
 			return
 		opening_attack_delay = 0
@@ -488,7 +502,8 @@ func _manage_combat() -> void:
 	var attack_group: Array = []
 	for entity_id in simulation.units:
 		var unit: Dictionary = simulation.units[entity_id]
-		if unit["team"] == "enemy" and unit["kind"] != "collector" and (unit["order"] == "idle" or unit["order"] == "move" or unit["order"] == "attack_move"):
+		var can_reissue_attack: bool = unit["order"] == "attack" and not str(unit.get("attack_target", "")).is_empty() and str(unit.get("combat_state", "")) != "retreating"
+		if unit["team"] == "enemy" and unit["kind"] != "collector" and not _is_repair_candidate(unit) and not bool(unit.get("repair_active", false)) and (unit["order"] == "idle" or unit["order"] == "move" or unit["order"] == "attack_move" or can_reissue_attack):
 			attack_group.append(entity_id)
 	var minimum_attack_group_size: int = max(2, int(ai_config.get("minimum_attack_group_size", 2)) + int(profile.get("minimum_attack_group_size_delta", 0)))
 	if attack_group.size() < minimum_attack_group_size:
@@ -502,7 +517,10 @@ func _manage_combat() -> void:
 
 func _select_attack_target(player_hq: String, enemy_hq: String) -> String:
 	if posture == "defensive":
-		var defensive_target := _nearest_player_unit_to(simulation.buildings[enemy_hq]["position"], 24.0)
+		var defensive_anchor: Vector3 = simulation.buildings[enemy_hq]["position"]
+		if not target_point_id.is_empty() and simulation.control_points.has(target_point_id):
+			defensive_anchor = simulation.control_points[target_point_id]["position"]
+		var defensive_target := _nearest_player_unit_to(defensive_anchor, 70.0)
 		if not defensive_target.is_empty():
 			return defensive_target
 	if posture == "attacking":

@@ -9,6 +9,7 @@ const WorldBuilderScript = preload("res://src/presentation/rts_world_builder.gd"
 const CombatEffectsScript = preload("res://src/presentation/rts_combat_effects.gd")
 const WorldViewSynchronizerScript = preload("res://src/presentation/rts_world_view_synchronizer.gd")
 const FogOfWarViewScript = preload("res://src/presentation/rts_fog_of_war_view.gd")
+const HudIconScript = preload("res://src/ui/rts_hud_icon.gd")
 
 const MAP_HALF_WIDTH := 80.0
 const MAP_HALF_DEPTH := 55.0
@@ -33,11 +34,13 @@ var control_views: Dictionary = {}
 var resource_views: Dictionary = {}
 var selected_ids: Array = []
 var selected_resource_id := ""
+var inspected_target_id := ""
 var control_groups: Dictionary = {}
 
 var dragging := false
 var drag_start := Vector2.ZERO
 var drag_current := Vector2.ZERO
+var pointer_inside_viewport := true
 var selection_marquee: ColorRect
 var build_mode := ""
 var attack_move_mode := false
@@ -56,6 +59,8 @@ var supply_label: Label
 var technology_label: Label
 var force_label: Label
 var selected_label: Label
+var selected_icon: Control
+var selected_info_panel: PanelContainer
 var objective_label: Label
 var scenario_progress_label: Label
 var status_label: Label
@@ -66,6 +71,10 @@ var heavy_queue_button: Button
 var research_button: Button
 var repair_button: Button
 var collector_button: Button
+var bottom_panel: PanelContainer
+var action_card_icons: Array = []
+var action_card_titles: Array = []
+var action_card_prices: Array = []
 var minimap
 var mission_one_button: Button
 var mission_two_button: Button
@@ -100,6 +109,10 @@ var context_actions: Array = []
 var queue_panel: PanelContainer
 var queue_title_label: Label
 var queue_buttons: Array[Button] = []
+var queue_card_icons: Array = []
+var queue_card_titles: Array = []
+var queue_card_progress: Array = []
+var queue_card_refunds: Array = []
 var queue_building_id := ""
 
 
@@ -115,6 +128,7 @@ func _ready() -> void:
 	camera_target = _starting_camera_target()
 	_build_world_shell()
 	_build_ui()
+	_connect_pointer_signals()
 	_sync_views()
 	_update_camera()
 	_update_hud()
@@ -132,18 +146,65 @@ func _process(delta: float) -> void:
 		_update_selection_marquee()
 
 
+func _connect_pointer_signals() -> void:
+	var window := get_window()
+	if window == null:
+		return
+	if window.has_signal("mouse_entered"):
+		window.connect("mouse_entered", _on_pointer_entered)
+	if window.has_signal("mouse_exited"):
+		window.connect("mouse_exited", _on_pointer_exited)
+
+
+func _on_pointer_entered() -> void:
+	pointer_inside_viewport = true
+
+
+func _on_pointer_exited() -> void:
+	pointer_inside_viewport = false
+	if dragging:
+		dragging = false
+		if selection_marquee:
+			selection_marquee.visible = false
+
+
+func _input(event: InputEvent) -> void:
+	# Track the pointer before GUI controls receive the event. This keeps edge
+	# scrolling honest when the cursor leaves the window and lets a marquee
+	# finish even when the release happens over a HUD button.
+	if event is InputEventMouseMotion:
+		pointer_inside_viewport = get_viewport().get_visible_rect().has_point(event.position)
+		pointer_position = event.position
+		if dragging:
+			drag_current = event.position
+			if not pointer_inside_viewport:
+				dragging = false
+				selection_marquee.visible = false
+		return
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed and dragging:
+		pointer_position = event.position
+		drag_current = event.position
+		dragging = false
+		selection_marquee.visible = false
+		_finish_left_click()
+		get_viewport().set_input_as_handled()
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion:
 		pointer_position = event.position
+		pointer_inside_viewport = get_viewport().get_visible_rect().has_point(event.position)
 		if dragging:
 			drag_current = event.position
 		return
 	if event is InputEventMouseButton:
 		pointer_position = event.position
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed:
-			camera_distance = max(16.0, camera_distance - 2.5)
+			if not _pointer_over_ui():
+				camera_distance = max(16.0, camera_distance - 2.5)
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN and event.pressed:
-			camera_distance = min(45.0, camera_distance + 2.5)
+			if not _pointer_over_ui():
+				camera_distance = min(45.0, camera_distance + 2.5)
 		elif event.button_index == MOUSE_BUTTON_LEFT:
 			if event.pressed:
 				if _pointer_over_ui():
@@ -158,6 +219,8 @@ func _unhandled_input(event: InputEvent) -> void:
 					selection_marquee.visible = false
 					_finish_left_click()
 		elif event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
+			if _pointer_over_ui():
+				return
 			if collector_assignment_mode:
 				_cancel_collector_assignment()
 				return
@@ -208,6 +271,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				patrol_mode = false
 				selected_ids.clear()
 				selected_resource_id = ""
+				inspected_target_id = ""
 				_update_selected_visuals()
 			KEY_SPACE:
 				status_label.text = "Simulation is live — orders resolve on the fixed tick."
@@ -244,120 +308,177 @@ func _build_ui() -> void:
 	canvas.add_child(root)
 
 	var top_panel := PanelContainer.new()
-	top_panel.position = Vector2(18.0, 16.0)
-	top_panel.size = Vector2(1170.0, 70.0)
+	top_panel.name = "TopStatusPanel"
+	top_panel.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	top_panel.offset_left = 18.0
+	top_panel.offset_right = -18.0
+	top_panel.offset_top = 16.0
+	top_panel.offset_bottom = 116.0
 	top_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.025, 0.075, 0.1, 0.94), Color(0.18, 0.7, 0.78, 0.75)))
 	root.add_child(top_panel)
 	var top_margin := MarginContainer.new()
-	top_margin.add_theme_constant_override("margin_left", 18)
-	top_margin.add_theme_constant_override("margin_right", 18)
-	top_margin.add_theme_constant_override("margin_top", 9)
-	top_margin.add_theme_constant_override("margin_bottom", 9)
+	top_margin.add_theme_constant_override("margin_left", 12)
+	top_margin.add_theme_constant_override("margin_right", 12)
+	top_margin.add_theme_constant_override("margin_top", 7)
+	top_margin.add_theme_constant_override("margin_bottom", 7)
 	top_panel.add_child(top_margin)
+	var top_column := VBoxContainer.new()
+	top_column.name = "TopStatusColumn"
+	top_column.add_theme_constant_override("separation", 4)
+	top_margin.add_child(top_column)
 	var top_row := HBoxContainer.new()
-	top_row.add_theme_constant_override("separation", 24)
-	top_margin.add_child(top_row)
+	top_row.name = "TopTitleRow"
+	top_row.add_theme_constant_override("separation", 10)
+	top_column.add_child(top_row)
 	var title := _label("FRACTURE PROTOCOL", 21, Color("#d6fbff"))
-	title.custom_minimum_size.x = 220.0
+	title.custom_minimum_size.x = 235.0
 	top_row.add_child(title)
-	credits_label = _label("CREDITS 850", 17, Color("#ffd36a"))
-	top_row.add_child(credits_label)
-	territory_label = _label("TERRITORY 0/3", 17, Color("#8cebf3"))
-	top_row.add_child(territory_label)
-	supply_label = _label("SUPPLY CONNECTED", 17, Color("#7cf1ad"))
-	top_row.add_child(supply_label)
-	technology_label = _label("TECH LOCKED", 17, Color("#ffbf6a"))
-	top_row.add_child(technology_label)
-	force_label = _label("FORCE 4/24", 17, Color("#c3d8df"))
-	top_row.add_child(force_label)
+	var top_hint := _label("LIVE TACTICAL FEED", 10, Color(0.58, 0.78, 0.82, 0.78))
+	top_hint.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	top_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	top_row.add_child(top_hint)
+
+	var top_stats_scroll := ScrollContainer.new()
+	top_stats_scroll.name = "TopStatsScroll"
+	top_stats_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	top_stats_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	top_stats_scroll.custom_minimum_size = Vector2(0.0, 34.0)
+	top_stats_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	top_stats_scroll.mouse_filter = Control.MOUSE_FILTER_STOP
+	top_column.add_child(top_stats_scroll)
+	var top_stats_row := HBoxContainer.new()
+	top_stats_row.name = "TopStatsRow"
+	top_stats_row.add_theme_constant_override("separation", 7)
+	top_stats_scroll.add_child(top_stats_row)
+	credits_label = _label("CREDITS 850", 13, Color("#ffd36a"))
+	top_stats_row.add_child(_create_status_chip("CreditsChip", credits_label, 128.0, Color("#ffd36a")))
+	territory_label = _label("TERRITORY 0/3", 13, Color("#8cebf3"))
+	top_stats_row.add_child(_create_status_chip("TerritoryChip", territory_label, 166.0, Color("#8cebf3")))
+	supply_label = _label("SUPPLY CONNECTED", 13, Color("#7cf1ad"))
+	top_stats_row.add_child(_create_status_chip("SupplyChip", supply_label, 184.0, Color("#7cf1ad")))
+	technology_label = _label("TECH LOCKED", 13, Color("#ffbf6a"))
+	top_stats_row.add_child(_create_status_chip("TechnologyChip", technology_label, 246.0, Color("#ffbf6a")))
+	force_label = _label("FORCE 4/24", 13, Color("#c3d8df"))
+	top_stats_row.add_child(_create_status_chip("ForceChip", force_label, 128.0, Color("#c3d8df")))
 
 	objective_label = _label("OBJECTIVE", 15, Color("#ffd36a"))
-	objective_label.position = Vector2(22.0, 98.0)
-	objective_label.size = Vector2(1210.0, 25.0)
+	objective_label.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	objective_label.offset_left = 22.0
+	objective_label.offset_right = -22.0
+	objective_label.offset_top = 126.0
+	objective_label.offset_bottom = 151.0
+	objective_label.clip_text = true
+	objective_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	root.add_child(objective_label)
 
 	scenario_progress_label = _label("", 13, Color("#8cebf3"))
-	scenario_progress_label.position = Vector2(22.0, 121.0)
-	scenario_progress_label.size = Vector2(1210.0, 22.0)
+	scenario_progress_label.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	scenario_progress_label.offset_left = 22.0
+	scenario_progress_label.offset_right = -22.0
+	scenario_progress_label.offset_top = 149.0
+	scenario_progress_label.offset_bottom = 173.0
+	scenario_progress_label.clip_text = true
+	scenario_progress_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	root.add_child(scenario_progress_label)
 
 	status_label = _label("Awaiting orders.", 16, Color("#c3d8df"))
-	status_label.position = Vector2(22.0, 145.0)
-	status_label.size = Vector2(980.0, 26.0)
+	status_label.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	status_label.offset_left = 22.0
+	status_label.offset_right = -22.0
+	status_label.offset_top = 175.0
+	status_label.offset_bottom = 202.0
+	status_label.clip_text = true
+	status_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	root.add_child(status_label)
 
 	event_log_label = _label("EVENT LOG\nAwaiting orders...", 14, Color("#abc5cb"))
-	event_log_label.position = Vector2(18.0, 500.0)
-	event_log_label.size = Vector2(390.0, 96.0)
+	event_log_label.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	event_log_label.offset_left = 18.0
+	event_log_label.offset_right = 408.0
+	event_log_label.offset_top = -220.0
+	event_log_label.offset_bottom = -116.0
+	event_log_label.clip_text = true
 	event_log_label.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.8))
 	event_log_label.add_theme_constant_override("shadow_offset_x", 2)
 	event_log_label.add_theme_constant_override("shadow_offset_y", 2)
 	root.add_child(event_log_label)
 
-	var bottom_panel := PanelContainer.new()
-	bottom_panel.position = Vector2(18.0, 616.0)
-	bottom_panel.size = Vector2(1244.0, 88.0)
+	bottom_panel = PanelContainer.new()
+	bottom_panel.name = "ContextActionPanel"
+	bottom_panel.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	bottom_panel.offset_left = 18.0
+	bottom_panel.offset_right = -18.0
+	bottom_panel.offset_top = -112.0
+	bottom_panel.offset_bottom = -18.0
 	bottom_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.025, 0.075, 0.1, 0.96), Color(0.18, 0.7, 0.78, 0.75)))
 	root.add_child(bottom_panel)
 	var bottom_margin := MarginContainer.new()
-	bottom_margin.add_theme_constant_override("margin_left", 16)
-	bottom_margin.add_theme_constant_override("margin_right", 16)
-	bottom_margin.add_theme_constant_override("margin_top", 12)
-	bottom_margin.add_theme_constant_override("margin_bottom", 12)
+	bottom_margin.add_theme_constant_override("margin_left", 10)
+	bottom_margin.add_theme_constant_override("margin_right", 10)
+	bottom_margin.add_theme_constant_override("margin_top", 9)
+	bottom_margin.add_theme_constant_override("margin_bottom", 9)
 	bottom_panel.add_child(bottom_margin)
 	var bottom_row := HBoxContainer.new()
-	bottom_row.add_theme_constant_override("separation", 12)
+	bottom_row.add_theme_constant_override("separation", 8)
 	bottom_margin.add_child(bottom_row)
-	selected_label = _label("NO SELECTION\nSelect units or a structure", 15, Color("#d2e7ec"))
-	selected_label.custom_minimum_size = Vector2(260.0, 52.0)
-	bottom_row.add_child(selected_label)
+	selected_info_panel = PanelContainer.new()
+	selected_info_panel.name = "SelectedEntityCard"
+	selected_info_panel.custom_minimum_size = Vector2(236.0, 74.0)
+	selected_info_panel.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	selected_info_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.035, 0.11, 0.14, 0.96), Color(0.22, 0.78, 0.82, 0.72)))
+	bottom_row.add_child(selected_info_panel)
+	var selected_margin := MarginContainer.new()
+	selected_margin.add_theme_constant_override("margin_left", 7)
+	selected_margin.add_theme_constant_override("margin_right", 7)
+	selected_margin.add_theme_constant_override("margin_top", 5)
+	selected_margin.add_theme_constant_override("margin_bottom", 5)
+	selected_info_panel.add_child(selected_margin)
+	var selected_row := HBoxContainer.new()
+	selected_row.add_theme_constant_override("separation", 7)
+	selected_margin.add_child(selected_row)
+	selected_icon = HudIconScript.new()
+	selected_icon.name = "SelectedEntityIcon"
+	selected_icon.custom_minimum_size = Vector2(54.0, 54.0)
+	selected_icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	selected_row.add_child(selected_icon)
+	selected_label = _label("NO SELECTION\nSelect units or a structure", 12, Color("#d2e7ec"))
+	selected_label.custom_minimum_size = Vector2(154.0, 54.0)
+	selected_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	selected_label.clip_text = true
+	selected_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	selected_row.add_child(selected_label)
 
-	build_button = Button.new()
-	build_button.text = "DEPLOY RELAY [B]"
-	build_button.custom_minimum_size = Vector2(135.0, 48.0)
-	build_button.tooltip_text = "Place a Forward Relay near a connected friendly structure. Cost: 180 credits."
-	build_button.pressed.connect(_run_context_action.bind(0))
-	bottom_row.add_child(build_button)
+	var action_scroll := ScrollContainer.new()
+	action_scroll.name = "ContextActionScroll"
+	action_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	action_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	action_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	action_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	action_scroll.custom_minimum_size = Vector2(0.0, 76.0)
+	action_scroll.mouse_filter = Control.MOUSE_FILTER_STOP
+	bottom_row.add_child(action_scroll)
+	var action_row := HBoxContainer.new()
+	action_row.name = "ContextActionRow"
+	action_row.add_theme_constant_override("separation", 7)
+	action_row.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	action_scroll.add_child(action_row)
 
-	queue_button = Button.new()
-	queue_button.text = "QUEUE RAIDER [Q]"
-	queue_button.custom_minimum_size = Vector2(135.0, 48.0)
-	queue_button.tooltip_text = "Queue a fast attack vehicle at the Assembly Bay. Cost: 105 credits."
-	queue_button.pressed.connect(_run_context_action.bind(1))
-	bottom_row.add_child(queue_button)
-
-	heavy_queue_button = Button.new()
-	heavy_queue_button.text = "QUEUE BULWARK [V]"
-	heavy_queue_button.custom_minimum_size = Vector2(145.0, 48.0)
-	heavy_queue_button.tooltip_text = "Queue a heavy assault vehicle after Advanced Targeting research. Cost: 160 credits."
-	heavy_queue_button.pressed.connect(_run_context_action.bind(2))
-	bottom_row.add_child(heavy_queue_button)
-
-	research_button = Button.new()
-	research_button.text = "RESEARCH TARGETING [T]"
-	research_button.custom_minimum_size = Vector2(160.0, 48.0)
-	research_button.tooltip_text = "Research Advanced Targeting at the Assembly Bay. Cost: 300 credits."
-	research_button.pressed.connect(_run_context_action.bind(3))
-	bottom_row.add_child(research_button)
-
-	repair_button = Button.new()
-	repair_button.text = "REPAIR [Y]"
-	repair_button.custom_minimum_size = Vector2(100.0, 48.0)
-	repair_button.tooltip_text = "Repair selected units near a repair station or selected structures. Cost: 30/45 credits."
-	repair_button.pressed.connect(_run_context_action.bind(4))
-	bottom_row.add_child(repair_button)
-
-	collector_button = Button.new()
-	collector_button.text = "QUEUE COLLECTOR [C]"
-	collector_button.custom_minimum_size = Vector2(135.0, 48.0)
-	collector_button.tooltip_text = "Queue a Collector at the Assembly Bay. Select one and press U to assign its source and Resource Processor. Cost: 115 credits."
-	collector_button.pressed.connect(_run_context_action.bind(5))
-	bottom_row.add_child(collector_button)
+	build_button = _create_action_card(0)
+	queue_button = _create_action_card(1)
+	heavy_queue_button = _create_action_card(2)
+	research_button = _create_action_card(3)
+	repair_button = _create_action_card(4)
+	collector_button = _create_action_card(5)
+	for action_button in [build_button, queue_button, heavy_queue_button, research_button, repair_button, collector_button]:
+		action_row.add_child(action_button)
 
 	queue_panel = PanelContainer.new()
 	queue_panel.name = "ProductionQueuePanel"
-	queue_panel.position = Vector2(420.0, 498.0)
-	queue_panel.size = Vector2(600.0, 108.0)
+	queue_panel.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	queue_panel.offset_left = 30.0
+	queue_panel.offset_right = -30.0
+	queue_panel.offset_top = -236.0
+	queue_panel.offset_bottom = -122.0
 	queue_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.025, 0.075, 0.1, 0.96), Color(0.96, 0.68, 0.28, 0.72)))
 	var queue_margin := MarginContainer.new()
 	queue_margin.add_theme_constant_override("margin_left", 10)
@@ -368,14 +489,27 @@ func _build_ui() -> void:
 	var queue_column := VBoxContainer.new()
 	queue_column.add_theme_constant_override("separation", 4)
 	queue_margin.add_child(queue_column)
-	queue_title_label = _label("PRODUCTION QUEUE — click a job to cancel and refund", 11, Color("#ffd36a"))
+	queue_title_label = _label("QUEUE  //  CLICK CARD TO CANCEL + REFUND", 11, Color("#ffd36a"))
+	queue_title_label.name = "ProductionQueueTitle"
+	queue_title_label.clip_text = true
+	queue_title_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	queue_column.add_child(queue_title_label)
+	var queue_scroll := ScrollContainer.new()
+	queue_scroll.name = "ProductionQueueScroll"
+	queue_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	queue_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	queue_scroll.custom_minimum_size = Vector2(0.0, 78.0)
+	queue_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	queue_scroll.mouse_filter = Control.MOUSE_FILTER_STOP
+	queue_column.add_child(queue_scroll)
 	var queue_row := HBoxContainer.new()
-	queue_row.add_theme_constant_override("separation", 5)
-	queue_column.add_child(queue_row)
+	queue_row.name = "ProductionQueueRow"
+	queue_row.add_theme_constant_override("separation", 7)
+	queue_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	queue_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	queue_scroll.add_child(queue_row)
 	for queue_index in range(5):
-		var queue_button := Button.new()
-		queue_button.custom_minimum_size = Vector2(108.0, 55.0)
+		var queue_button := _create_queue_card(queue_index)
 		queue_button.visible = false
 		queue_button.pressed.connect(_cancel_queue_slot.bind(queue_index))
 		queue_row.add_child(queue_button)
@@ -385,8 +519,10 @@ func _build_ui() -> void:
 
 	minimap = MinimapScript.new()
 	minimap.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	minimap.position = Vector2(-270.0, -274.0)
-	minimap.size = Vector2(252.0, 166.0)
+	minimap.offset_left = -270.0
+	minimap.offset_right = -18.0
+	minimap.offset_top = -274.0
+	minimap.offset_bottom = -108.0
 	minimap.world_position_clicked.connect(_on_minimap_world_position_clicked)
 	var bounds: Vector2 = simulation.get_level_bounds()
 	minimap.map_bounds = Rect2(-bounds.x, -bounds.y, bounds.x * 2.0, bounds.y * 2.0)
@@ -739,14 +875,24 @@ func _finish_left_click() -> void:
 		if not clicked_resource_id.is_empty():
 			selected_ids.clear()
 			selected_resource_id = clicked_resource_id
+			inspected_target_id = ""
 			status_label.text = "%s selected — inspect its finite reserve below." % simulation.resource_nodes[clicked_resource_id]["display_name"]
 			_update_selected_visuals()
 			return
-		var clicked_id := _entity_at_screen(pointer_position, true)
+		var clicked_id := _entity_at_screen(pointer_position, false)
 		selected_resource_id = ""
 		selected_ids.clear()
 		if not clicked_id.is_empty() and ((simulation.units.has(clicked_id) and simulation.units[clicked_id]["team"] == "player") or (simulation.buildings.has(clicked_id) and simulation.buildings[clicked_id]["team"] == "player")):
+			inspected_target_id = ""
 			selected_ids.append(clicked_id)
+		elif not clicked_id.is_empty():
+			inspected_target_id = clicked_id
+			status_label.text = "%s inspected — left-click shows its combat readout; right-click orders an attack." % _entity_display_name(clicked_id)
+			_update_selected_visuals()
+			_update_hud()
+			return
+		else:
+			inspected_target_id = ""
 	else:
 		selected_resource_id = ""
 		selected_ids.clear()
@@ -788,7 +934,10 @@ func _issue_context_order(screen_position: Vector2, queue_order := false) -> voi
 	var clicked_enemy: bool = not clicked_id.is_empty() and ((simulation.units.has(clicked_id) and simulation.units[clicked_id]["team"] == "enemy") or (simulation.buildings.has(clicked_id) and simulation.buildings[clicked_id]["team"] == "enemy"))
 	if clicked_enemy:
 		simulation.issue_command("attack", "player", {"entity_ids": selected_ids, "target_id": clicked_id})
+		inspected_target_id = clicked_id
+		_flash_target_view(clicked_id)
 		attack_move_mode = false
+		status_label.text = "ATTACK ORDER — %s targeted." % _entity_display_name(clicked_id)
 		return
 	var rally_building_id := _selected_rally_building_id()
 	var control_point_id := _control_point_at_screen(screen_position)
@@ -893,6 +1042,40 @@ func _entity_at_screen(screen_position: Vector2, player_only: bool) -> String:
 			closest_distance = distance
 			closest_id = entity_id
 	return closest_id
+
+
+func _entity_display_name(entity_id: String) -> String:
+	if simulation.units.has(entity_id):
+		return str(simulation.units[entity_id].get("display_name", simulation.units[entity_id].get("kind", "UNIT")))
+	if simulation.buildings.has(entity_id):
+		return str(simulation.buildings[entity_id].get("display_name", simulation.buildings[entity_id].get("kind", "BUILDING")))
+	return entity_id
+
+
+func _flash_target_view(entity_id: String) -> void:
+	if unit_views.has(entity_id) and is_instance_valid(unit_views[entity_id]):
+		unit_views[entity_id].flash_target()
+	elif building_views.has(entity_id) and is_instance_valid(building_views[entity_id]):
+		building_views[entity_id].flash_target()
+
+
+func _inspected_target_data() -> Dictionary:
+	if inspected_target_id.is_empty():
+		return {}
+	if simulation.units.has(inspected_target_id):
+		return simulation.units[inspected_target_id]
+	if simulation.buildings.has(inspected_target_id):
+		return simulation.buildings[inspected_target_id]
+	return {}
+
+
+func _target_detail(data: Dictionary) -> String:
+	var health_text := "HP %d / %d" % [int(data.get("health", 0.0)), int(data.get("max_health", 0.0))]
+	if data.has("kind") and simulation.unit_definitions.has(str(data["kind"])):
+		var definition = simulation.unit_definitions[str(data["kind"])]
+		var range_value: float = simulation.get_effective_attack_range(str(data.get("team", "enemy")), str(data["kind"]))
+		return "TARGET %s\n%s   DMG %d   RANGE %.1f" % [str(data.get("display_name", data.get("kind", "UNIT"))).to_upper(), health_text, int(definition.attack_damage), range_value]
+	return "TARGET %s\n%s   STRUCTURE" % [str(data.get("display_name", data.get("kind", "BUILDING"))).to_upper(), health_text]
 
 
 func _screen_to_ground(screen_position: Vector2) -> Vector3:
@@ -1250,6 +1433,12 @@ func _repair_selected() -> void:
 		status_label.text = "Select a damaged unit or structure before repairing."
 		return
 	simulation.issue_command("repair", "player", {"entity_ids": selected_ids})
+	var selected_unit := false
+	for entity_id in selected_ids:
+		if simulation.units.has(entity_id):
+			selected_unit = true
+			break
+	status_label.text = "Repair started — units must stay inside a green Hub/Assembly circle; repair continues automatically." if selected_unit else "Building repair started — it continues automatically until full or credits run out."
 
 
 func _has_damaged_selection() -> bool:
@@ -1276,14 +1465,18 @@ func _process_camera_input(delta: float) -> void:
 		var forward := Vector3(-sin(camera_yaw), 0.0, -cos(camera_yaw))
 		var right := Vector3(cos(camera_yaw), 0.0, -sin(camera_yaw))
 		camera_target += (right * input_vector.x + forward * input_vector.y) * delta * 30.0
-	if pointer_position.x < 12.0:
-		camera_target.x -= delta * 18.0
-	elif pointer_position.x > get_viewport().size.x - 12.0:
-		camera_target.x += delta * 18.0
-	if pointer_position.y < 12.0:
-		camera_target.z -= delta * 18.0
-	elif pointer_position.y > get_viewport().size.y - 12.0:
-		camera_target.z += delta * 18.0
+	var viewport_rect := get_viewport().get_visible_rect()
+	var edge_scroll_allowed := pointer_inside_viewport and not dragging and not _is_dialog_open() and viewport_rect.has_point(pointer_position) and not _pointer_over_ui()
+	if edge_scroll_allowed:
+		var edge_margin := 16.0
+		if pointer_position.x < viewport_rect.position.x + edge_margin:
+			camera_target.x -= delta * 18.0
+		elif pointer_position.x > viewport_rect.end.x - edge_margin:
+			camera_target.x += delta * 18.0
+		if pointer_position.y < viewport_rect.position.y + edge_margin:
+			camera_target.z -= delta * 18.0
+		elif pointer_position.y > viewport_rect.end.y - edge_margin:
+			camera_target.z += delta * 18.0
 	var bounds: Vector2 = simulation.get_level_bounds() if simulation else Vector2(MAP_HALF_WIDTH, MAP_HALF_DEPTH)
 	camera_target.x = clamp(camera_target.x, -bounds.x * CAMERA_TARGET_X_FACTOR, bounds.x * CAMERA_TARGET_X_FACTOR)
 	camera_target.z = clamp(camera_target.z, -bounds.y * CAMERA_TARGET_Z_FACTOR, bounds.y * CAMERA_TARGET_Z_FACTOR)
@@ -1303,6 +1496,8 @@ func _sync_views(frame_delta: float = 0.0) -> void:
 	for selected_id in selected_ids.duplicate():
 		if not state["units"].has(selected_id) and not state["buildings"].has(selected_id):
 			selected_ids.erase(selected_id)
+	if not inspected_target_id.is_empty() and not state["units"].has(inspected_target_id) and not state["buildings"].has(inspected_target_id):
+		inspected_target_id = ""
 	if not state["resource_nodes"].has(selected_resource_id):
 		selected_resource_id = ""
 	WorldViewSynchronizerScript.sync(self, state, selected_ids, unit_views, building_views, control_views, resource_views, selected_resource_id, objective_target_point_ids, minimap, frame_delta)
@@ -1373,6 +1568,7 @@ func _restart_match() -> void:
 	patrol_mode = false
 	selected_ids.clear()
 	selected_resource_id = ""
+	inspected_target_id = ""
 	objective_target_point_id = ""
 	objective_target_point_ids = []
 	control_groups.clear()
@@ -1397,6 +1593,7 @@ func _load_campaign_level(level_id: String) -> void:
 	attack_move_mode = false
 	patrol_mode = false
 	selected_ids.clear()
+	inspected_target_id = ""
 	objective_target_point_id = ""
 	objective_target_point_ids = []
 	control_groups.clear()
@@ -1423,6 +1620,7 @@ func _load_skirmish_match(level_id: String, settings: Dictionary) -> void:
 	patrol_mode = false
 	selected_ids.clear()
 	selected_resource_id = ""
+	inspected_target_id = ""
 	objective_target_point_id = ""
 	objective_target_point_ids = []
 	control_groups.clear()
@@ -1528,7 +1726,7 @@ func _update_objective() -> void:
 		_set_objective("collector_missing")
 		return
 	var collector: Dictionary = simulation.units[collector_id]
-	if str(collector.get("collector_state", "")) == "unassigned":
+	if str(collector.get("collector_state", "")) == "unassigned" or str(collector.get("collector_state", "")) == "awaiting_source":
 		_set_objective("collector_unassigned")
 		return
 	if not _has_player_event("ResourceDelivered"):
@@ -1619,7 +1817,8 @@ func _update_hud() -> void:
 	var targeting_online: bool = simulation.is_technology_unlocked("player", "advanced_targeting")
 	var active_research_id: String = str(research_status.get("active_id", ""))
 	if targeting_online:
-		technology_label.text = "TECH TARGETING ONLINE"
+		technology_label.text = "TECH TARGETING +18% R / +15% V"
+		technology_label.tooltip_text = "Advanced Targeting: weapon range +18%, vision range +15%, and Bulwark production unlocked."
 		technology_label.modulate = Color("#7cf1ad")
 	elif not active_research_id.is_empty():
 		var research_total: float = max(0.1, float(research_status.get("total", 0.0)))
@@ -1642,10 +1841,14 @@ func _update_hud() -> void:
 		_cancel_collector_assignment(false)
 
 	var selected_text := "NO SELECTION\nSelect units, a structure, or an Energy Field"
+	var selected_icon_key := "unit"
+	var selected_icon_accent := Color("#8cebf3")
 	if not selected_resource_id.is_empty() and simulation.resource_nodes.has(selected_resource_id):
 		var resource_summary: Dictionary = simulation.get_resource_summary(selected_resource_id)
 		var resource_state := "DEPLETED" if bool(resource_summary.get("depleted", false)) else "%d%% REMAINING" % int(float(resource_summary.get("percent_remaining", 0.0)) * 100.0)
 		selected_text = "%s\nENERGY %d / %d   %s" % [str(resource_summary.get("display_name", "ENERGY FIELD")).to_upper(), int(resource_summary.get("remaining", 0.0)), int(resource_summary.get("initial_remaining", 0.0)), resource_state]
+		selected_icon_key = "resource"
+		selected_icon_accent = Color("#ffd36a")
 	elif not selected_ids.is_empty():
 		var first_id: String = selected_ids[0]
 		var selected_data: Dictionary = simulation.units.get(first_id, simulation.buildings.get(first_id, {}))
@@ -1654,7 +1857,28 @@ func _update_hud() -> void:
 			if selected_ids.size() > 1:
 				selection_detail += "\n" + _selection_composition()
 			selected_text = "%s\n%s" % [_selection_title(), selection_detail]
-	selected_label.text = selected_text
+			selected_icon_key = _selection_icon_key(selected_data)
+			selected_icon_accent = Color("#8cebf3")
+	var inspected_data := _inspected_target_data()
+	if not inspected_data.is_empty() and selected_resource_id.is_empty():
+		var target_text := _target_detail(inspected_data)
+		if selected_ids.is_empty():
+			selected_text = target_text
+		else:
+			selected_text += "\n" + target_text
+			selected_icon_key = _selection_icon_key(inspected_data, true)
+			selected_icon_accent = Color("#ff7b86")
+	if not selected_ids.is_empty() and selected_resource_id.is_empty():
+		var compact_data: Dictionary = simulation.units.get(str(selected_ids[0]), simulation.buildings.get(str(selected_ids[0]), {}))
+		if not compact_data.is_empty():
+			selected_label.text = _selection_card_text(compact_data)
+		else:
+			selected_label.text = selected_text
+	else:
+		selected_label.text = selected_text
+	selected_label.tooltip_text = selected_text
+	if selected_icon:
+		selected_icon.set_icon(selected_icon_key, selected_icon_accent)
 	_update_context_cards()
 	_update_production_queue_ui()
 
@@ -1667,7 +1891,7 @@ func _territory_tooltip(territory: Dictionary) -> String:
 		lines.append("Network Hub extension: +%d supply-link range" % int(supply_bonus))
 	var staging_sites := int(territory.get("player_staging_sites", 0))
 	if staging_sites > 0:
-		lines.append("Active staging sites: %d — repair and rally available" % staging_sites)
+		lines.append("Active staging sites: %d — forward rally support available" % staging_sites)
 	if lines.size() == 1:
 		lines.append("Capture a point to unlock its authored strategic role.")
 	return "\n".join(lines)
@@ -1708,7 +1932,15 @@ func _update_production_queue_ui() -> void:
 	var building: Dictionary = simulation.buildings[queue_building_id]
 	var queue: Array = building.get("queue", [])
 	queue_panel.visible = not queue.is_empty()
-	queue_title_label.text = "PRODUCTION QUEUE — %s — click to cancel and refund" % str(building["display_name"]).to_upper()
+	var queue_count: int = min(queue.size(), queue_buttons.size())
+	var viewport_width: float = get_viewport().get_visible_rect().size.x
+	var queue_width: float = clamp(28.0 + float(queue_count) * 123.0, 360.0, max(360.0, viewport_width - 60.0))
+	queue_panel.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	queue_panel.offset_left = -queue_width * 0.5
+	queue_panel.offset_right = queue_width * 0.5
+	queue_panel.offset_top = -236.0
+	queue_panel.offset_bottom = -122.0
+	queue_title_label.text = "QUEUE  //  %s  //  CANCEL + REFUND" % str(building["display_name"]).to_upper()
 	for index in range(queue_buttons.size()):
 		var button: Button = queue_buttons[index]
 		if index >= queue.size():
@@ -1725,10 +1957,19 @@ func _update_production_queue_ui() -> void:
 		var total: float = max(0.1, float(job.get("total", definition.build_time if definition else 1.0)))
 		var progress: int = int(clamp(1.0 - float(job.get("remaining", total)) / total, 0.0, 1.0) * 100.0)
 		var refund: int = int(float(job.get("cost", definition.cost if definition else 0.0)))
-		var queue_marker := "▶" if index == 0 else "#%d" % index
 		button.visible = true
 		button.disabled = simulation.match_over
-		button.text = "%s %s\n%d%%  %ds · REFUND %d" % [queue_marker, display_name, progress, remaining, refund]
+		button.modulate = Color(1.0, 0.95, 0.82, 1.0) if index == 0 else Color(0.88, 0.96, 0.98, 1.0)
+		queue_card_icons[index].set_icon(unit_type, Color("#ffd36a") if index == 0 else Color("#8cebf3"))
+		queue_card_titles[index].text = display_name
+		if index == 0:
+			queue_card_progress[index].text = "ACTIVE  %d%% · %ds" % [progress, remaining]
+		else:
+			queue_card_progress[index].text = "QUEUE %d  ·  %d%% · %ds" % [index, progress, remaining]
+		queue_card_refunds[index].text = "REFUND %d C" % refund
+		queue_card_titles[index].tooltip_text = display_name
+		queue_card_progress[index].tooltip_text = "%d%% complete — %d seconds remaining" % [progress, remaining]
+		queue_card_refunds[index].tooltip_text = "Cancel and refund %d credits." % refund
 		button.tooltip_text = "Cancel %s and refund %d credits." % [display_name, refund]
 
 
@@ -1850,6 +2091,8 @@ func _upgrade_context_state(building: Dictionary) -> Dictionary:
 		return {"visible": false}
 	if bool(building.get("upgrade_complete", false)) or not str(building.get("completed_upgrade_id", "")).is_empty():
 		return {"visible": false}
+	if not simulation.is_upgrade_available(str(definition.upgrade_id)):
+		return {"visible": true, "disabled": true, "reason": "Building upgrades unlock in later levels."}
 	var active_id := str(building.get("upgrade_id", ""))
 	if not active_id.is_empty():
 		var total: float = max(0.1, float(building.get("upgrade_total", definition.upgrade_time)))
@@ -1858,9 +2101,13 @@ func _upgrade_context_state(building: Dictionary) -> Dictionary:
 		return {"visible": true, "disabled": true, "reason": "Upgrade in progress (%d%%)." % progress, "label_suffix": "%d%%" % progress}
 	var disabled := false
 	var reason := ""
+	if str(definition.upgrade_id) == "refining_efficiency":
+		reason = "Refining Efficiency: Collector recovery and deposit transfer are 30% faster."
+	elif str(definition.upgrade_id) == "fabrication_systems":
+		reason = "Fabrication Systems: Assembly Bay production is 20% faster."
 	if simulation.player_credits < float(definition.upgrade_cost):
 		disabled = true
-		reason = "Need %d more credits." % int(float(definition.upgrade_cost) - simulation.player_credits)
+		reason += " Need %d more credits." % int(float(definition.upgrade_cost) - simulation.player_credits)
 	return {"visible": true, "disabled": disabled, "reason": reason}
 
 
@@ -1886,6 +2133,114 @@ func _research_context_state(building: Dictionary) -> Dictionary:
 		disabled = true
 		reason = "Need %d more credits." % int(float(technology.cost) - simulation.player_credits)
 	return {"visible": true, "disabled": disabled, "reason": reason}
+
+
+func _repair_context_state() -> Dictionary:
+	var damaged := false
+	var active := false
+	var unit_outside_zone := false
+	var required_cost := 0.0
+	for entity_id in selected_ids:
+		var entity: Dictionary = simulation.units.get(entity_id, simulation.buildings.get(entity_id, {}))
+		if entity.is_empty() or float(entity.get("health", 0.0)) >= float(entity.get("max_health", 0.0)):
+			continue
+		damaged = true
+		required_cost = max(required_cost, 30.0 if entity.has("order") else 45.0)
+		if bool(entity.get("repair_active", false)):
+			active = true
+		elif entity.has("order") and simulation.get_repair_station_id("player", entity["position"]).is_empty():
+			unit_outside_zone = true
+	if not damaged:
+		return {"visible": false}
+	if active:
+		return {"action": "repair", "label": "REPAIRING", "visible": true, "disabled": true, "reason": "Repair continues automatically until full, credits run out, or the unit leaves the green circle."}
+	if unit_outside_zone:
+		return {"action": "repair", "label": "REPAIR", "visible": true, "disabled": true, "reason": "Move damaged units inside the green repair circle around a Command Hub or Assembly Bay."}
+	if simulation.player_credits < required_cost:
+		return {"action": "repair", "label": "REPAIR", "visible": true, "disabled": true, "reason": "Need %d credits for the next repair pulse." % int(required_cost)}
+	return {"action": "repair", "label": "REPAIR", "visible": true, "disabled": false, "reason": "Click once. Repair continues every second until full or credits run out."}
+
+
+func _context_card_title(action: String, label: String) -> String:
+	if action.begins_with("produce:"):
+		var unit_type := action.trim_prefix("produce:")
+		return unit_type.replace("_", " ").to_upper()
+	if action.begins_with("build:"):
+		var building_type := action.trim_prefix("build:")
+		if simulation.building_definitions.has(building_type):
+			return str(simulation.building_definitions[building_type].display_name).to_upper()
+		return building_type.replace("_", " ").to_upper()
+	match action:
+		"upgrade":
+			var upgrade_line := str(label).split("\n")[0].replace("▲", "").strip_edges()
+			return upgrade_line
+		"research":
+			return "TARGETING"
+		"repair":
+			return "REPAIR"
+		"collector_route":
+			return "ROUTE"
+		_:
+			var first_line := str(label).split("\n")[0].strip_edges()
+			if first_line == "MULTI-UNIT":
+				return "ORDERS"
+			if first_line == "SELECT":
+				return "SELECT"
+			return first_line.replace("◈", "").strip_edges()
+
+
+func _context_card_price(action: String, label: String) -> String:
+	if action == "repair":
+		var building_selected := false
+		for entity_id in selected_ids:
+			if simulation.buildings.has(entity_id):
+				building_selected = true
+				break
+		return "45 C/PULSE" if building_selected else "30 C/PULSE"
+	if action == "collector_route":
+		return "FREE"
+	var lines := str(label).split("\n")
+	if lines.size() < 2:
+		return "—"
+	var value := str(lines[lines.size() - 1]).strip_edges()
+	if value.contains("·"):
+		var parts := value.split("·")
+		value = str(parts[parts.size() - 1]).strip_edges()
+	if value.is_valid_int():
+		return "%s C" % value
+	return value
+
+
+func _context_card_icon(action: String, label: String) -> String:
+	if action.begins_with("produce:"):
+		return action.trim_prefix("produce:")
+	if action.begins_with("build:"):
+		return action.trim_prefix("build:")
+	match action:
+		"upgrade":
+			return "fabrication" if str(label).find("FABRICATION") >= 0 else "refining"
+		"research":
+			return "targeting"
+		"repair":
+			return "repair"
+		"collector_route":
+			return "route"
+		_:
+			return "mixed" if str(label).find("MULTI") >= 0 else "unit"
+
+
+func _context_card_accent(icon_key: String) -> Color:
+	match icon_key:
+		"bulwark", "warden", "fabrication":
+			return Color("#ff9f43")
+		"repair", "collector", "refinery", "refining":
+			return Color("#7cf1ad")
+		"targeting", "tech_centre", "forward_relay", "route":
+			return Color("#8cebf3")
+		"ranger", "raider", "assembly_bay":
+			return Color("#d6fbff")
+		_:
+			return Color("#8cebf3")
 
 
 func _update_context_cards() -> void:
@@ -1952,16 +2307,19 @@ func _update_context_cards() -> void:
 						if not research_suffix.is_empty():
 							research_label = "▲ TARGETING\n%s" % research_suffix
 						cards[0] = {"action": "research", "label": research_label, "visible": true, "disabled": research_state.get("disabled", false), "reason": research_state.get("reason", "")}
-			if bool(_has_damaged_selection()):
-				cards[4] = {"action": "repair", "label": "REPAIR", "visible": true, "disabled": false, "reason": "Repair the selected friendly entity."}
+			var repair_state := _repair_context_state()
+			if bool(repair_state.get("visible", false)):
+				cards[4] = repair_state
 		elif simulation.units.has(entity_id) and simulation.units[entity_id]["kind"] == "collector":
 			cards[0] = {"action": "collector_route", "label": "ROUTE [U]", "visible": true, "disabled": false, "reason": "Assign this Collector to an Energy Field and Processor."}
-			if bool(_has_damaged_selection()):
-				cards[4] = {"action": "repair", "label": "REPAIR", "visible": true, "disabled": false, "reason": "Repair the selected Collector."}
+			var collector_repair_state := _repair_context_state()
+			if bool(collector_repair_state.get("visible", false)):
+				cards[4] = collector_repair_state
 	elif not selected_ids.is_empty():
 		cards[0] = {"action": "", "label": "MULTI-UNIT\nORDERS", "visible": true, "disabled": true, "reason": "Use right-click to issue a group order."}
-		if bool(_has_damaged_selection()):
-			cards[4] = {"action": "repair", "label": "REPAIR", "visible": true, "disabled": false, "reason": "Repair damaged selected units."}
+		var multi_repair_state := _repair_context_state()
+		if bool(multi_repair_state.get("visible", false)):
+			cards[4] = multi_repair_state
 	else:
 		cards[0] = {"action": "", "label": "SELECT\nSTRUCTURE", "visible": true, "disabled": true, "reason": "Select a Command Hub, Processor, Assembly Bay, or Tech Centre."}
 	for index in range(buttons.size()):
@@ -1970,10 +2328,14 @@ func _update_context_cards() -> void:
 		var action := str(card.get("action", ""))
 		context_actions[index] = action
 		button.visible = bool(card.get("visible", false))
-		button.text = str(card.get("label", ""))
 		button.disabled = bool(card.get("disabled", true)) or simulation.match_over
 		var reason := str(card.get("reason", ""))
-		button.tooltip_text = reason if not reason.is_empty() else button.text.replace("\n", " ")
+		var label := str(card.get("label", ""))
+		if index < action_card_icons.size():
+			action_card_icons[index].set_icon(_context_card_icon(action, label), _context_card_accent(_context_card_icon(action, label)))
+			action_card_titles[index].text = _context_card_title(action, label)
+			action_card_prices[index].text = _context_card_price(action, label)
+		button.tooltip_text = reason if not reason.is_empty() else label.replace("\n", " ")
 
 func _selection_detail(data: Dictionary) -> String:
 	var supply_text := ""
@@ -1992,7 +2354,9 @@ func _selection_detail(data: Dictionary) -> String:
 			role_hint = str(tags[0])
 			if tags.size() > 1:
 				role_hint += " · " + str(tags[1])
-		role_text = "\nROLE %s  DMG %d  RANGE %.1f  ARM %d" % [role_hint, int(selected_definition.attack_damage), float(selected_definition.attack_range), int(selected_definition.armour)]
+		var effective_range: float = simulation.get_effective_attack_range(str(data.get("team", "player")), str(data["kind"]))
+		var targeting_text := "  TARGETING +18%%" if simulation.is_technology_unlocked(str(data.get("team", "player")), "advanced_targeting") else ""
+		role_text = "\nROLE %s  DMG %d  RANGE %.1f  ARM %d%s" % [role_hint, int(selected_definition.attack_damage), effective_range, int(selected_definition.armour), targeting_text]
 		var waypoint_count: int = data.get("command_waypoints", []).size()
 		if waypoint_count > 0:
 			force_text += "   WAYPOINTS %d" % waypoint_count
@@ -2005,6 +2369,12 @@ func _selection_detail(data: Dictionary) -> String:
 			collector_route_label = "TO " + str(data.get("collector_destination_name", ""))
 		elif data["collector_state"] == "retreating":
 			collector_route_label = "RETREAT TO BASE"
+		elif data["collector_state"] == "loading":
+			collector_route_label = "RECOVERING ENERGY"
+		elif data["collector_state"] == "unloading":
+			collector_route_label = "DEPOSITING ENERGY"
+		elif data["collector_state"] == "awaiting_source":
+			collector_route_label = "WAITING — NO FIELD WITHIN 6 BLOCKS"
 		elif data["collector_state"] == "unassigned":
 			collector_route_label = "UNASSIGNED — PRESS U"
 		elif data["collector_state"] == "depleted":
@@ -2038,9 +2408,44 @@ func _selection_detail(data: Dictionary) -> String:
 				rally_text += " (SUSPENDED)"
 		else:
 			rally_text = "   RALLY SET"
+	var repair_text := ""
+	if bool(data.get("repair_active", false)):
+		repair_text = "   REPAIRING — AUTOMATIC"
+	elif data.has("order") and float(data.get("health", 0.0)) < float(data.get("max_health", 0.0)):
+		if simulation.get_repair_station_id("player", data["position"]).is_empty():
+			repair_text = "   REPAIR: MOVE INTO GREEN HUB/ASSEMBLY CIRCLE"
+		else:
+			repair_text = "   REPAIR READY — PRESS Y ONCE"
+	elif not data.has("order") and float(data.get("health", 0.0)) < float(data.get("max_health", 0.0)):
+		repair_text = "   REPAIR READY — PRESS Y ONCE (45 C/PULSE)"
+	elif float(data.get("repair_radius", 0.0)) > 0.0:
+		repair_text = "   GREEN REPAIR CIRCLE %.1f BLOCKS" % float(data["repair_radius"])
 	if data.has("order"):
-		return "HP %d/%d   ORDER %s%s%s%s%s%s%s%s" % [int(data["health"]), int(data["max_health"]), str(data["order"]).to_upper(), force_text, supply_text, collector_text, research_text, queue_text, rally_text, role_text]
-	return "HP %d/%d   %s%s%s%s%s%s%s%s" % [int(data["health"]), int(data["max_health"]), "ONLINE" if data["complete"] else "BUILDING", force_text, supply_text, collector_text, research_text, queue_text, rally_text, role_text]
+		return "HP %d/%d   ORDER %s%s%s%s%s%s%s%s%s" % [int(data["health"]), int(data["max_health"]), str(data["order"]).to_upper(), force_text, supply_text, collector_text, research_text, queue_text, rally_text, role_text, repair_text]
+	return "HP %d/%d   %s%s%s%s%s%s%s%s%s" % [int(data["health"]), int(data["max_health"]), "ONLINE" if data["complete"] else "BUILDING", force_text, supply_text, collector_text, research_text, queue_text, rally_text, role_text, repair_text]
+
+
+func _selection_icon_key(data: Dictionary, enemy := false) -> String:
+	if enemy:
+		return "enemy"
+	var kind := str(data.get("kind", "unit"))
+	if data.has("order"):
+		return kind if ["ranger", "warden", "bulwark", "raider", "collector"].has(kind) else "unit"
+	return kind if ["command_hub", "assembly_bay", "refinery", "tech_centre", "storage_silo", "forward_relay"].has(kind) else "unit"
+
+
+func _selection_card_text(data: Dictionary) -> String:
+	var display_name := _selection_title()
+	var health := int(data.get("health", 0.0))
+	var maximum := int(data.get("max_health", 0.0))
+	var state := "ONLINE" if bool(data.get("complete", true)) else "BUILDING"
+	if data.has("order"):
+		state = "ORDER " + str(data.get("order", "awaiting")).to_upper()
+		if not str(data.get("collector_state", "")).is_empty():
+			state = str(data.get("collector_state", "")).replace("_", " ").to_upper()
+	if selected_ids.size() > 1:
+		return "%s\nHP %d/%d\n%s" % [display_name, health, maximum, _selection_composition()]
+	return "%s\nHP %d/%d\n%s" % [display_name, health, maximum, state]
 
 
 func _selection_title() -> String:
@@ -2123,11 +2528,25 @@ func _update_selection_marquee() -> void:
 
 
 func _pointer_over_ui() -> bool:
-	if start_menu_visible:
+	if not pointer_inside_viewport or not get_viewport().get_visible_rect().has_point(pointer_position):
 		return true
-	if queue_panel and queue_panel.visible and queue_panel.get_global_rect().has_point(pointer_position):
+	if _is_dialog_open():
 		return true
-	return pointer_position.y < 184.0 or pointer_position.y > 605.0 or pointer_position.x > 1000.0
+	var hovered_control := get_viewport().gui_get_hovered_control()
+	if hovered_control and hovered_control.mouse_filter != Control.MOUSE_FILTER_IGNORE:
+		return true
+	for control in [bottom_panel, queue_panel, minimap]:
+		if control and control.visible and control.get_global_rect().has_point(pointer_position):
+			return true
+	return false
+
+
+func _is_dialog_open() -> bool:
+	if start_menu_visible or result_visible:
+		return true
+	if start_menu_overlay and start_menu_overlay.visible:
+		return true
+	return result_overlay != null and result_overlay.visible
 
 
 func _material(color: Color, roughness: float, metallic: float) -> StandardMaterial3D:
@@ -2158,6 +2577,139 @@ func _panel_style(background: Color, border: Color) -> StyleBoxFlat:
 	style.corner_radius_bottom_left = 6
 	style.corner_radius_bottom_right = 6
 	return style
+
+
+func _card_style(background: Color, border: Color) -> StyleBoxFlat:
+	var style := _panel_style(background, border)
+	style.corner_radius_top_left = 10
+	style.corner_radius_top_right = 10
+	style.corner_radius_bottom_left = 10
+	style.corner_radius_bottom_right = 10
+	style.content_margin_left = 4.0
+	style.content_margin_right = 4.0
+	style.content_margin_top = 4.0
+	style.content_margin_bottom = 4.0
+	return style
+
+
+func _create_status_chip(chip_name: String, label: Label, minimum_width: float, accent: Color) -> PanelContainer:
+	var chip := PanelContainer.new()
+	chip.name = chip_name
+	chip.custom_minimum_size = Vector2(minimum_width, 32.0)
+	chip.add_theme_stylebox_override("panel", _card_style(Color(0.035, 0.105, 0.13, 0.92), Color(accent.r, accent.g, accent.b, 0.42)))
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	label.clip_text = true
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	chip.add_child(label)
+	return chip
+
+
+func _create_queue_card(slot: int) -> Button:
+	var button := Button.new()
+	button.name = "ProductionQueueCard_%d" % slot
+	button.custom_minimum_size = Vector2(116.0, 76.0)
+	button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	button.focus_mode = Control.FOCUS_NONE
+	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	button.text = ""
+	button.add_theme_stylebox_override("normal", _card_style(Color(0.035, 0.105, 0.13, 0.96), Color(0.96, 0.68, 0.28, 0.68)))
+	button.add_theme_stylebox_override("hover", _card_style(Color(0.10, 0.20, 0.22, 0.99), Color(1.0, 0.78, 0.36, 1.0)))
+	button.add_theme_stylebox_override("pressed", _card_style(Color(0.16, 0.28, 0.28, 1.0), Color(1.0, 0.92, 0.68, 1.0)))
+	button.add_theme_stylebox_override("disabled", _card_style(Color(0.035, 0.065, 0.075, 0.92), Color(0.22, 0.31, 0.34, 0.72)))
+
+	var content := VBoxContainer.new()
+	content.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	content.offset_left = 5.0
+	content.offset_right = -5.0
+	content.offset_top = 3.0
+	content.offset_bottom = -3.0
+	content.add_theme_constant_override("separation", 0)
+	content.alignment = BoxContainer.ALIGNMENT_CENTER
+	content.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	button.add_child(content)
+
+	var icon := HudIconScript.new()
+	icon.name = "QueueIcon"
+	icon.custom_minimum_size = Vector2(46.0, 30.0)
+	icon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	content.add_child(icon)
+	var title := _label("", 10, Color("#d6fbff"))
+	title.custom_minimum_size = Vector2(104.0, 16.0)
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.clip_text = true
+	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	content.add_child(title)
+	var progress := _label("", 9, Color("#8cebf3"))
+	progress.custom_minimum_size = Vector2(104.0, 14.0)
+	progress.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	progress.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	progress.clip_text = true
+	progress.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	content.add_child(progress)
+	var refund := _label("", 10, Color("#ffd36a"))
+	refund.custom_minimum_size = Vector2(104.0, 14.0)
+	refund.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	refund.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	refund.clip_text = true
+	refund.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	content.add_child(refund)
+	queue_card_icons.append(icon)
+	queue_card_titles.append(title)
+	queue_card_progress.append(progress)
+	queue_card_refunds.append(refund)
+	return button
+
+
+func _create_action_card(slot: int) -> Button:
+	var button := Button.new()
+	button.name = "ContextActionCard_%d" % slot
+	button.custom_minimum_size = Vector2(92.0, 76.0)
+	button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	button.focus_mode = Control.FOCUS_NONE
+	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	button.text = ""
+	button.add_theme_stylebox_override("normal", _card_style(Color(0.035, 0.105, 0.13, 0.96), Color(0.16, 0.53, 0.60, 0.82)))
+	button.add_theme_stylebox_override("hover", _card_style(Color(0.08, 0.22, 0.25, 0.98), Color(0.45, 0.93, 0.95, 1.0)))
+	button.add_theme_stylebox_override("pressed", _card_style(Color(0.12, 0.28, 0.30, 1.0), Color(0.84, 0.98, 0.98, 1.0)))
+	button.add_theme_stylebox_override("disabled", _card_style(Color(0.035, 0.065, 0.075, 0.92), Color(0.22, 0.31, 0.34, 0.72)))
+	button.pressed.connect(_run_context_action.bind(slot))
+
+	var content := VBoxContainer.new()
+	content.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	content.offset_left = 5.0
+	content.offset_right = -5.0
+	content.offset_top = 4.0
+	content.offset_bottom = -3.0
+	content.add_theme_constant_override("separation", 0)
+	content.alignment = BoxContainer.ALIGNMENT_CENTER
+	content.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	button.add_child(content)
+
+	var icon := HudIconScript.new()
+	icon.custom_minimum_size = Vector2(42.0, 34.0)
+	icon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	content.add_child(icon)
+	var title := _label("", 10, Color("#d6fbff"))
+	title.custom_minimum_size = Vector2(80.0, 16.0)
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.clip_text = true
+	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	content.add_child(title)
+	var price := _label("", 11, Color("#ffd36a"))
+	price.custom_minimum_size = Vector2(80.0, 16.0)
+	price.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	price.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	price.clip_text = true
+	price.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	content.add_child(price)
+	action_card_icons.append(icon)
+	action_card_titles.append(title)
+	action_card_prices.append(price)
+	return button
 
 
 func _label(text_value: String, font_size: int, color: Color) -> Label:

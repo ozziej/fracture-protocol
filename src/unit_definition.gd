@@ -22,4 +22,5 @@ extends Resource
 @export var structure_damage_multiplier: float = 1.0
 @export var splash_radius: float = 0.0
 @export var splash_minimum_multiplier: float = 0.0
+@export var splash_damage_multiplier: float = 1.0
 @export var projectile_mode: String = "direct"

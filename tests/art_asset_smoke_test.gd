@@ -71,6 +71,7 @@ func _initialize() -> void:
 			"research_id": "",
 			"research_remaining": 0.0,
 			"research_total": 0.0,
+			"repair_radius": 7.5 if kind == "command_hub" or kind == "assembly_bay" else 0.0,
 		})
 		if view.asset_visual == null:
 			failures.append("%s should load its Kenney runtime asset" % kind)

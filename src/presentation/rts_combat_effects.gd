@@ -11,7 +11,7 @@ func present(parent: Node3D, simulation, event_type: String, payload: Dictionary
 		return
 	match event_type:
 		"ProjectileLaunched":
-			spawn_missile_arc(parent, payload)
+			spawn_missile_projectile(parent, payload)
 		"ProjectileImpact":
 			spawn_impact(parent, payload.get("position", Vector3.ZERO) + Vector3.UP * 0.55, Color("#ff9f43"), "")
 		"UnitDamaged", "BuildingDamaged":
@@ -20,30 +20,47 @@ func present(parent: Node3D, simulation, event_type: String, payload: Dictionary
 			spawn_destruction_feedback(parent, payload)
 
 
-func spawn_missile_arc(parent: Node3D, payload: Dictionary) -> void:
+func spawn_missile_projectile(parent: Node3D, payload: Dictionary) -> void:
 	var start: Vector3 = payload.get("launch_position", Vector3.ZERO)
 	var finish: Vector3 = payload.get("impact_position", start)
 	var effect := Node3D.new()
-	effect.name = _next_name("MissileArc")
-	const SEGMENT_COUNT := 8
-	for segment_index in range(SEGMENT_COUNT):
-		var t0: float = float(segment_index) / float(SEGMENT_COUNT)
-		var t1: float = float(segment_index + 1) / float(SEGMENT_COUNT)
-		var height: float = max(2.0, start.distance_to(finish) * 0.12)
-		var point_a: Vector3 = start.lerp(finish, t0) + Vector3.UP * (sin(t0 * PI) * height)
-		var point_b: Vector3 = start.lerp(finish, t1) + Vector3.UP * (sin(t1 * PI) * height)
-		var mesh := BoxMesh.new()
-		mesh.size = Vector3(0.16, 0.16, max(0.2, point_a.distance_to(point_b)))
-		var segment := MeshInstance3D.new()
-		segment.mesh = mesh
-		segment.material_override = _material(Color("#ff9f43"), 0.15, 0.45)
-		segment.position = (point_a + point_b) * 0.5
-		effect.add_child(segment)
-		segment.look_at_from_position(segment.position, point_b, Vector3.UP)
+	effect.name = _next_name("MissileProjectile")
+	effect.position = start
+	var mesh := SphereMesh.new()
+	mesh.radius = 0.22
+	mesh.height = 0.44
+	mesh.radial_segments = 12
+	mesh.rings = 6
+	var projectile := MeshInstance3D.new()
+	projectile.mesh = mesh
+	projectile.material_override = _material(Color("#ff9f43"), 0.12, 0.5)
+	effect.add_child(projectile)
+	var nose := MeshInstance3D.new()
+	var nose_mesh := SphereMesh.new()
+	nose_mesh.radius = 0.1
+	nose_mesh.height = 0.2
+	nose_mesh.radial_segments = 8
+	nose_mesh.rings = 4
+	nose.mesh = nose_mesh
+	nose.material_override = _material(Color("#fff0bd"), 0.08, 0.35)
+	nose.position = Vector3(0.0, 0.0, -0.18)
+	effect.add_child(nose)
 	parent.add_child(effect)
 	var tween := effect.create_tween()
-	tween.tween_interval(float(payload.get("travel_time", 0.5)))
+	var height: float = max(1.4, start.distance_to(finish) * 0.08)
+	var travel_time: float = max(0.1, float(payload.get("travel_time", 0.5)))
+	tween.tween_method(Callable(self, "_animate_missile").bind(effect, start, finish, height), 0.0, 1.0, travel_time)
 	tween.tween_callback(Callable(effect, "queue_free"))
+
+
+func _animate_missile(progress: float, effect: Node3D, start: Vector3, finish: Vector3, height: float) -> void:
+	if not is_instance_valid(effect):
+		return
+	var position: Vector3 = start.lerp(finish, progress) + Vector3.UP * sin(progress * PI) * height
+	effect.position = position
+	var next_position: Vector3 = start.lerp(finish, minf(1.0, progress + 0.04)) + Vector3.UP * sin(minf(1.0, progress + 0.04) * PI) * height
+	if position.distance_to(next_position) > 0.01:
+		effect.look_at(next_position, Vector3.UP)
 
 
 func spawn_damage_feedback(parent: Node3D, simulation, payload: Dictionary, building_hit: bool) -> void:

@@ -26,11 +26,12 @@ The simulation delegates isolated responsibilities to collaborators:
   spread instead of presentation-only offsets.
 - Queue and patrol orders remain serialisable unit state, with direct Move, Attack, Stop, and Collector commands explicitly clearing stale route plans.
 - Mission changes reload the selected simulation definition and rebuild the presentation world shell and minimap bounds from authored level data, keeping map geometry aligned with simulation state.
-- Control-point roles, income, capture resistance, supply-link bonuses, and
-  staging repair multipliers are authored in `data/level_data.json`. The
-  logistics service applies those roles to the shared territory, supply, and
-  repair rules, while the HUD and minimap render their consequences from the
-  simulation snapshot.
+- Control-point roles, income, capture resistance, and supply-link bonuses are
+  authored in `data/level_data.json`. The logistics service applies those roles
+  to territory, supply, and forward rally behavior. Unit repair is instead
+  owned by completed player Command Hubs and Assembly Bays, each of which
+  exposes a visible repair influence radius; the HUD renders that state from
+  the simulation snapshot.
 - Resource reserves, depletion state, and map-specific AI tactics are authored
   in `data/level_data.json`. The simulation owns depletion and adaptive posture
   transitions; the presentation layer only renders field inspection, player

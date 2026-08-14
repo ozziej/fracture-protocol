@@ -10,6 +10,7 @@ func _initialize() -> void:
 	ai_sim.start_match("relay_crossroads")
 	ai_sim.enemy_credits = 1500.0
 	var player_hq_id := _find_entity(ai_sim.buildings, "command_hub", "player")
+	var enemy_hq_id := _find_entity(ai_sim.buildings, "command_hub", "enemy")
 	if not player_hq_id.is_empty():
 		ai_sim.buildings[player_hq_id]["health"] = 100000.0
 	var enemy_refinery_id := _find_entity(ai_sim.buildings, "refinery", "enemy")
@@ -17,7 +18,7 @@ func _initialize() -> void:
 	if enemy_refinery_id.is_empty() or damaged_enemy_id.is_empty():
 		failures.append("AI test needs an enemy refinery and Ranger")
 	else:
-		ai_sim.units[damaged_enemy_id]["position"] = ai_sim.buildings[enemy_refinery_id]["position"]
+		ai_sim.units[damaged_enemy_id]["position"] = ai_sim.buildings[enemy_hq_id]["position"] if not enemy_hq_id.is_empty() else ai_sim.buildings[enemy_refinery_id]["position"]
 		ai_sim.units[damaged_enemy_id]["target_position"] = ai_sim.units[damaged_enemy_id]["position"]
 		ai_sim.units[damaged_enemy_id]["health"] = 45.0
 		_run_ticks(ai_sim, 80)

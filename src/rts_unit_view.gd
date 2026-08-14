@@ -10,6 +10,7 @@ var kind := ""
 
 var body_mesh: MeshInstance3D
 var selection_disc: MeshInstance3D
+var target_flash_disc: MeshInstance3D
 var order_line: MeshInstance3D
 var order_target: MeshInstance3D
 var health_back: MeshInstance3D
@@ -78,6 +79,12 @@ func sync(data: Dictionary, selected: bool, frame_delta: float = 0.0) -> void:
 			collector_route_label = "TO " + str(data.get("collector_destination_name", ""))
 		elif collector_state == "retreating":
 			collector_route_label = "RETREAT TO BASE"
+		elif collector_state == "loading":
+			collector_route_label = "RECOVERING ENERGY"
+		elif collector_state == "unloading":
+			collector_route_label = "DEPOSITING ENERGY"
+		elif collector_state == "awaiting_source":
+			collector_route_label = "WAITING FOR NEARBY FIELD"
 		label_text += "\n" + collector_route_label
 		if float(data.get("collector_capacity", 0.0)) > 0.0:
 			label_text += " %d/%d" % [int(data.get("collector_cargo", 0.0)), int(data.get("collector_capacity", 0.0))]
@@ -94,6 +101,22 @@ func apply_terrain_height(height: float, frame_delta: float = 0.0) -> void:
 		target_position.y = lerpf(global_position.y, height, 1.0 - exp(-frame_delta * 18.0))
 	global_position = target_position
 	_sync_status_billboard()
+
+
+func flash_target() -> void:
+	if target_flash_disc == null:
+		return
+	target_flash_disc.visible = true
+	target_flash_disc.scale = Vector3.ONE * 0.72
+	var tween := create_tween()
+	tween.tween_property(target_flash_disc, "scale", Vector3.ONE * 1.42, 0.14)
+	tween.tween_interval(0.2)
+	tween.tween_callback(Callable(self, "_hide_target_flash"))
+
+
+func _hide_target_flash() -> void:
+	if target_flash_disc:
+		target_flash_disc.visible = false
 
 func _build_visuals() -> void:
 	var palette := _team_palette(team)
@@ -194,6 +217,19 @@ func _build_visuals() -> void:
 	selection_disc.position.y = 0.06
 	selection_disc.visible = false
 	add_child(selection_disc)
+
+	var flash_ring := TorusMesh.new()
+	flash_ring.inner_radius = 0.92
+	flash_ring.outer_radius = 1.12
+	flash_ring.rings = 24
+	flash_ring.ring_segments = 8
+	target_flash_disc = MeshInstance3D.new()
+	target_flash_disc.name = "TargetFlash"
+	target_flash_disc.mesh = flash_ring
+	target_flash_disc.material_override = _material(Color("#ff6b5f"))
+	target_flash_disc.position.y = 0.08
+	target_flash_disc.visible = false
+	add_child(target_flash_disc)
 
 	var order_beam := BoxMesh.new()
 	order_beam.size = Vector3(0.09, 0.04, 1.0)
