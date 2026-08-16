@@ -37,6 +37,12 @@ const ASSET_PATHS := {
 	"unit": "res://kenney_space-kit/Side/craft_speederB.png",
 }
 
+const COMMAND_ICON_KEYS := {
+	"guard": true,
+	"attack_move": true,
+	"stop": true,
+}
+
 static var _texture_cache: Dictionary = {}
 
 var icon_key := "unit"
@@ -63,6 +69,10 @@ func get_asset_path() -> String:
 
 
 func _refresh_texture() -> void:
+	if COMMAND_ICON_KEYS.has(icon_key):
+		asset_path = "command://%s" % icon_key
+		icon_texture = null
+		return
 	asset_path = str(ASSET_PATHS.get(icon_key, ASSET_PATHS["unit"]))
 	icon_texture = _load_texture(asset_path)
 
@@ -86,6 +96,9 @@ func _draw() -> void:
 	frame.corner_radius_bottom_left = 6
 	frame.corner_radius_bottom_right = 6
 	draw_style_box(frame, frame_rect)
+	if COMMAND_ICON_KEYS.has(icon_key):
+		_draw_command_icon(frame_rect)
+		return
 	if icon_texture == null:
 		return
 
@@ -98,3 +111,38 @@ func _draw() -> void:
 	var draw_size: Vector2 = source_size * fit_scale
 	var draw_rect: Rect2 = Rect2(target_rect.get_center() - draw_size * 0.5, draw_size)
 	draw_texture_rect(icon_texture, draw_rect, false)
+
+
+func _draw_command_icon(frame_rect: Rect2) -> void:
+	var center := frame_rect.get_center()
+	var stroke := Color(accent_color.r, accent_color.g, accent_color.b, 0.95)
+	var fill := Color(accent_color.r, accent_color.g, accent_color.b, 0.18)
+	var radius: float = min(frame_rect.size.x, frame_rect.size.y) * 0.28
+	match icon_key:
+		"guard":
+			var shield := PackedVector2Array([
+				center + Vector2(0.0, -radius - 2.0),
+				center + Vector2(radius, -radius * 0.48),
+				center + Vector2(radius * 0.78, radius * 0.72),
+				center + Vector2(0.0, radius + 3.0),
+				center + Vector2(-radius * 0.78, radius * 0.72),
+				center + Vector2(-radius, -radius * 0.48),
+			])
+			draw_colored_polygon(shield, fill)
+			draw_polyline(PackedVector2Array([
+				shield[0], shield[1], shield[2], shield[3], shield[4], shield[5], shield[0],
+			]), stroke, 2.2, true)
+			draw_line(center + Vector2(-radius * 0.42, 0.0), center + Vector2(radius * 0.42, 0.0), stroke, 2.0, true)
+			draw_line(center + Vector2(0.0, -radius * 0.42), center + Vector2(0.0, radius * 0.42), stroke, 2.0, true)
+		"attack_move":
+			draw_circle(center, radius, fill)
+			draw_arc(center, radius, 0.0, TAU, 24, stroke, 2.2, true)
+			draw_line(center + Vector2(-radius - 4.0, 0.0), center + Vector2(radius + 4.0, 0.0), stroke, 2.0, true)
+			draw_line(center + Vector2(0.0, -radius - 4.0), center + Vector2(0.0, radius + 4.0), stroke, 2.0, true)
+			draw_line(center + Vector2(radius * 0.9, radius * 0.9), center + Vector2(radius * 1.32, radius * 1.32), stroke, 2.6, true)
+			draw_line(center + Vector2(radius * 1.32, radius * 1.32), center + Vector2(radius * 1.05, radius * 1.28), stroke, 2.6, true)
+			draw_line(center + Vector2(radius * 1.32, radius * 1.32), center + Vector2(radius * 1.28, radius * 1.05), stroke, 2.6, true)
+		"stop":
+			var stop_rect := Rect2(center - Vector2(radius, radius), Vector2(radius * 2.0, radius * 2.0))
+			draw_rect(stop_rect, fill, true)
+			draw_rect(stop_rect, stroke, false, 2.6, true)

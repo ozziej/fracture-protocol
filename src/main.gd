@@ -2027,6 +2027,12 @@ func _run_context_action(slot: int) -> void:
 		simulation.issue_command("deploy", "player", {"unit_id": str(selected_ids[0])})
 	elif action == "collector_route":
 		_begin_collector_assignment()
+	elif action == "unit_guard":
+		_guard_selected_units()
+	elif action == "unit_attack_move":
+		_toggle_attack_move_mode()
+	elif action == "unit_stop":
+		_stop_selected_units()
 	elif action == "repair":
 		_repair_selected()
 
@@ -2912,12 +2918,12 @@ func _update_production_queue_ui() -> void:
 		button.disabled = simulation.match_over
 		button.modulate = Color(1.0, 0.95, 0.82, 1.0) if index == 0 else Color(0.88, 0.96, 0.98, 1.0)
 		queue_card_icons[index].set_icon(unit_type, Color("#ffd36a") if index == 0 else Color("#8cebf3"))
-		queue_card_titles[index].text = display_name
+		_set_card_label(queue_card_titles[index], display_name, 10, 7, 12)
 		if index == 0:
-			queue_card_progress[index].text = "ACTIVE  %d%% · %ds" % [progress, remaining]
+			_set_card_label(queue_card_progress[index], "ACTIVE  %d%% · %ds" % [progress, remaining], 9, 7, 16)
 		else:
-			queue_card_progress[index].text = "QUEUE %d  ·  %d%% · %ds" % [index, progress, remaining]
-		queue_card_refunds[index].text = "REFUND %d C" % refund
+			_set_card_label(queue_card_progress[index], "QUEUE %d  ·  %d%% · %ds" % [index, progress, remaining], 9, 7, 16)
+		_set_card_label(queue_card_refunds[index], "REFUND %d C" % refund, 10, 7, 12)
 		queue_card_titles[index].tooltip_text = display_name
 		queue_card_progress[index].tooltip_text = "%d%% complete — %d seconds remaining" % [progress, remaining]
 		queue_card_refunds[index].tooltip_text = "Cancel and refund %d credits." % refund
@@ -3153,6 +3159,12 @@ func _context_card_title(action: String, label: String) -> String:
 			return "REPAIR"
 		"collector_route":
 			return "ROUTE"
+		"unit_guard":
+			return "GUARD"
+		"unit_attack_move":
+			return "ATTACK-MOVE"
+		"unit_stop":
+			return "STOP"
 		_:
 			var first_line := str(label).split("\n")[0].strip_edges()
 			if first_line == "MULTI-UNIT":
@@ -3174,6 +3186,12 @@ func _context_card_price(action: String, label: String) -> String:
 		return "FREE"
 	if action == "deploy":
 		return "FREE"
+	if action == "unit_guard":
+		return "[G]"
+	if action == "unit_attack_move":
+		return "[T]"
+	if action == "unit_stop":
+		return "[X]"
 	var lines := str(label).split("\n")
 	if lines.size() < 2:
 		return "—"
@@ -3204,12 +3222,24 @@ func _context_card_icon(action: String, label: String) -> String:
 			return "route"
 		"deploy":
 			return "forward_base"
+		"unit_guard":
+			return "guard"
+		"unit_attack_move":
+			return "attack_move"
+		"unit_stop":
+			return "stop"
 		_:
 			return "mixed" if str(label).find("MULTI") >= 0 else "unit"
 
 
 func _context_card_accent(icon_key: String) -> Color:
 	match icon_key:
+		"guard":
+			return Color("#7cf1ad")
+		"attack_move":
+			return Color("#ffd36a")
+		"stop":
+			return Color("#ff7b7b")
 		"bulwark", "warden", "fabrication", "bastion_turret", "fire_support_battery":
 			return Color("#ff9f43")
 		"repair", "collector", "refinery", "refining", "field_repair_station":
@@ -3326,10 +3356,17 @@ func _update_context_cards() -> void:
 				if bool(campaign.get("active", false)) and str(campaign.get("objective_type", "")) == "deploy":
 					var deployment_ready: bool = bool(campaign.get("deployment_ready", false))
 					cards[0] = {"action": "deploy", "label": "◈ DEPLOY BASE\nREADY" if deployment_ready else "◈ DEPLOY BASE\nMOVE TO PAD", "visible": true, "disabled": not deployment_ready, "reason": "Deploy the Forward Base at the marked eastern site." if deployment_ready else "Move the Mobile Command Unit inside the marked deployment zone."}
-		elif not selected_ids.is_empty():
-					cards[0] = {"action": "", "label": "MULTI-UNIT\nORDERS", "visible": true, "disabled": true, "reason": "Use right-click to issue a group order."}
+	elif not selected_ids.is_empty():
+		var combat_ids := _selected_combat_unit_ids()
+		if selected_ids.size() > 1 and not combat_ids.is_empty():
+			var group_reason := "Commands apply to %d armed selected unit%s." % [combat_ids.size(), "" if combat_ids.size() == 1 else "s"]
+			cards[0] = {"action": "unit_guard", "label": "GUARD\n[G]", "visible": true, "disabled": false, "reason": "%s Hold position and engage enemies inside the guard radius." % group_reason}
+			cards[1] = {"action": "unit_attack_move", "label": "ATTACK-MOVE\n[T]", "visible": true, "disabled": false, "reason": "%s Right-click a destination to move and engage along the route." % group_reason}
+			cards[2] = {"action": "unit_stop", "label": "STOP\n[X]", "visible": true, "disabled": false, "reason": "%s Cancel movement, attack-move, patrol, and pursuit orders." % group_reason}
 		else:
-			cards[0] = {"action": "", "label": "SELECT\nSTRUCTURE", "visible": true, "disabled": true, "reason": "Select a Command Hub, Processor, Assembly Bay, or Tech Centre."}
+			cards[0] = {"action": "", "label": "MULTI-UNIT\nORDERS", "visible": true, "disabled": true, "reason": "Select at least two armed units to show group commands."}
+	else:
+		cards[0] = {"action": "", "label": "SELECT\nSTRUCTURE", "visible": true, "disabled": true, "reason": "Select a Command Hub, Processor, Assembly Bay, or Tech Centre."}
 	for index in range(buttons.size()):
 		var button: Button = buttons[index]
 		var card: Dictionary = cards[index]
@@ -3340,9 +3377,10 @@ func _update_context_cards() -> void:
 		var reason := str(card.get("reason", ""))
 		var label := str(card.get("label", ""))
 		if index < action_card_icons.size():
-			action_card_icons[index].set_icon(_context_card_icon(action, label), _context_card_accent(_context_card_icon(action, label)))
-			action_card_titles[index].text = _context_card_title(action, label)
-			action_card_prices[index].text = _context_card_price(action, label)
+			var icon_key := _context_card_icon(action, label)
+			action_card_icons[index].set_icon(icon_key, _context_card_accent(icon_key))
+			_set_card_label(action_card_titles[index], _context_card_title(action, label), 10, 7, 12)
+			_set_card_label(action_card_prices[index], _context_card_price(action, label), 11, 8, 10)
 		button.tooltip_text = reason if not reason.is_empty() else label.replace("\n", " ")
 
 func _selection_detail(data: Dictionary) -> String:
@@ -3764,6 +3802,7 @@ func _create_queue_card(slot: int) -> Button:
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.clip_text = true
+	title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	content.add_child(title)
 	var progress := _label("", 9, Color("#8cebf3"))
@@ -3771,6 +3810,7 @@ func _create_queue_card(slot: int) -> Button:
 	progress.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	progress.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	progress.clip_text = true
+	progress.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	progress.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	content.add_child(progress)
 	var refund := _label("", 10, Color("#ffd36a"))
@@ -3778,6 +3818,7 @@ func _create_queue_card(slot: int) -> Button:
 	refund.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	refund.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	refund.clip_text = true
+	refund.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	refund.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	content.add_child(refund)
 	queue_card_icons.append(icon)
@@ -3822,6 +3863,7 @@ func _create_action_card(slot: int) -> Button:
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.clip_text = true
+	title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	content.add_child(title)
 	var price := _label("", 11, Color("#ffd36a"))
@@ -3829,6 +3871,7 @@ func _create_action_card(slot: int) -> Button:
 	price.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	price.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	price.clip_text = true
+	price.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	price.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	content.add_child(price)
 	action_card_icons.append(icon)
@@ -3844,3 +3887,17 @@ func _label(text_value: String, font_size: int, color: Color) -> Label:
 	label.add_theme_color_override("font_color", color)
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	return label
+
+
+func _compact_card_font_size(value: String, base_size: int, minimum_size: int = 7, comfortable_chars: int = 12) -> int:
+	var compact_value: String = value.replace(" ", "").replace("-", "")
+	var character_count: int = maxi(1, compact_value.length())
+	var scaled_size: int = int(floor(float(base_size) * float(comfortable_chars) / float(character_count)))
+	return clampi(scaled_size, minimum_size, base_size)
+
+
+func _set_card_label(label: Label, value: String, base_size: int, minimum_size: int = 7, comfortable_chars: int = 12) -> void:
+	label.text = value
+	label.add_theme_font_size_override("font_size", _compact_card_font_size(value, base_size, minimum_size, comfortable_chars))
+	label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	label.tooltip_text = value

@@ -110,6 +110,12 @@ func _initialize() -> void:
 				failures.append("Bulwark queue card should use its matching Kenney side-view asset")
 			if main.queue_card_titles[0].text.find("BULWARK") < 0 or main.queue_card_refunds[0].text.find("210") < 0:
 				failures.append("production queue card should show unit, progress, and refund details")
+			queue_building["queue"] = [{"unit_type": "command_carrier", "remaining": 17.0, "total": 24.0, "cost": 260.0}]
+			main._update_production_queue_ui()
+			if main.queue_card_titles[0].get_theme_font_size("font_size") >= 10:
+				failures.append("long production queue titles should use a smaller fitted font")
+			queue_building["queue"] = [{"unit_type": "bulwark", "remaining": 7.0, "total": 12.0, "cost": 210.0}]
+			main._update_production_queue_ui()
 		var top_status_panel: Node = main.find_child("TopStatusPanel", true, false)
 		var top_stats_scroll: Node = main.find_child("TopStatsScroll", true, false)
 		if top_status_panel == null or top_stats_scroll == null:
@@ -205,6 +211,53 @@ func _initialize() -> void:
 		main._unhandled_input(_key_event(KEY_1))
 		if main.selected_ids.size() != player_ids.size():
 			failures.append("1 should recall the assigned control group")
+		var armed_group_ids: Array = []
+		for entity_id in player_ids:
+			if main.simulation.units.has(entity_id) and main.simulation.units[entity_id]["team"] == "player" and str(main.simulation.units[entity_id].get("kind", "")) != "collector" and float(main.simulation.units[entity_id].get("attack_range", 0.0)) > 0.0:
+				armed_group_ids.append(entity_id)
+		if armed_group_ids.size() < 2:
+			failures.append("group command smoke test needs at least two armed units")
+		else:
+			main.selected_ids = armed_group_ids.duplicate()
+			main._update_context_cards()
+			var group_actions: Array = ["unit_guard", "unit_attack_move", "unit_stop"]
+			var group_icons: Array = ["guard", "attack_move", "stop"]
+			var group_shortcuts: Array = ["[G]", "[T]", "[X]"]
+			var action_buttons: Array = [main.build_button, main.queue_button, main.heavy_queue_button, main.research_button, main.repair_button, main.collector_button, main.repair_overflow_button]
+			for group_index in range(group_actions.size()):
+				var group_slot: int = main.context_actions.find(group_actions[group_index])
+				if group_slot < 0:
+					failures.append("group selection should expose %s" % group_actions[group_index])
+					continue
+				if not action_buttons[group_slot].visible or action_buttons[group_slot].disabled:
+					failures.append("group command card %s should be enabled and visible" % group_actions[group_index])
+				if main.action_card_icons[group_slot].icon_key != group_icons[group_index]:
+					failures.append("group command %s should use its purpose-built icon" % group_actions[group_index])
+				if main.action_card_prices[group_slot].text != group_shortcuts[group_index]:
+					failures.append("group command %s should show its keyboard shortcut" % group_actions[group_index])
+			var guard_slot: int = main.context_actions.find("unit_guard")
+			if guard_slot >= 0:
+				main._run_context_action(guard_slot)
+				main.simulation.step_fixed()
+				for entity_id in armed_group_ids:
+					if str(main.simulation.units[entity_id].get("order", "")) != "guard":
+						failures.append("clicking the Guard card should issue Guard to the selected group")
+						break
+			var attack_move_slot: int = main.context_actions.find("unit_attack_move")
+			if attack_move_slot >= 0:
+				main._run_context_action(attack_move_slot)
+				if not main.attack_move_mode:
+					failures.append("clicking the Attack-Move card should enter Attack-Move mode")
+			var stop_slot: int = main.context_actions.find("unit_stop")
+			if stop_slot >= 0:
+				main._run_context_action(stop_slot)
+				main.simulation.step_fixed()
+				for entity_id in armed_group_ids:
+					if str(main.simulation.units[entity_id].get("order", "")) != "idle":
+						failures.append("clicking the Stop card should stop the selected group")
+						break
+			main.selected_ids = player_ids.duplicate()
+			main._update_context_cards()
 		var selected_before_focus: Array = main.selected_ids.duplicate()
 		main.camera_target = Vector3(30.0, 0.0, -15.0)
 		main._unhandled_input(_key_event(KEY_H))
