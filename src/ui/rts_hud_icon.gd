@@ -23,7 +23,7 @@ const ASSET_PATHS := {
 	"forward_base": "res://kenney_space-kit/Side/hangar_largeA.png",
 	"sensor_mast": "res://kenney_space-kit/Side/satelliteDish_large.png",
 	"field_repair_station": "res://kenney_space-kit/Side/machine_generator.png",
-	"bastion_turret": "res://kenney_space-kit/Side/turret_double.png",
+	"bastion_turret": "res://kenney_space-kit/Side/turret_single.png",
 	"fire_support_battery": "res://kenney_space-kit/Side/machine_generatorLarge.png",
 	"command_carrier": "res://kenney_space-kit/Side/craft_cargoA.png",
 	"targeting": "res://kenney_space-kit/Side/machine_wireless.png",

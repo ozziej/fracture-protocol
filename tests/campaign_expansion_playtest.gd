@@ -168,9 +168,26 @@ func _playtest_holdfast(simulation: Node, failures: Array[String]) -> void:
 		failures.append("Holdfast should begin with a perimeter-building phase")
 	var base_id: String = _find_authored(simulation.buildings, "holdfast_forward_base")
 	var tech_id: String = _find_authored(simulation.buildings, "holdfast_tech")
-	if base_id.is_empty() or tech_id.is_empty():
-		failures.append("Holdfast should start from a deployed Forward Base and upgrade-support Tech Centre")
+	var refinery_id: String = _find_authored(simulation.buildings, "holdfast_refinery")
+	var assembly_id: String = _find_authored(simulation.buildings, "holdfast_assembly")
+	var collector_id: String = _find_authored(simulation.units, "holdfast_collector")
+	if base_id.is_empty() or tech_id.is_empty() or refinery_id.is_empty() or assembly_id.is_empty() or collector_id.is_empty() or not simulation.resource_nodes.has("holdfast_field"):
+		failures.append("Holdfast should start from a defended base with authored income and reinforcement infrastructure")
 		return
+	var collector: Dictionary = simulation.units[collector_id]
+	if str(collector.get("collector_source_id", "")) != "holdfast_field" or str(collector.get("collector_destination_id", "")) != refinery_id:
+		failures.append("Holdfast should start with a Collector routed from the local field to the Resource Processor")
+	var assembly_turret_status: Dictionary = simulation.get_build_placement_status("player", "bastion_turret", Vector3(70.0, 0.0, 18.0), assembly_id)
+	if bool(assembly_turret_status.get("valid", false)):
+		failures.append("Holdfast Assembly Bay should not be a Bastion Turret construction source")
+	var starting_credits: float = simulation.player_credits
+	_run_ticks(simulation, 140)
+	if simulation.player_credits <= starting_credits:
+		failures.append("Holdfast's authored Collector should deliver income before the first assault")
+	simulation.issue_command("produce", "player", {"building_id": assembly_id, "unit_type": "ranger"})
+	_run_ticks(simulation, 90)
+	if _count_kind(simulation.units, "player", "ranger") < 3:
+		failures.append("Holdfast's Assembly Bay should make reinforcements available to purchase")
 	simulation.issue_command("build", "player", {"building_type": "sensor_mast", "position": Vector3(86.0, 0.0, -8.0), "source_building_id": base_id})
 	simulation.issue_command("build", "player", {"building_type": "bastion_turret", "position": Vector3(94.0, 0.0, -8.0), "source_building_id": base_id})
 	simulation.issue_command("research", "player", {"building_id": tech_id, "technology_id": "hardened_chassis"})
@@ -179,6 +196,9 @@ func _playtest_holdfast(simulation: Node, failures: Array[String]) -> void:
 		failures.append("Holdfast should allow a Forward Base to construct new perimeter structures")
 	if str(simulation.get_campaign_state().get("phase_id", "")) != "hold_base":
 		failures.append("Holdfast should advance to the defence phase after two structures complete")
+	var defence_phase: Dictionary = simulation._campaign().get_current_phase()
+	if int(defence_phase.get("duration_ticks", 0)) < 900 or int(defence_phase.get("wave_count", 0)) < 5 or defence_phase.get("wave_unit_sets", []).size() < 5:
+		failures.append("Holdfast should use a longer defence timer with escalating authored waves")
 	if not simulation.is_technology_unlocked("player", "hardened_chassis"):
 		failures.append("Holdfast should allow the Hardened Chassis unit upgrade package")
 	var upgraded_warden_id: String = _find_authored(simulation.units, "holdfast_warden_1")
@@ -189,10 +209,16 @@ func _playtest_holdfast(simulation: Node, failures: Array[String]) -> void:
 	if not _has_event(simulation, "StructureWeaponFired"):
 		failures.append("Holdfast perimeter turrets should engage a nearby assault unit")
 	_run_ticks(simulation, 320)
+	if simulation.match_over:
+		failures.append("Holdfast should not resolve after the old 30-second defence window")
 	if not _has_event(simulation, "CampaignDefenceWaveStarted"):
 		failures.append("Holdfast should spawn authored assault waves")
+	_run_ticks(simulation, 700)
 	if not simulation.match_over or simulation.match_winner != "player":
-		failures.append("Holdfast should complete after the Forward Base survives the defence timer")
+		failures.append("Holdfast should complete after the Forward Base survives the full defence timer")
+	var wave_unit_sets: Array = defence_phase.get("wave_unit_sets", [])
+	if simulation._campaign().wave_index < 5 or wave_unit_sets.size() < 5 or wave_unit_sets[4].size() < 6:
+		failures.append("Holdfast should deliver all five escalating waves, including a six-unit final push")
 	print("CAMPAIGN_PLAYTEST_HOLDFAST_PASS ticks=%d" % simulation.current_tick)
 
 

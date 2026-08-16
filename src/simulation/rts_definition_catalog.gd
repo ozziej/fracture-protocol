@@ -283,7 +283,7 @@ static func populate(unit_definitions: Dictionary, building_definitions: Diction
 	sensor_mast.max_health = 520.0
 	sensor_mast.vision_range = 30.0
 	sensor_mast.footprint = Vector2(2.0, 2.0)
-	sensor_mast.build_source_kind = "assembly_bay"
+	sensor_mast.build_source_kind = "command_hub"
 	sensor_mast.body_height = 3.4
 	building_definitions[sensor_mast.id] = sensor_mast
 
@@ -311,7 +311,7 @@ static func populate(unit_definitions: Dictionary, building_definitions: Diction
 	bastion.max_health = 820.0
 	bastion.vision_range = 20.0
 	bastion.footprint = Vector2(2.8, 2.8)
-	bastion.build_source_kind = "assembly_bay"
+	bastion.build_source_kind = "command_hub"
 	bastion.attack_range = 15.0
 	bastion.attack_damage = 26.0
 	bastion.attack_cooldown = 1.0

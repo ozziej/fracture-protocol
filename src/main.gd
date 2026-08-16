@@ -1764,7 +1764,7 @@ func _handle_collector_assignment_click() -> void:
 	if collector_assignment_source_id.is_empty():
 		var source_id := _resource_node_at_screen(pointer_position)
 		if source_id.is_empty():
-			status_label.text = "Click the Northern or Southern Energy Field to choose a source."
+			status_label.text = "Click an available Energy Field to choose a source."
 			return
 		if bool(simulation.resource_nodes[source_id].get("depleted", false)) or float(simulation.resource_nodes[source_id].get("remaining", 0.0)) <= 0.01:
 			status_label.text = "%s is depleted — choose another Energy Field." % simulation.resource_nodes[source_id]["display_name"]
@@ -3071,6 +3071,12 @@ func _update_context_cards() -> void:
 					var relay_state := _building_context_state("relay")
 					if bool(relay_state.get("visible", false)):
 						cards[3] = {"action": "build:relay", "label": "◈ FORWARD RELAY\n%d" % int(simulation.building_definitions["relay"].cost), "visible": true, "disabled": relay_state.get("disabled", false), "reason": relay_state.get("reason", "")}
+					var sensor_state := _building_context_state("sensor_mast", "command_hub")
+					if bool(sensor_state.get("visible", false)):
+						cards[4] = {"action": "build:sensor_mast", "label": "◈ SENSOR MAST\n%d" % int(simulation.building_definitions["sensor_mast"].cost), "visible": true, "disabled": sensor_state.get("disabled", false), "reason": sensor_state.get("reason", "")}
+					var bastion_state := _building_context_state("bastion_turret", "command_hub")
+					if bool(bastion_state.get("visible", false)):
+						cards[5] = {"action": "build:bastion_turret", "label": "◈ BASTION TURRET\n%d" % int(simulation.building_definitions["bastion_turret"].cost), "visible": true, "disabled": bastion_state.get("disabled", false), "reason": bastion_state.get("reason", "")}
 				"refinery":
 					var collector_state := _unit_context_state("collector", building)
 					if bool(collector_state.get("visible", false)):
@@ -3106,12 +3112,6 @@ func _update_context_cards() -> void:
 						if not fabrication_suffix.is_empty():
 							fabrication_label = "▲ FABRICATION\n%s" % fabrication_suffix
 						cards[3] = {"action": "upgrade", "label": fabrication_label, "visible": true, "disabled": fabrication_state.get("disabled", false), "reason": fabrication_state.get("reason", "")}
-					var sensor_state := _building_context_state("sensor_mast", "assembly_bay")
-					if bool(sensor_state.get("visible", false)):
-						cards[4] = {"action": "build:sensor_mast", "label": "◈ SENSOR MAST\n%d" % int(simulation.building_definitions["sensor_mast"].cost), "visible": true, "disabled": sensor_state.get("disabled", false), "reason": sensor_state.get("reason", "")}
-					var bastion_state := _building_context_state("bastion_turret", "assembly_bay")
-					if bool(bastion_state.get("visible", false)):
-						cards[5] = {"action": "build:bastion_turret", "label": "◈ BASTION TURRET\n%d" % int(simulation.building_definitions["bastion_turret"].cost), "visible": true, "disabled": bastion_state.get("disabled", false), "reason": bastion_state.get("reason", "")}
 				"tech_centre":
 					var research_ids: Array = ["advanced_targeting", "hardened_chassis", "field_optics", "breach_package"]
 					for research_index in research_ids.size():
@@ -3128,7 +3128,7 @@ func _update_context_cards() -> void:
 					if bool(battery_state.get("visible", false)):
 						cards[5] = {"action": "build:fire_support_battery", "label": "◈ FIRE SUPPORT\n%d" % int(simulation.building_definitions["fire_support_battery"].cost), "visible": true, "disabled": battery_state.get("disabled", false), "reason": battery_state.get("reason", "")}
 				"forward_base":
-					var forward_build_options: Array = ["sensor_mast", "field_repair_station", "bastion_turret", "fire_support_battery"]
+					var forward_build_options: Array = ["sensor_mast", "field_repair_station", "bastion_turret"]
 					for forward_index in forward_build_options.size():
 						var forward_kind: String = str(forward_build_options[forward_index])
 						var forward_state: Dictionary = _building_context_state(forward_kind, "")

@@ -65,6 +65,13 @@
       "upgraded_source_parts": ["platform_small.glb", "machine_barrelLarge.glb", "pipe_ringHighEnd.glb"],
       "role": "collector capacity add-on"
     },
+    "bastion_turret": {
+      "runtime_scene": "kenney_space-kit/Models/turret_single.glb",
+      "upgraded_runtime_scene": "kenney_space-kit/Models/turret_double.glb",
+      "source_parts": ["platform_small.glb", "turret_single.glb"],
+      "upgraded_source_parts": ["platform_small.glb", "turret_double.glb"],
+      "role": "static anti-unit perimeter defence"
+    },
     "relay": {
       "runtime_scene": "art/fracture_protocol_assets/building_forward_relay.glb",
       "source_parts": ["platform_small.glb", "supports_high.glb", "satelliteDish_detailed.glb", "pipe_ring.glb"],

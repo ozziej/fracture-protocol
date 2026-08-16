@@ -86,6 +86,8 @@ func _initialize() -> void:
 	else:
 		main.selected_ids = [level_two_assembly_id]
 		main._update_hud()
+		if main.context_actions.has("build:sensor_mast") or main.context_actions.has("build:bastion_turret"):
+			failures.append("Assembly Bay should expose vehicle production and upgrades, not defensive construction cards")
 		if main.action_card_titles[3].text != "FABRICATION" or str(main.action_card_prices[3].text).find("C") < 0:
 			failures.append("Assembly Bay fabrication should be presented as a named icon card with its price below")
 		if main.selected_label.text.find("ASSEMBLY BAY") < 0 or main.selected_label.text.find("HP") < 0:

@@ -23,7 +23,7 @@ const ASSET_PATHS := {
 	"forward_base": "res://art/fracture_protocol_assets/building_command_hub.glb",
 	"field_repair_station": "res://art/fracture_protocol_assets/building_assembly_bay.glb",
 	"sensor_mast": "res://art/fracture_protocol_assets/building_forward_relay.glb",
-	"bastion_turret": "res://art/fracture_protocol_assets/building_forward_relay.glb",
+	"bastion_turret": "res://kenney_space-kit/Models/turret_single.glb",
 	"fire_support_battery": "res://art/fracture_protocol_assets/building_tech_centre.glb",
 	"resource_cluster_a": "res://art/fracture_protocol_assets/resource_cluster_a.glb",
 	"resource_cluster_b": "res://art/fracture_protocol_assets/resource_cluster_b.glb",
@@ -78,6 +78,7 @@ const ASSET_PATHS := {
 const VARIANT_PATHS := {
 	"command_hub:upgraded": "res://art/fracture_protocol_assets/building_command_hub_upgraded.glb",
 	"storage_silo:upgraded": "res://art/fracture_protocol_assets/building_storage_silo_upgraded.glb",
+	"bastion_turret:upgraded": "res://kenney_space-kit/Models/turret_double.glb",
 }
 
 const DISPLAY_SCALES := {
@@ -97,6 +98,14 @@ const DISPLAY_SCALES := {
 	"sensor_mast": Vector3(1.25, 1.25, 1.25),
 	"bastion_turret": Vector3(1.15, 1.15, 1.15),
 	"fire_support_battery": Vector3(1.1, 1.1, 1.1),
+}
+
+# Some imported GLBs were authored with their mesh origin away from the
+# gameplay origin. Keep that correction in the presentation bridge so the
+# simulation, selection disc, and weapon range all continue to use the same
+# building position.
+const DISPLAY_OFFSETS := {
+	"bastion_turret": Vector3(-2.3, 0.0, -1.72),
 }
 
 const PLAYER_ACCENT := Color("#2a879a")
@@ -126,6 +135,7 @@ static func attach_asset(parent: Node3D, kind: String, team: String, variant: St
 		return null
 	visual.name = "KenneyAsset_%s%s" % [kind, "_%s" % variant if not variant.is_empty() else ""]
 	visual.scale = DISPLAY_SCALES.get(kind, Vector3.ONE)
+	visual.position = DISPLAY_OFFSETS.get(kind, Vector3.ZERO)
 	parent.add_child(visual)
 	_apply_team_materials(visual, team)
 	if kind.begins_with("monorail_train"):
@@ -150,6 +160,10 @@ static func has_variant(kind: String, variant: String) -> bool:
 
 static func scale_for(kind: String) -> Vector3:
 	return DISPLAY_SCALES.get(kind, Vector3.ONE)
+
+
+static func offset_for(kind: String) -> Vector3:
+	return DISPLAY_OFFSETS.get(kind, Vector3.ZERO)
 
 
 static func _load_asset(path: String) -> PackedScene:

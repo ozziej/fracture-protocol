@@ -2964,7 +2964,7 @@ func get_build_placement_status(team: String, building_type: String, position: V
 			return {"valid": false, "reason": "%s construction source is unavailable." % definition.display_name}
 		var source: Dictionary = buildings[source_building_id]
 		var source_allowed: bool = source["kind"] == definition.build_source_kind
-		if not source_allowed and source["kind"] == "forward_base" and building_type in ["sensor_mast", "field_repair_station", "bastion_turret", "fire_support_battery"]:
+		if not source_allowed and source["kind"] == "forward_base" and building_type in ["sensor_mast", "field_repair_station", "bastion_turret"]:
 			source_allowed = true
 		if source["team"] != team or not source_allowed or not source["complete"]:
 			return {"valid": false, "reason": "%s construction must start from a completed %s." % [definition.display_name, definition.build_source_kind.replace("_", " ")]}

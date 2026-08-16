@@ -1895,16 +1895,16 @@
     "holdfast": {
       "base_map_id": "mountain_corridor_base",
       "display_name": "Mission 5 — Holdfast",
-      "briefing": "The Forward Base is online. Build a defensive perimeter, then hold the mountain corridor against three assault waves.",
+      "briefing": "The Forward Base is online with a nearby Energy Field, Resource Processor, and Assembly Bay. Build a defensive perimeter, then hold the mountain corridor against five escalating assault waves.",
       "routes": [
         {"id": "north_pass", "display_name": "North Pass", "waypoints": [{"x": 0, "y": 0, "z": -56}, {"x": 60, "y": 0, "z": -56}, {"x": 60, "y": 0, "z": 0}, {"x": 90, "y": 0, "z": 0}]}
       ],
       "rules": {
         "max_queue": 4,
         "fog_tile_size": 8.0,
-        "max_units_total": 14,
+        "max_units_total": 20,
         "max_buildings_total": 10,
-        "max_buildings_by_kind": {"forward_base": 1, "field_repair_station": 2, "sensor_mast": 4, "bastion_turret": 4, "fire_support_battery": 2, "tech_centre": 1},
+        "max_buildings_by_kind": {"forward_base": 1, "field_repair_station": 2, "sensor_mast": 4, "bastion_turret": 4, "fire_support_battery": 2, "tech_centre": 1, "refinery": 1, "assembly_bay": 1, "storage_silo": 1},
         "upgrades_enabled": true,
         "allowed_upgrades": ["hardened_chassis", "field_optics", "breach_package"],
         "allowed_technologies": ["advanced_targeting", "hardened_chassis", "field_optics", "breach_package"]
@@ -1912,12 +1912,12 @@
       "campaign_mission": {
         "id": "holdfast",
         "display_name": "HOLDFAST",
-        "briefing": "Use the deployed base as the anchor for a layered defence. Build at least two perimeter structures, then survive the assault waves.",
+        "briefing": "Use the deployed base as the anchor for a layered defence. Keep the local Collector route running, spend its income on the perimeter and reinforcements, then survive five escalating assault waves.",
         "ignore_hq_victory": true,
         "scripted_ai": true,
         "phases": [
-          {"id": "build_perimeter", "display_name": "BUILD PERIMETER", "type": "build_structures", "building_kinds": ["sensor_mast", "bastion_turret", "fire_support_battery"], "required_count": 2, "description": "Build two defensive structures around the Forward Base.", "completion_message": "The perimeter is active. Prepare for contact."},
-          {"id": "hold_base", "display_name": "HOLD THE BASE", "type": "defend", "duration_ticks": 300, "wave_delay_ticks": 30, "wave_interval_ticks": 75, "wave_count": 3, "wave_units": ["raider", "raider"], "wave_spawn_position": {"x": 0, "y": 0, "z": -56}, "description": "Protect the Forward Base through three assault waves.", "completion_message": "The Forward Base held through the assault."}
+          {"id": "build_perimeter", "display_name": "BUILD PERIMETER", "type": "build_structures", "building_kinds": ["sensor_mast", "bastion_turret", "fire_support_battery"], "required_count": 2, "description": "Build two defensive structures around the Forward Base, then use Processor income to reinforce the line.", "completion_message": "The perimeter is active. Keep the Collector route running and prepare for contact."},
+          {"id": "hold_base", "display_name": "HOLD THE BASE", "type": "defend", "duration_ticks": 900, "wave_delay_ticks": 30, "wave_interval_ticks": 135, "wave_count": 5, "wave_units": ["raider", "raider"], "wave_unit_sets": [["raider", "raider", "raider"], ["raider", "raider", "raider", "raider"], ["raider", "raider", "warden", "raider"], ["raider", "warden", "raider", "bulwark", "raider"], ["raider", "raider", "warden", "bulwark", "raider", "raider"]], "wave_spawn_position": {"x": 0, "y": 0, "z": -56}, "description": "Protect the Forward Base through five escalating assault waves. Keep the local Collector delivering energy for towers and reinforcements; the final pushes include armoured and missile threats.", "completion_message": "The Forward Base held through the full assault."}
         ],
         "completion_flags": ["holdfast_complete"]
       },
@@ -1926,21 +1926,27 @@
           "buildings": [
             {"id": "holdfast_forward_base", "kind": "forward_base", "position": {"x": 88, "y": 0, "z": 0}, "mission_deployed": true, "mission_role": "defence_anchor"},
             {"id": "holdfast_repair", "kind": "field_repair_station", "position": {"x": 80, "y": 0, "z": 8}, "repair_free": true, "mission_role": "regular_repair"},
-            {"id": "holdfast_tech", "kind": "tech_centre", "position": {"x": 80, "y": 0, "z": -9}, "mission_role": "upgrade_support"}
+            {"id": "holdfast_tech", "kind": "tech_centre", "position": {"x": 80, "y": 0, "z": -9}, "mission_role": "upgrade_support"},
+            {"id": "holdfast_refinery", "kind": "refinery", "position": {"x": 78, "y": 0, "z": 16}, "mission_role": "economy"},
+            {"id": "holdfast_assembly", "kind": "assembly_bay", "position": {"x": 66, "y": 0, "z": 11}, "mission_role": "reinforcement"}
           ],
           "units": [
             {"id": "holdfast_warden_1", "kind": "warden", "position": {"x": 76, "y": 0, "z": -3}, "mission_role": "garrison"},
             {"id": "holdfast_warden_2", "kind": "warden", "position": {"x": 76, "y": 0, "z": 3}, "mission_role": "garrison"},
             {"id": "holdfast_ranger_1", "kind": "ranger", "position": {"x": 70, "y": 0, "z": -6}, "mission_role": "garrison"},
-            {"id": "holdfast_ranger_2", "kind": "ranger", "position": {"x": 70, "y": 0, "z": 6}, "mission_role": "garrison"}
+            {"id": "holdfast_ranger_2", "kind": "ranger", "position": {"x": 70, "y": 0, "z": 6}, "mission_role": "garrison"},
+            {"id": "holdfast_collector", "kind": "collector", "position": {"x": 68, "y": 0, "z": 16}, "source_id": "holdfast_field", "destination_id": "holdfast_refinery", "home_id": "holdfast_forward_base", "mission_role": "economy"}
           ]
         },
         "enemy": {"buildings": [], "units": []}
       },
-      "allowed_buildings": ["forward_base", "field_repair_station", "sensor_mast", "bastion_turret", "fire_support_battery", "tech_centre"],
-      "allowed_player_buildings": ["forward_base", "field_repair_station", "sensor_mast", "bastion_turret", "fire_support_battery", "tech_centre"],
+      "resource_nodes": [
+        {"id": "holdfast_field", "display_name": "Holdfast Energy Field", "position": {"x": 68, "y": 0, "z": 16}, "faction_hint": 1, "remaining": 6000}
+      ],
+      "allowed_buildings": ["forward_base", "field_repair_station", "sensor_mast", "bastion_turret", "fire_support_battery", "tech_centre", "refinery", "assembly_bay", "storage_silo"],
+      "allowed_player_buildings": ["forward_base", "field_repair_station", "sensor_mast", "bastion_turret", "fire_support_battery", "tech_centre", "refinery", "assembly_bay", "storage_silo"],
       "allowed_enemy_buildings": [],
-      "allowed_player_units": ["warden", "ranger", "bulwark"],
+      "allowed_player_units": ["warden", "ranger", "bulwark", "collector"],
       "allowed_enemy_units": ["raider"]
     }
   }

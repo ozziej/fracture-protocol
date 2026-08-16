@@ -112,6 +112,18 @@ func _has_visible_mesh(node: Node) -> bool:
 	return false
 
 
+func _node_bounds(node: Node, parent_transform: Transform3D, current: AABB) -> AABB:
+	var transform := parent_transform
+	if node is Node3D:
+		transform = parent_transform * (node as Node3D).transform
+	if node is MeshInstance3D and (node as MeshInstance3D).mesh:
+		var next_bounds := transform * (node as MeshInstance3D).mesh.get_aabb()
+		current = next_bounds if current.size == Vector3.ZERO else current.merge(next_bounds)
+	for child in node.get_children():
+		current = _node_bounds(child, transform, current)
+	return current
+
+
 func _test_unit_movement_facing(root_node: Node3D, failures: Array[String]) -> void:
 	var view = UnitViewScript.new()
 	root_node.add_child(view)
@@ -179,7 +191,11 @@ func _test_resource_depletion_visual(root_node: Node3D, failures: Array[String])
 
 
 func _test_asset_variants(root_node: Node3D, failures: Array[String]) -> void:
-	for kind in ["command_hub", "storage_silo"]:
+	if AssetLibraryScript.path_for("bastion_turret") != "res://kenney_space-kit/Models/turret_single.glb":
+		failures.append("Bastion Turret should use the single-barrel GLB before its upgrade")
+	if not AssetLibraryScript.has_variant("bastion_turret", "upgraded") or AssetLibraryScript.path_for("bastion_turret", "upgraded") != "res://kenney_space-kit/Models/turret_double.glb":
+		failures.append("Bastion Turret should use the double-barrel GLB after its upgrade")
+	for kind in ["command_hub", "storage_silo", "bastion_turret"]:
 		var view = BuildingViewScript.new()
 		root_node.add_child(view)
 		var building_data := {
@@ -200,6 +216,10 @@ func _test_asset_variants(root_node: Node3D, failures: Array[String]) -> void:
 		view.setup(building_data)
 		if view.asset_variant != "upgraded" or view.asset_visual == null:
 			failures.append("%s should support its upgraded visual variant" % kind)
+		elif kind == "bastion_turret":
+			var bounds: AABB = _node_bounds(view.asset_visual, Transform3D.IDENTITY, AABB())
+			if absf(bounds.get_center().x) > 0.1 or absf(bounds.get_center().z) > 0.1:
+				failures.append("Bastion Turret upgraded geometry should be centred on its selection origin")
 
 
 func _test_environment_assets(root_node: Node3D, failures: Array[String]) -> void:

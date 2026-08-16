@@ -509,6 +509,9 @@ func _spawn_defence_wave(phase: Dictionary, base_id: String) -> void:
 	var spawn_position: Vector3 = simulation._level_vector3(phase.get("wave_spawn_position", {}))
 	var target_position: Vector3 = simulation.buildings[base_id]["position"]
 	var kinds: Array = phase.get("wave_units", ["raider", "raider"])
+	var wave_unit_sets: Array = phase.get("wave_unit_sets", [])
+	if wave_index < wave_unit_sets.size() and wave_unit_sets[wave_index] is Array:
+		kinds = wave_unit_sets[wave_index]
 	var spawned: Array = []
 	for kind_value in kinds:
 		var kind := str(kind_value)
@@ -518,7 +521,7 @@ func _spawn_defence_wave(phase: Dictionary, base_id: String) -> void:
 		spawned.append(unit_id)
 	if not spawned.is_empty():
 		simulation.issue_command("attack_move", "enemy", {"entity_ids": spawned, "position": target_position})
-		simulation._emit_event("CampaignDefenceWaveStarted", {"team": "enemy", "wave": wave_index + 1, "message": "ASSAULT WAVE %d — protect the Forward Base." % (wave_index + 1)})
+		simulation._emit_event("CampaignDefenceWaveStarted", {"team": "enemy", "wave": wave_index + 1, "unit_count": spawned.size(), "message": "ASSAULT WAVE %d — protect the Forward Base." % (wave_index + 1)})
 	wave_index += 1
 	next_wave_tick = simulation.current_tick + max(1, int(phase.get("wave_interval_ticks", 180)))
 
