@@ -126,7 +126,17 @@ func _playtest_long_road_runtime(simulation: Node, failures: Array[String]) -> v
 	if convoy_ids.is_empty():
 		failures.append("The Long Road runtime convoy should include its carrier and escort units")
 		return
-	simulation.issue_command("move", "player", {"entity_ids": convoy_ids, "position": Vector3(85.0, 0.0, 0.0)})
+	var convoy_escort_ids: Array = []
+	var convoy_carrier_id := ""
+	for convoy_id in convoy_ids:
+		if str(simulation.units[convoy_id].get("kind", "")) == "command_carrier":
+			convoy_carrier_id = convoy_id
+		else:
+			convoy_escort_ids.append(convoy_id)
+	if not convoy_carrier_id.is_empty():
+		simulation.issue_command("move", "player", {"entity_ids": [convoy_carrier_id], "position": Vector3(85.0, 0.0, 0.0)})
+	if not convoy_escort_ids.is_empty():
+		simulation.issue_command("attack_move", "player", {"entity_ids": convoy_escort_ids, "position": Vector3(85.0, 0.0, 0.0)})
 	_run_ticks(simulation, 1250)
 	var campaign: Dictionary = simulation.get_campaign_state()
 	if str(campaign.get("phase_id", "")) != "deploy_base" or not bool(campaign.get("deployment_ready", false)):

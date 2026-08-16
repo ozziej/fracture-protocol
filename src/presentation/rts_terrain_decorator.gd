@@ -16,6 +16,8 @@ static func decorate(parent: Node3D, terrain: Dictionary, bounds: Vector2) -> vo
 		create_walkable_mesa(parent, platform_data)
 	for zone_data in terrain.get("vegetation_zones", []):
 		_create_vegetation_zone(parent, zone_data)
+	for set_piece_data in terrain.get("industrial_set_pieces", []):
+		create_industrial_set_piece(parent, set_piece_data)
 	for obstacle_data in terrain.get("obstacles", []):
 		var obstacle: Dictionary = obstacle_data
 		create_obstacle(
@@ -24,6 +26,25 @@ static func decorate(parent: Node3D, terrain: Dictionary, bounds: Vector2) -> vo
 			_vector3(obstacle.get("size", {}), Vector3(2.0, 1.0, 2.0)),
 			str(obstacle.get("kind", "mesa"))
 		)
+
+
+static func create_industrial_set_piece(parent: Node3D, set_piece_data: Dictionary) -> Node3D:
+	var set_piece_id := str(set_piece_data.get("id", "relay_corridor_set_piece"))
+	var root := Node3D.new()
+	root.name = "AuthoredSetPiece_%s" % set_piece_id
+	root.position = _vector3(set_piece_data.get("position", {}))
+	root.set_meta("fog_sensitive_scenery", bool(set_piece_data.get("fog_sensitive", true)))
+	root.set_meta("terrain_set_piece", set_piece_id)
+	parent.add_child(root)
+	var base_scale := maxf(0.25, float(set_piece_data.get("scale", 1.0)))
+	_attach_piece(root, str(set_piece_data.get("platform_asset", "industrial_platform")), Vector3.ZERO, Vector3.ONE * base_scale, float(set_piece_data.get("yaw", 0.0)))
+	var tower_offset := _vector3(set_piece_data.get("tower_offset", {"x": 0.0, "y": 0.7, "z": -1.9}))
+	_attach_piece(root, str(set_piece_data.get("tower_asset", "industrial_tower")), tower_offset, Vector3.ONE * base_scale * 0.72, float(set_piece_data.get("yaw", 0.0)) + 90.0)
+	var support_offset := _vector3(set_piece_data.get("support_offset", {"x": -2.0, "y": 0.52, "z": 0.0}))
+	_attach_piece(root, str(set_piece_data.get("support_asset", "industrial_support")), support_offset, Vector3.ONE * base_scale * 0.68, float(set_piece_data.get("yaw", 0.0)))
+	var train_offset := _vector3(set_piece_data.get("train_offset", {"x": 1.9, "y": 0.55, "z": 0.0}))
+	_attach_piece(root, str(set_piece_data.get("train_asset", "industrial_train")), train_offset, Vector3.ONE * base_scale * 0.58, float(set_piece_data.get("yaw", 0.0)) + 90.0)
+	return root
 
 
 static func create_feature(parent: Node3D, feature_data: Dictionary) -> Node3D:

@@ -91,7 +91,7 @@ func _initialize() -> void:
 	territory_sim.units[ranger_id]["target_position"] = hub_position
 	territory_sim.units[ranger_id]["health"] = 20.0
 	territory_sim._update_forward_staging_states()
-	territory_sim.issue_command("repair", "player", {"entity_ids": [ranger_id]})
+	territory_sim.issue_command("repair", "player", {"building_id": hub_id})
 	_step_without_ai(territory_sim, 1)
 	if not bool(west.get("staging_active", false)) or territory_sim.get_repair_station_id("player", hub_position).is_empty() or float(territory_sim.units[ranger_id]["health"]) != 60.0:
 		failures.append("a Command Hub repair circle should apply the standard repair pulse")

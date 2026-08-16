@@ -96,17 +96,39 @@ func _initialize() -> void:
 			break
 	if not pursuit_cancelled:
 		failures.append("opportunistic player pursuit should disengage after a short leash")
-	elif str(pursuit_player.get("order", "")) != "attack_move" or pursuit_player["target_position"].z < 29.0:
-		failures.append("disengaged player units should resume their attack-move route")
-	pursuit_player["order"] = "attack"
-	pursuit_player["attack_target"] = pursuit_enemy_id
-	pursuit_player["attack_target_source"] = "ordered"
-	pursuit_player["auto_pursuit_cooldown_target"] = ""
-	for _index in range(40):
+	elif str(pursuit_player.get("order", "")) not in ["auto_return", "auto_hold"]:
+		failures.append("disengaged player units should return and hold before resuming their route")
+	var cooldown_until: int = int(pursuit_player.get("auto_pursuit_cooldown_until_tick", 0))
+	for _index in range(70):
+		if str(pursuit_player.get("order", "")) == "auto_hold":
+			break
+		pursuit_sim.current_tick += 1
+		pursuit_sim._visibility_system.invalidate()
+		pursuit_sim._update_units()
+	if str(pursuit_player.get("order", "")) != "auto_hold":
+		failures.append("disengaged player units should reach their five-second hold")
+	if cooldown_until > 0:
+		pursuit_sim.current_tick = max(pursuit_sim.current_tick, cooldown_until - 1)
+		pursuit_sim._update_units()
+		if str(pursuit_player.get("order", "")) != "auto_hold":
+			failures.append("the pursuit hold should last for the full five seconds")
+		pursuit_sim.current_tick = cooldown_until
+		pursuit_sim._update_units()
+		if str(pursuit_player.get("order", "")) != "attack_move" or pursuit_player["target_position"].z < 29.0:
+			failures.append("disengaged player units should resume their attack-move route after the hold")
+	pursuit_player["position"] = Vector3.ZERO
+	pursuit_player["target_position"] = Vector3.ZERO
+	pursuit_enemy["position"] = pursuit_player["position"] + Vector3(pursuit_distance, 0.0, 0.0)
+	pursuit_enemy["target_position"] = pursuit_enemy["position"]
+	pursuit_enemy["health"] = 1000.0
+	pursuit_sim._visibility_system.invalidate()
+	pursuit_sim._apply_attack_command("player", {"entity_ids": [pursuit_player_id], "target_id": pursuit_enemy_id})
+	for _index in range(10):
 		pursuit_enemy["position"] = pursuit_player["position"] + Vector3(pursuit_distance, 0.0, 0.0)
 		pursuit_sim.current_tick += 1
+		pursuit_sim._visibility_system.invalidate()
 		pursuit_sim._update_units()
-	if str(pursuit_player.get("attack_target", "")) != pursuit_enemy_id:
+	if str(pursuit_player.get("attack_target", "")) != pursuit_enemy_id or str(pursuit_player.get("attack_target_source", "")) != "ordered":
 		failures.append("explicit player attack orders should remain committed")
 
 	var scenario_sim = SimulationScript.new()

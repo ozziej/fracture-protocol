@@ -28,7 +28,7 @@ func _initialize() -> void:
 			simulation.units[ranger_id]["health"] = 20.0
 			simulation.units[ranger_id]["position"] = simulation.buildings[assembly_id]["position"]
 			simulation.units[ranger_id]["target_position"] = simulation.units[ranger_id]["position"]
-			simulation.issue_command("repair", "player", {"entity_ids": [ranger_id]})
+			simulation.issue_command("repair", "player", {"building_id": assembly_id})
 			_step_without_ai(simulation, 1)
 			if float(simulation.units[ranger_id]["health"]) <= 20.0:
 				failures.append("a damaged unit should receive a paid repair inside the Assembly Bay repair circle")

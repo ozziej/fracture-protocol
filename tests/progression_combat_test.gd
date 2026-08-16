@@ -173,18 +173,14 @@ func _initialize() -> void:
 	var game_assembly_id := _find_building(game.simulation, "player", "assembly_bay")
 	game.selected_ids = [game_hub_id]
 	game._update_hud()
-	if not game.heavy_queue_button.visible or game.heavy_queue_button.disabled:
-		failures.append("Completing an Assembly Bay should reveal the Tech Centre card")
-	game.heavy_queue_button.pressed.emit()
-	if game.build_mode != "tech_centre" or game.build_ghost == null:
-		failures.append("Clicking the visible Tech Centre card should show its placement preview")
-	game._cancel_build_mode()
+	if game.heavy_queue_button.visible or game.context_actions.has("build:tech_centre"):
+		failures.append("Level 1 should keep the Tech Centre gated until the next campaign tier")
 	game.selected_ids = [game_assembly_id]
 	game._update_hud()
-	if game.heavy_queue_button.visible:
-		failures.append("Warden should be hidden from the Level 1 Assembly Bay")
-	if not game.queue_button.visible or not game.queue_button.disabled or game.queue_button.tooltip_text.find("Requires Advanced Targeting") < 0:
-		failures.append("Level 1 Bulwark should be visible but disabled until Advanced Targeting")
+	if game.heavy_queue_button.visible or game.context_actions.has("produce:warden") or game.context_actions.has("produce:bulwark"):
+		failures.append("Level 1 Assembly Bay should expose only the foundation Ranger production card")
+	if not game.build_button.visible or game.build_button.disabled:
+		failures.append("Level 1 Ranger production should remain available from the Assembly Bay")
 	var credits_before_ui_queue: float = game.simulation.player_credits
 	game.simulation.issue_command("produce", "player", {"building_id": game_assembly_id, "unit_type": "ranger"})
 	_step(game.simulation, 1)
@@ -213,6 +209,11 @@ func _initialize() -> void:
 	var restored = CampaignProgressScript.new(progress_path)
 	if not restored.is_unlocked("relay_crossroads"):
 		failures.append("Winning Level 1 should persist the Level 2 unlock")
+	if not restored.is_content_unlocked("units", "warden") or not restored.is_content_unlocked("buildings", "relay"):
+		failures.append("Winning Level 1 should persist the Warden and Forward Relay content rewards")
+	progress.mark_complete("relay_crossroads")
+	if not progress.is_content_unlocked("units", "bulwark") or not progress.is_content_unlocked("technologies", "advanced_targeting"):
+		failures.append("Winning Level 2 should persist the Bulwark and Advanced Targeting rewards")
 	if FileAccess.file_exists(progress_path):
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(progress_path))
 	var loss_progress_path := "/private/tmp/fracture_protocol_progression_loss_test.json"

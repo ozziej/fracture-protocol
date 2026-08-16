@@ -129,6 +129,24 @@ func _initialize() -> void:
 	if mountain_wall_count < 2:
 		failures.append("The authored pass should have visible mountain walls on both sides")
 
+	var relay_visual_sim: Node = SimulationScript.new()
+	root.add_child(relay_visual_sim)
+	relay_visual_sim.start_match("relay_crossroads")
+	var relay_world_shell := Node3D.new()
+	root.add_child(relay_world_shell)
+	WorldBuilderScript.build_world_shell(relay_world_shell, relay_visual_sim)
+	var signal_platform := relay_world_shell.find_child("AuthoredSetPiece_crossroads_signal_platform", true, false)
+	if signal_platform == null:
+		failures.append("Relay Crossroads should render its authored signal-platform set piece")
+	else:
+		if signal_platform.find_child("KenneyAsset_industrial_platform", true, false) == null:
+			failures.append("The signal-platform set piece should use the existing industrial platform GLB")
+		if signal_platform.find_child("KenneyAsset_industrial_train", true, false) == null:
+			failures.append("The signal-platform set piece should include the existing monorail train GLB")
+	var transfer_piece := relay_world_shell.find_child("AuthoredSetPiece_crossroads_north_transfer", true, false)
+	if transfer_piece == null or transfer_piece.get_meta("terrain_set_piece", "") != "crossroads_north_transfer":
+		failures.append("Relay Crossroads should render its second authored transfer set piece")
+
 	var minimap := MinimapScript.new()
 	root.add_child(minimap)
 	minimap.snapshot = {

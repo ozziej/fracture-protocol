@@ -2,6 +2,7 @@ class_name RtsSimulation
 extends Node
 
 const DefinitionCatalogScript = preload("res://src/simulation/rts_definition_catalog.gd")
+const FactionCatalogScript = preload("res://src/simulation/rts_faction_catalog.gd")
 const NavigationServiceScript = preload("res://src/simulation/rts_navigation_service.gd")
 const AiControllerScript = preload("res://src/simulation/rts_ai_controller.gd")
 const LogisticsSystemScript = preload("res://src/simulation/rts_logistics_system.gd")
@@ -49,7 +50,9 @@ const UNDER_FIRE_FEEDBACK_TICKS := 18
 # target must not pull them away from the route or supply line indefinitely.
 const PLAYER_AUTO_PURSUIT_TICKS := 30
 const PLAYER_AUTO_PURSUIT_MAX_DISTANCE := 10.0
-const PLAYER_AUTO_PURSUIT_COOLDOWN_TICKS := 40
+const PLAYER_AUTO_PURSUIT_TARGET_MAX_DISTANCE := 8.0
+const PLAYER_AUTO_PURSUIT_COOLDOWN_TICKS := 50
+const PLAYER_GUARD_RADIUS := 9.0
 
 var current_tick := 0
 var accumulator := 0.0
@@ -84,6 +87,7 @@ var requested_ai_intent := ""
 var requested_match_mode := "campaign"
 var requested_scenario_id := ""
 var pending_projectiles: Array = []
+var faction_ids: Dictionary = {"player": "coalition", "enemy": "frontier"}
 
 var _next_entity_id := 1
 var _economy_timer := 0.0
@@ -321,6 +325,11 @@ func _load_level_data() -> void:
 
 func _configure_level_runtime() -> void:
 	level_rules = level_definition.get("rules", {})
+	var authored_factions: Dictionary = level_definition.get("faction_ids", {})
+	faction_ids = {
+		"player": str(authored_factions.get("player", "coalition")),
+		"enemy": str(authored_factions.get("enemy", "frontier")),
+	}
 	var bounds: Dictionary = level_definition.get("map_bounds", {})
 	level_bounds = Vector2(float(bounds.get("half_width", 60.0)), float(bounds.get("half_depth", 40.0)))
 	navigation_obstacles.clear()
@@ -401,8 +410,39 @@ func get_level_briefing() -> String:
 	return str(level_definition.get("briefing", ""))
 
 
+func get_faction_id(team: String) -> String:
+	return str(faction_ids.get(team, "coalition" if team == "player" else "frontier"))
+
+
+func get_faction_profile(team: String) -> Dictionary:
+	return FactionCatalogScript.profile(get_faction_id(team))
+
+
+func get_faction_summary() -> Dictionary:
+	return {
+		"player": get_faction_profile("player"),
+		"enemy": get_faction_profile("enemy"),
+	}
+
+
 func get_level_display_name() -> String:
 	return str(level_definition.get("display_name", level_id.replace("_", " ").capitalize()))
+
+
+func get_campaign_level_preview(preview_level_id: String) -> Dictionary:
+	if preview_level_id == level_id and not level_definition.is_empty():
+		return level_definition.duplicate(true)
+	var file := FileAccess.open(LEVEL_DATA_PATH, FileAccess.READ)
+	if file == null:
+		return {}
+	var parsed = JSON.parse_string(file.get_as_text())
+	if not parsed is Dictionary:
+		return {}
+	var root: Dictionary = parsed
+	var missions: Dictionary = root.get("mission_maps", {})
+	if not missions.has(preview_level_id):
+		return {}
+	return missions[preview_level_id].duplicate(true)
 
 
 func get_match_mode() -> String:
@@ -438,6 +478,8 @@ func get_match_summary() -> Dictionary:
 	summary["campaign_phase_id"] = str(campaign.get("phase_id", ""))
 	summary["campaign_progress"] = float(campaign.get("progress", 0.0))
 	summary["campaign_target"] = float(campaign.get("target", 0.0))
+	summary["player_faction"] = get_faction_id("player")
+	summary["enemy_faction"] = get_faction_id("enemy")
 	return summary
 
 
@@ -542,6 +584,7 @@ func get_state(viewer_team := "") -> Dictionary:
 		"scenario_id": scenario_id,
 		"scenario": _scenario().get_state(str(viewer_team)),
 		"campaign": get_campaign_state(),
+		"factions": get_faction_summary(),
 	}
 	if str(viewer_team).is_empty():
 		return state
@@ -743,6 +786,35 @@ func get_repair_station_id(team: String, position: Vector3) -> String:
 	return _repair_station_for_position(team, position)
 
 
+func get_building_repair_status(team: String, building_id: String) -> Dictionary:
+	if not buildings.has(building_id):
+		return {"available": false, "building_id": building_id, "nearby_unit_ids": [], "active_unit_ids": []}
+	var building: Dictionary = buildings[building_id]
+	var repair_radius := float(building.get("repair_radius", 0.0))
+	var nearby_unit_ids: Array = []
+	var active_unit_ids: Array = []
+	if str(building.get("team", "")) == team and bool(building.get("complete", false)) and repair_radius > 0.0:
+		for unit_id in units:
+			var unit: Dictionary = units[unit_id]
+			if str(unit.get("team", "")) != team or float(unit.get("health", 0.0)) >= float(unit.get("max_health", 0.0)):
+				continue
+			if building["position"].distance_to(unit["position"]) <= repair_radius:
+				nearby_unit_ids.append(str(unit_id))
+				if bool(unit.get("repair_active", false)):
+					active_unit_ids.append(str(unit_id))
+	return {
+		"available": str(building.get("team", "")) == team and bool(building.get("complete", false)),
+		"repair_capable": repair_radius > 0.0,
+		"building_id": building_id,
+		"building_damaged": float(building.get("health", 0.0)) < float(building.get("max_health", 0.0)),
+		"building_repair_active": bool(building.get("repair_active", false)),
+		"nearby_unit_ids": nearby_unit_ids,
+		"active_unit_ids": active_unit_ids,
+		"repair_radius": repair_radius,
+		"unit_cost": _repair_unit_cost(building_id),
+	}
+
+
 func get_repair_station_radius() -> float:
 	return REPAIR_STATION_RADIUS
 
@@ -811,6 +883,8 @@ func _process_commands() -> void:
 				_apply_attack_command(issuer, payload)
 			"attack_move":
 				_apply_attack_move_command(issuer, payload)
+			"guard":
+				_apply_guard_command(issuer, payload)
 			"build":
 				_try_build(issuer, payload.get("building_type", "relay"), payload.get("position", Vector3.ZERO), str(payload.get("source_building_id", "")))
 			"produce":
@@ -1021,6 +1095,42 @@ func _apply_attack_move_command(issuer: String, payload: Dictionary) -> void:
 		})
 
 
+func _apply_guard_command(issuer: String, payload: Dictionary) -> void:
+	var entity_ids: Array = payload.get("entity_ids", [])
+	var accepted := 0
+	for entity_id in entity_ids:
+		if not units.has(entity_id) or units[entity_id]["team"] != issuer:
+			continue
+		var unit: Dictionary = units[entity_id]
+		var definition = unit_definitions.get(str(unit.get("kind", "")))
+		if definition == null or float(definition.attack_range) <= 0.0:
+			continue
+		_cancel_repair_state(unit)
+		unit["command_waypoints"] = []
+		unit["patrol_points"] = []
+		unit["patrol_index"] = 0
+		unit["guard_position"] = unit["position"]
+		unit["guard_radius"] = PLAYER_GUARD_RADIUS
+		unit["target_position"] = unit["position"]
+		unit["waypoints"] = []
+		unit["attack_target"] = ""
+		unit["move_fire_target"] = ""
+		_clear_attack_target_state(unit)
+		unit["auto_pursuit_cooldown_target"] = ""
+		unit["auto_pursuit_cooldown_until_tick"] = 0
+		unit["order"] = "guard"
+		accepted += 1
+	if accepted > 0:
+		_emit_event("OrderIssued", {
+			"order": "guard",
+			"team": issuer,
+			"count": accepted,
+			"message": "Guard order issued to %d unit%s." % [accepted, "" if accepted == 1 else "s"],
+		})
+	else:
+		_reject_order(issuer, "Select one or more armed units before issuing Guard.", "guard")
+
+
 func _apply_attack_command(issuer: String, payload: Dictionary) -> void:
 	var target_id: String = str(payload.get("target_id", ""))
 	var entity_ids: Array = payload.get("entity_ids", [])
@@ -1084,70 +1194,94 @@ func _apply_stop_command(issuer: String, payload: Dictionary) -> void:
 
 
 func _apply_repair_command(issuer: String, payload: Dictionary) -> void:
-	var entity_ids: Array = payload.get("entity_ids", [])
-	if entity_ids.is_empty() and payload.has("target_id"):
-		entity_ids = [payload["target_id"]]
+	var source_building_id := str(payload.get("building_id", ""))
+	if source_building_id.is_empty():
+		for entity_id in payload.get("entity_ids", []):
+			if buildings.has(entity_id):
+				source_building_id = str(entity_id)
+				break
+	if source_building_id.is_empty() and payload.has("target_id") and buildings.has(str(payload["target_id"])):
+		source_building_id = str(payload["target_id"])
+	if source_building_id.is_empty():
+		_reject_order(issuer, "Select a friendly repair building; units cannot initiate repair.", "repair")
+		return
+	_apply_building_repair_command(issuer, source_building_id)
+
+
+func _apply_building_repair_command(issuer: String, building_id: String) -> void:
+	if not buildings.has(building_id):
+		_reject_order(issuer, "Select a friendly repair building; it no longer exists.", "repair")
+		return
+	var building: Dictionary = buildings[building_id]
+	if building["team"] != issuer or not building["complete"]:
+		_reject_order(issuer, "Select a completed friendly building to repair nearby units.", "repair")
+		return
 	var started_count := 0
 	var failure_reason := ""
-	for entity_id in entity_ids:
-		if units.has(entity_id):
-			var unit: Dictionary = units[entity_id]
-			if unit["team"] != issuer or float(unit["health"]) >= float(unit["max_health"]):
-				continue
-			if bool(unit.get("repair_active", false)):
-				started_count += 1
-				continue
-			var station_id := _repair_station_for_position(issuer, unit["position"])
-			if station_id.is_empty():
-				failure_reason = "%s must be inside the green repair circle around a friendly repair facility." % unit["display_name"]
-				continue
-			var unit_repair_cost := _repair_unit_cost(station_id)
-			if _get_credits(issuer) < unit_repair_cost:
-				failure_reason = "Need %d more credits to repair %s." % [int(unit_repair_cost - _get_credits(issuer)), unit["display_name"]]
-				continue
-			unit["repair_active"] = true
-			unit["repair_timer"] = 0.0
-			unit["repair_station_id"] = station_id
-			unit["command_waypoints"] = []
-			unit["patrol_points"] = []
-			unit["patrol_index"] = 0
-			unit["attack_target"] = ""
-			unit["move_fire_target"] = ""
-			_clear_attack_target_state(unit)
-			unit["target_position"] = unit["position"]
-			unit["waypoints"] = []
-			unit["order"] = "repair"
+	if float(building["health"]) < float(building["max_health"]):
+		if bool(building.get("repair_active", false)):
 			started_count += 1
-			_emit_event("RepairStarted", {
-				"unit_id": entity_id,
-				"team": issuer,
-				"health": unit["health"],
-				"station_id": station_id,
-				"message": "%s repair started — keep it inside the green repair circle." % unit["display_name"],
-			})
-		elif buildings.has(entity_id):
-			var building: Dictionary = buildings[entity_id]
-			if building["team"] != issuer or not building["complete"] or float(building["health"]) >= float(building["max_health"]):
-				continue
-			if bool(building.get("repair_active", false)):
-				started_count += 1
-				continue
-			if _get_credits(issuer) < REPAIR_BUILDING_COST:
-				failure_reason = "Need %d more credits to repair %s." % [int(REPAIR_BUILDING_COST - _get_credits(issuer)), building["display_name"]]
-				continue
+		elif _get_credits(issuer) >= REPAIR_BUILDING_COST:
 			building["repair_active"] = true
 			building["repair_timer"] = 0.0
 			started_count += 1
 			_emit_event("RepairStarted", {
-				"building_id": entity_id,
+				"building_id": building_id,
 				"team": issuer,
 				"health": building["health"],
 				"message": "%s repair started — it will continue automatically." % building["display_name"],
 			})
+		else:
+			failure_reason = "Need %d more credits to repair %s." % [int(REPAIR_BUILDING_COST - _get_credits(issuer)), building["display_name"]]
+	var repair_radius := float(building.get("repair_radius", 0.0))
+	if repair_radius > 0.0:
+		for unit_id in units:
+			var unit: Dictionary = units[unit_id]
+			if unit["team"] != issuer or float(unit["health"]) >= float(unit["max_health"]):
+				continue
+			if building["position"].distance_to(unit["position"]) > repair_radius:
+				continue
+			if bool(unit.get("repair_active", false)):
+				started_count += 1
+				continue
+			var unit_repair_cost := _repair_unit_cost(building_id)
+			if _get_credits(issuer) < unit_repair_cost:
+				failure_reason = "Need %d more credits to repair nearby units." % int(unit_repair_cost - _get_credits(issuer))
+				continue
+			_start_unit_repair(unit, issuer, building_id)
+			started_count += 1
 	if started_count == 0:
 		if failure_reason.is_empty():
-			failure_reason = "No selected friendly entity needs repair."
+			failure_reason = "No damaged units are inside this building's repair circle."
 		_reject_order(issuer, failure_reason, "repair")
+	elif repair_radius > 0.0:
+		_emit_event("RepairGroupStarted", {
+			"building_id": building_id,
+			"team": issuer,
+			"message": "%s is repairing all nearby damaged units." % building["display_name"],
+		})
+
+
+func _start_unit_repair(unit: Dictionary, team: String, station_id: String) -> void:
+	unit["repair_active"] = true
+	unit["repair_timer"] = 0.0
+	unit["repair_station_id"] = station_id
+	unit["command_waypoints"] = []
+	unit["patrol_points"] = []
+	unit["patrol_index"] = 0
+	unit["attack_target"] = ""
+	unit["move_fire_target"] = ""
+	_clear_attack_target_state(unit)
+	unit["target_position"] = unit["position"]
+	unit["waypoints"] = []
+	unit["order"] = "repair"
+	_emit_event("RepairStarted", {
+		"unit_id": unit["id"],
+		"team": team,
+		"health": unit["health"],
+		"station_id": station_id,
+		"message": "%s repair started from %s — keep it inside the green repair circle." % [unit["display_name"], buildings[station_id]["display_name"]],
+	})
 
 
 func _is_repair_station_nearby(team: String, position: Vector3) -> bool:
@@ -1159,17 +1293,17 @@ func _repair_station_for_position(team: String, position: Vector3) -> String:
 		var building: Dictionary = buildings[building_id]
 		if building["team"] != team or not building["complete"]:
 			continue
-		if building["kind"] != "command_hub" and building["kind"] != "assembly_bay" and building["kind"] != "forward_base" and building["kind"] != "field_repair_station":
+		if float(building.get("repair_radius", 0.0)) <= 0.0:
 			continue
-		var radius: float = maxf(REPAIR_STATION_RADIUS, float(building.get("repair_radius", 0.0)))
+		var radius: float = float(building.get("repair_radius", REPAIR_STATION_RADIUS))
 		if building["position"].distance_to(position) <= radius:
 			return str(building_id)
 	return ""
 
 
-func _repair_unit_cost(station_id: String) -> float:
-	if buildings.has(station_id) and bool(buildings[station_id].get("repair_free", false)):
-		return 0.0
+func _repair_unit_cost(_station_id: String) -> float:
+	# Repair is a building service, but every unit repair pulse still consumes
+	# credits. Authored field stations use the same economy as base structures.
 	return REPAIR_UNIT_COST
 
 
@@ -1824,23 +1958,24 @@ func _update_structures() -> void:
 		if not bool(building.get("complete", false)) or float(building.get("health", 0.0)) <= 0.0:
 			continue
 		var definition = building_definitions.get(str(building.get("kind", "")))
-		if definition == null or float(definition.attack_range) <= 0.0:
+		var attack_range: float = float(building.get("attack_range", definition.attack_range)) if definition != null else 0.0
+		if definition == null or attack_range <= 0.0:
 			continue
 		building["cooldown"] = max(0.0, float(building.get("cooldown", 0.0)) - TICK_SECONDS)
 		var target_id := str(building.get("attack_target", ""))
 		if not target_id.is_empty() and (not _entity_exists(target_id) or _entity_team(target_id) == building["team"]):
 			target_id = ""
-		if not target_id.is_empty() and _get_entity_position(target_id).distance_to(building["position"]) > float(definition.attack_range):
+		if not target_id.is_empty() and _get_entity_position(target_id).distance_to(building["position"]) > attack_range:
 			target_id = ""
 		if target_id.is_empty():
-			target_id = _find_nearby_enemy(building["team"], building["position"], float(definition.vision_range))
+			target_id = _find_nearby_enemy(building["team"], building["position"], float(building.get("vision_range", definition.vision_range)))
 		building["attack_target"] = target_id
 		if target_id.is_empty():
 			continue
 		var distance: float = building["position"].distance_to(_get_entity_position(target_id))
-		if distance < float(definition.minimum_attack_range) or distance > float(definition.attack_range) or float(building["cooldown"]) > 0.0:
+		if distance < float(building.get("minimum_attack_range", definition.minimum_attack_range)) or distance > attack_range or float(building["cooldown"]) > 0.0:
 			continue
-		var damage: float = float(definition.attack_damage)
+		var damage: float = float(building.get("attack_damage", definition.attack_damage))
 		if str(definition.projectile_mode) == "arc_missile":
 			var launch_position: Vector3 = building["position"] + Vector3.UP * 1.0
 			var impact_position: Vector3 = _get_entity_position(target_id)
@@ -1889,8 +2024,12 @@ func _update_units() -> void:
 			_end_auto_pursuit(unit, attack_target)
 			attack_target = ""
 		if not attack_target.is_empty() and (not _entity_exists(attack_target) or _should_drop_attack_target(unit, attack_target)):
-			unit["attack_target"] = ""
-			_clear_attack_target_state(unit)
+			var was_auto_pursuit := str(unit.get("attack_target_source", "")) == "opportunistic"
+			if was_auto_pursuit:
+				_end_auto_pursuit(unit, attack_target)
+			else:
+				unit["attack_target"] = ""
+				_clear_attack_target_state(unit)
 			attack_target = ""
 			unit["combat_state"] = ""
 			unit["combat_threat_id"] = ""
@@ -1907,6 +2046,15 @@ func _update_units() -> void:
 			continue
 		if unit["team"] == "enemy" and str(unit.get("combat_state", "")) == "defending" and not attack_target.is_empty():
 			_update_enemy_defensive_stance(unit, definition, damage_multiplier)
+			continue
+		if str(unit.get("order", "")) == "auto_return":
+			_update_auto_pursuit_return(unit, definition, speed_multiplier)
+			continue
+		if str(unit.get("order", "")) == "auto_hold":
+			_update_auto_pursuit_hold(unit)
+			continue
+		if str(unit.get("order", "")) == "guard":
+			_update_guard_unit(unit, definition, speed_multiplier, damage_multiplier)
 			continue
 		if unit["order"] == "move":
 			# An explicit move is the primary objective. Units may fire at a remembered or newly
@@ -1978,6 +2126,72 @@ func _update_units() -> void:
 		units.erase(entity_id)
 
 
+func _update_auto_pursuit_return(unit: Dictionary, definition, speed_multiplier: float) -> void:
+	_advance_unit_along_route(unit, float(unit.get("speed", definition.speed)) * speed_multiplier)
+	if unit["waypoints"].is_empty() and unit["position"].distance_to(unit["target_position"]) <= 0.15:
+		unit["target_position"] = unit["position"]
+		unit["waypoints"] = []
+		unit["order"] = "auto_hold"
+
+
+func _update_auto_pursuit_hold(unit: Dictionary) -> void:
+	if current_tick < int(unit.get("auto_pursuit_cooldown_until_tick", 0)):
+		return
+	var resume_order := str(unit.get("auto_pursuit_resume_order", "idle"))
+	unit["auto_pursuit_returning"] = false
+	unit["auto_pursuit_cooldown_target"] = ""
+	unit["auto_pursuit_cooldown_until_tick"] = 0
+	if resume_order == "attack_move" or resume_order == "move" or resume_order == "patrol":
+		var resume_target: Vector3 = unit.get("auto_pursuit_resume_target", unit["position"])
+		unit["target_position"] = _resolve_navigation_destination(unit["position"], resume_target)
+		unit["waypoints"] = _build_navigation_path(unit["position"], unit["target_position"])
+		unit["order"] = resume_order
+	else:
+		unit["target_position"] = unit["position"]
+		unit["waypoints"] = []
+		unit["order"] = "idle"
+
+
+func _update_guard_unit(unit: Dictionary, definition, speed_multiplier: float, damage_multiplier: float) -> void:
+	var guard_position: Vector3 = unit.get("guard_position", unit["position"])
+	var guard_radius: float = max(1.0, float(unit.get("guard_radius", PLAYER_GUARD_RADIUS)))
+	var attack_target := str(unit.get("attack_target", ""))
+	if not attack_target.is_empty():
+		if not _entity_exists(attack_target) or guard_position.distance_to(_get_entity_position(attack_target)) > guard_radius:
+			unit["attack_target"] = ""
+			_clear_attack_target_state(unit)
+			attack_target = ""
+		else:
+			var target_position: Vector3 = _get_entity_position(attack_target)
+			var distance: float = unit["position"].distance_to(target_position)
+			if guard_position.distance_to(unit["position"]) > guard_radius:
+				unit["attack_target"] = ""
+				_clear_attack_target_state(unit)
+				attack_target = ""
+			elif distance < definition.minimum_attack_range:
+				_move_unit_away_from_target(unit, target_position, float(unit.get("speed", definition.speed)) * speed_multiplier)
+			elif distance > _attack_standoff_range(definition, str(unit["team"])):
+				var next_position: Vector3 = unit["position"].move_toward(target_position, float(unit.get("speed", definition.speed)) * speed_multiplier * TICK_SECONDS)
+				if guard_position.distance_to(next_position) <= guard_radius:
+					_safe_move_toward(unit, target_position, float(unit.get("speed", definition.speed)) * speed_multiplier * TICK_SECONDS)
+				else:
+					unit["attack_target"] = ""
+					_clear_attack_target_state(unit)
+					attack_target = ""
+			elif float(unit["cooldown"]) <= 0.0:
+				_fire_weapon(unit, attack_target, damage_multiplier)
+				unit["cooldown"] = definition.attack_cooldown
+			if not attack_target.is_empty():
+				return
+	if unit["position"].distance_to(guard_position) > 0.15:
+		_safe_move_toward(unit, guard_position, float(unit.get("speed", definition.speed)) * speed_multiplier * TICK_SECONDS)
+		return
+	var nearby_target := _find_nearby_enemy(unit["team"], unit["position"], _effective_vision_range(str(unit["team"]), definition))
+	if not nearby_target.is_empty() and guard_position.distance_to(_get_entity_position(nearby_target)) <= guard_radius:
+		unit["attack_target"] = nearby_target
+		unit["attack_target_source"] = "guard"
+
+
 func _can_fire_at_distance(definition, distance: float, team := "") -> bool:
 	return distance >= float(definition.minimum_attack_range) and distance <= _effective_attack_range(str(team), definition)
 
@@ -1993,7 +2207,7 @@ func _attack_standoff_range(definition, team := "") -> float:
 
 func _effective_attack_range(team: String, definition) -> float:
 	var multiplier := ADVANCED_TARGETING_RANGE_MULTIPLIER if is_technology_unlocked(team, "advanced_targeting") else 1.0
-	return float(definition.attack_range) * multiplier
+	return float(definition.attack_range) * multiplier * _faction_modifier(team, definition.id, "attack_range")
 
 
 func _effective_vision_range(team: String, definition) -> float:
@@ -2002,17 +2216,17 @@ func _effective_vision_range(team: String, definition) -> float:
 		multiplier *= ADVANCED_TARGETING_VISION_MULTIPLIER
 	if is_technology_unlocked(team, "field_optics") and (definition.id == "ranger" or definition.id == "raider"):
 		multiplier *= 1.35
-	return float(definition.vision_range) * multiplier
+	return float(definition.vision_range) * multiplier * _faction_modifier(team, definition.id, "vision_range")
 
 
 func _effective_unit_max_health(team: String, definition) -> float:
 	var multiplier := 1.2 if is_technology_unlocked(team, "hardened_chassis") and (definition.id == "warden" or definition.id == "bulwark") else 1.0
-	return float(definition.max_health) * multiplier
+	return float(definition.max_health) * multiplier * _faction_modifier(team, definition.id, "max_health")
 
 
 func _effective_unit_speed(team: String, definition) -> float:
 	var multiplier := 0.94 if is_technology_unlocked(team, "hardened_chassis") and (definition.id == "warden" or definition.id == "bulwark") else 1.0
-	return float(definition.speed) * multiplier
+	return float(definition.speed) * multiplier * _faction_modifier(team, definition.id, "speed")
 
 
 func _effective_unit_armour(team: String, definition) -> float:
@@ -2021,12 +2235,32 @@ func _effective_unit_armour(team: String, definition) -> float:
 
 
 func _effective_unit_attack_damage(team: String, definition) -> float:
-	return float(definition.attack_damage)
+	return float(definition.attack_damage) * _faction_modifier(team, definition.id, "attack_damage")
 
 
 func _effective_unit_structure_damage(team: String, definition) -> float:
 	var multiplier := 1.45 if is_technology_unlocked(team, "breach_package") and definition.id == "bulwark" else 1.0
 	return float(definition.structure_damage_multiplier) * multiplier
+
+
+func _faction_modifier(team: String, entity_kind: String, stat: String) -> float:
+	return FactionCatalogScript.modifier(get_faction_id(team), entity_kind, stat, 1.0)
+
+
+func _effective_building_max_health(team: String, definition) -> float:
+	return float(definition.max_health) * _faction_modifier(team, definition.id, "max_health")
+
+
+func _effective_building_vision_range(team: String, definition) -> float:
+	return float(definition.vision_range) * _faction_modifier(team, definition.id, "vision_range")
+
+
+func _effective_building_attack_range(team: String, definition) -> float:
+	return float(definition.attack_range) * _faction_modifier(team, definition.id, "attack_range")
+
+
+func _effective_building_attack_damage(team: String, definition) -> float:
+	return float(definition.attack_damage) * _faction_modifier(team, definition.id, "attack_damage")
 
 
 func _refresh_team_combat_stats(team: String) -> void:
@@ -2156,22 +2390,26 @@ func _clear_attack_target_state(unit: Dictionary) -> void:
 	unit["attack_target_source"] = ""
 	unit["auto_pursuit_started_tick"] = -1
 	unit["auto_pursuit_origin"] = unit["position"]
+	unit["auto_pursuit_target_origin"] = unit["position"]
+	unit["auto_pursuit_returning"] = false
 
 
 func _can_start_player_auto_pursuit(unit: Dictionary, target_id: String) -> bool:
 	if str(unit.get("team", "")) != "player":
 		return true
+	if current_tick < int(unit.get("auto_pursuit_cooldown_until_tick", 0)):
+		return false
 	var cooldown_target := str(unit.get("auto_pursuit_cooldown_target", ""))
-	if cooldown_target != target_id:
-		return true
-	if current_tick >= int(unit.get("auto_pursuit_cooldown_until_tick", 0)):
+	if cooldown_target == target_id or not cooldown_target.is_empty():
 		unit["auto_pursuit_cooldown_target"] = ""
 		unit["auto_pursuit_cooldown_until_tick"] = 0
-		return true
-	return false
+	return true
 
 
 func _set_opportunistic_attack_target(unit: Dictionary, target_id: String) -> bool:
+	var definition = unit_definitions.get(str(unit.get("kind", "")))
+	if definition == null or float(definition.attack_range) <= 0.0:
+		return false
 	if not _can_start_player_auto_pursuit(unit, target_id):
 		return false
 	unit["attack_target"] = target_id
@@ -2179,32 +2417,51 @@ func _set_opportunistic_attack_target(unit: Dictionary, target_id: String) -> bo
 		unit["attack_target_source"] = "opportunistic"
 		unit["auto_pursuit_started_tick"] = current_tick
 		unit["auto_pursuit_origin"] = unit["position"]
+		unit["auto_pursuit_target_origin"] = _get_entity_position(target_id)
+		unit["auto_pursuit_returning"] = false
 	return true
 
 
 func _auto_pursuit_expired(unit: Dictionary, target_id: String, definition) -> bool:
 	if str(unit.get("team", "")) != "player" or str(unit.get("attack_target_source", "")) != "opportunistic":
 		return false
+	if not _entity_exists(target_id):
+		return true
 	var distance_to_target: float = unit["position"].distance_to(_get_entity_position(target_id))
-	# Once the unit is in its firing envelope, it may keep trading shots. The
-	# leash only applies while it would have to move after the contact.
-	if distance_to_target <= _attack_standoff_range(definition, "player"):
-		return false
 	var elapsed_ticks := current_tick - int(unit.get("auto_pursuit_started_tick", current_tick))
 	var origin: Vector3 = unit["auto_pursuit_origin"]
 	var travelled_distance: float = unit["position"].distance_to(origin)
-	return elapsed_ticks >= PLAYER_AUTO_PURSUIT_TICKS or travelled_distance >= PLAYER_AUTO_PURSUIT_MAX_DISTANCE
+	var target_origin: Vector3 = unit.get("auto_pursuit_target_origin", _get_entity_position(target_id))
+	var target_travelled_distance: float = target_origin.distance_to(_get_entity_position(target_id))
+	# The contact leash applies even when the enemy remains inside the firing
+	# envelope. A contact that drifts away is no longer a reason to pull the
+	# player force off its route.
+	return elapsed_ticks >= PLAYER_AUTO_PURSUIT_TICKS or travelled_distance >= PLAYER_AUTO_PURSUIT_MAX_DISTANCE or target_travelled_distance >= PLAYER_AUTO_PURSUIT_TARGET_MAX_DISTANCE
 
 
 func _end_auto_pursuit(unit: Dictionary, target_id: String) -> void:
+	var return_position: Vector3 = unit.get("auto_pursuit_origin", unit["position"])
+	var resume_order := str(unit.get("order", "idle"))
+	var resume_target: Vector3 = unit.get("target_position", unit["position"])
 	unit["attack_target"] = ""
 	unit["move_fire_target"] = ""
-	_clear_attack_target_state(unit)
+	unit["attack_target_source"] = ""
+	unit["auto_pursuit_started_tick"] = -1
+	unit["auto_pursuit_target_origin"] = unit["position"]
 	unit["auto_pursuit_cooldown_target"] = target_id
 	unit["auto_pursuit_cooldown_until_tick"] = current_tick + PLAYER_AUTO_PURSUIT_COOLDOWN_TICKS
-	if str(unit.get("order", "idle")) == "idle":
-		unit["target_position"] = unit["position"]
-		unit["waypoints"] = []
+	unit["auto_pursuit_returning"] = true
+	unit["auto_pursuit_resume_order"] = resume_order if resume_order != "guard" else "idle"
+	unit["auto_pursuit_resume_target"] = resume_target
+	unit["target_position"] = _resolve_navigation_destination(unit["position"], return_position)
+	unit["waypoints"] = _build_navigation_path(unit["position"], unit["target_position"])
+	unit["order"] = "auto_return"
+	_emit_event("AutoPursuitEnded", {
+		"unit_id": unit["id"],
+		"team": unit["team"],
+		"target_id": target_id,
+		"message": "%s is returning to its position and will hold for five seconds." % unit["display_name"],
+	})
 
 
 func _update_collector_unit(unit: Dictionary, definition, speed_multiplier: float, damage_multiplier: float) -> void:
@@ -3014,6 +3271,7 @@ func _add_unit(team: String, kind: String, position: Vector3, metadata: Dictiona
 	units[entity_id] = {
 		"id": entity_id,
 		"team": team,
+		"faction_id": get_faction_id(team),
 		"kind": kind,
 		"display_name": definition.display_name,
 		"authored_id": str(metadata.get("id", "")),
@@ -3030,8 +3288,14 @@ func _add_unit(team: String, kind: String, position: Vector3, metadata: Dictiona
 		"move_fire_target": "",
 		"auto_pursuit_started_tick": -1,
 		"auto_pursuit_origin": Vector3(position.x, 0.0, position.z),
+		"auto_pursuit_target_origin": Vector3(position.x, 0.0, position.z),
 		"auto_pursuit_cooldown_target": "",
 		"auto_pursuit_cooldown_until_tick": 0,
+		"auto_pursuit_returning": false,
+		"auto_pursuit_resume_order": "idle",
+		"auto_pursuit_resume_target": Vector3(position.x, 0.0, position.z),
+		"guard_position": Vector3(position.x, 0.0, position.z),
+		"guard_radius": PLAYER_GUARD_RADIUS,
 		"combat_state": "",
 		"combat_threat_id": "",
 		"retreat_position": Vector3(position.x, 0.0, position.z),
@@ -3099,19 +3363,22 @@ func _add_building(team: String, kind: String, position: Vector3, under_construc
 	buildings[entity_id] = {
 		"id": entity_id,
 		"team": team,
+		"faction_id": get_faction_id(team),
 		"kind": kind,
 		"display_name": definition.display_name,
 		"authored_id": str(metadata.get("id", "")),
 		"mission_target_id": str(metadata.get("mission_target_id", "")),
 		"mission_role": str(metadata.get("mission_role", "")),
 		"position": normalized_position,
-		"health": definition.max_health,
-		"max_health": definition.max_health,
-		"vision_range": definition.vision_range,
+		"health": _effective_building_max_health(team, definition),
+		"max_health": _effective_building_max_health(team, definition),
+		"vision_range": _effective_building_vision_range(team, definition),
+		"attack_range": _effective_building_attack_range(team, definition),
+		"minimum_attack_range": float(definition.minimum_attack_range),
+		"attack_damage": _effective_building_attack_damage(team, definition),
 		"attack_target": "",
 		"cooldown": 0.0,
-		"repair_radius": maxf(float(definition.repair_radius), REPAIR_STATION_RADIUS if kind == "command_hub" or kind == "assembly_bay" else 0.0),
-		"repair_free": bool(metadata.get("repair_free", false)),
+			"repair_radius": maxf(float(definition.repair_radius), REPAIR_STATION_RADIUS if kind == "command_hub" or kind == "assembly_bay" else 0.0),
 		"mission_deployed": bool(metadata.get("mission_deployed", false)),
 		"under_fire": false,
 		"under_fire_until_tick": -1,

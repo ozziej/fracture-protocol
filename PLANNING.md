@@ -1,7 +1,7 @@
 # Fracture Protocol — Planning Document
 
-**Status:** Skirmish scenarios, deployment selection, result flow, first-player opening pacing, combat-role readability, interactive tactical minimap, and team-based fog of war implemented; paused for human playtest
-**Version:** 1.1
+**Status:** Campaign expansion active: level-gated progression, persistent rewards, faction identity, alternate objectives, and the representative visual slice are implemented and the core loop has passed extensive human playtesting; continuing with deeper content iteration
+**Version:** 1.2
 **Target:** PC  
 **Engine direction:** Godot 4  
 **First playable:** Local skirmish against AI  
@@ -16,7 +16,7 @@ The current Godot 4 prototype has a playable local skirmish foundation:
 - A bounded 3D tactical camera with keyboard/edge pan, zoom, and limited rotation.
 - Drag selection, context-sensitive move/attack orders, production queue input, relay placement, a minimap, and event feedback.
 - A fixed-step simulation with commands, events, serialisable dictionaries, base structures, units, capture points, resource income, production, combat, and a basic AI opponent.
-- Obstacle-aware movement around the authored graybox map, attack-move orders that resume after contact, and a stop order that clears the current route.
+- Obstacle-aware movement around the authored graybox map, bounded opportunistic pursuit that returns to its origin and holds for five seconds, Guard/Attack-Move/Stop orders, and patrol routes.
 - Shift-right-click appends serialisable movement waypoints, while `P` patrols between the current position and a chosen destination.
 - Control groups with keyboard focus support, plus visible destination markers and order labels for selected units.
 - Damage events now produce procedural combat tracers, impact flashes, damage readouts, and destruction bursts without requiring final assets.
@@ -25,8 +25,8 @@ The current Godot 4 prototype has a playable local skirmish foundation:
 - Unsupplied units receive a readable warning plus reduced movement speed and combat damage until they reconnect.
 - Automated verification for movement, supply loss and recovery, relay construction, territory capture, production completion, combat damage, technology gating, and repair orders.
 - A Collector unit links a named resource source to a specific refinery, carries cargo visibly between them, generates delivery income, and retreats to its Command Hub while defending itself when attacked. The player can queue replacement Collectors, select one, press `U`, click a resource field, and click a specific friendly Resource Processor to reassign its route.
-- Advanced Targeting research at the Assembly Bay visibly gates Bulwark production, while paid repair orders restore damaged units near repair stations or damaged structures in place.
-- The AI now uses the same command/economy boundary to research, repair, build relays, replace and route Collectors, produce forces, defend threats, and launch attacks. `N` resets the match without stale entities or orders.
+- Advanced Targeting research at the Assembly Bay visibly gates Bulwark production, while completed repair-capable buildings issue paid repair orders to nearby damaged units or damaged structures in place; units cannot initiate repairs.
+- The AI now uses the same command/economy boundary to research, repair, build relays, replace and route Collectors, produce forces, defend threats, and launch attacks. Rematch/reset stays in the pause and result flows rather than using a global production shortcut.
 - The HUD now gives first-minute objective guidance, explains the credit/supply/research/repair tradeoffs, exposes production queue status, and gives explicit Collector route controls.
 - The central relay corridor has a first code-native visual slice: signal core, pulsing halo/light, and readable road markers that can later receive final assets.
 - Explicit Move orders now override attack pursuit while still allowing fire against remembered or newly detected enemies that remain in range.
@@ -62,8 +62,13 @@ The current Godot 4 prototype has a playable local skirmish foundation:
 - Combat feedback now has one optional top-left hint stream plus one independently optional Event Log; the duplicate top-right combat modal has been removed. `Escape` opens a simulation-pausing menu where experienced players can disable either layer, and the same pause state blocks edge scrolling.
 - The Command Hub construction cards now expose the existing Forward Relay definition directly, with the Kenney relay icon and its cost, so the supply-network building is discoverable in normal play.
 - Combat chassis now have authored counterplay: Wardens have substantially higher durability and resist ordinary fire, Bulwarks have lower durability and receive increased direct damage from Wardens and Bulwarks, and Rangers/Raiders retain equal light-vehicle parity with a small armour/damage lift.
+- The production roles are now explicit: the Assembly Bay is a unit-and-upgrade production structure, while Sensor Masts and Bastion Turrets are Command Hub/Forward Base construction cards. The Assembly Bay no longer exposes defensive structures.
+- Campaign content is now level-gated from a foundation Level 1 roster. First completion rewards persist in `user://campaign_progress.json`, later mission buttons show their unlock payload, and the result screen reports the newly available content.
+- The first six-mission campaign spine is authored: Foundation, Network Expansion, Special Operations, Fortified Advance, Layered Defence, and the new Counter-Offensive mission. The sixth mission requires a connected Central Relay hold rather than an HQ kill; its western relay chain is authored so the mission begins with a meaningful defence rather than an expensive relay-entry tax.
+- Coalition and Frontier faction profiles are now visible in campaign briefing/HUD state and apply small, explicit doctrine modifiers: Coalition favours sensors and fortified networks; Frontier favours Raider mobility and mobile pressure.
+- Relay Divide and Relay Crossroads now include authored industrial signal/transfer set pieces built from the existing Space Kit modules. A presentation regression verifies those landmarks and a 100-added-unit visual synchronization benchmark measures the asset-backed view layer.
 
-The immediate next step is human playtesting from a clean start-menu deployment. Record whether Level 1 gives enough time to scout with Rangers, whether the fog reveal/re-hide rhythm is readable in the world and minimap, whether Bulwarks feel useful at long range but vulnerable when rushed, and whether the minimap viewport/click-to-pan behaviour remains useful. Tune only from those observations before adding more units or faction-specific economy.
+The immediate next step is human playtesting from a clean start-menu deployment. Record whether the level-gated reward cadence is understandable, whether Coalition/Frontier identity is visible without reading the docs, whether Network Sever gives enough time to extend and defend the supply chain, and whether the expanded industrial landmarks improve navigation without clutter. Tune costs, wave timing, and faction modifiers only from those observations before adding branching campaign content or deeper faction economy.
 
 ## 1. Vision
 
@@ -229,6 +234,8 @@ The first playable build should target a compact set of roles:
 - One technology or upgrade structure.
 
 These are roles, not final names. Each faction may express them differently.
+
+The Assembly Bay is production-only for combat units and its fabrication upgrade. Static perimeter structures belong to the Command Hub or Forward Base, while artillery/research support remains with the Tech Centre.
 
 ### Technology
 
@@ -422,7 +429,7 @@ The first art milestone should polish one small map area, one base, and a repres
 ### Included
 
 - PC local skirmish.
-- One authored map.
+- Two authored battlefield layouts shared by campaign and skirmish deployment.
 - Two playable factions.
 - One primary resource.
 - Base construction and placement.
@@ -431,13 +438,14 @@ The first art milestone should polish one small map area, one base, and a repres
 - Infantry, vehicle, artillery, and scout/utility roles.
 - Basic AI opponent.
 - Destruction of the enemy command headquarters as the main victory condition.
+- A six-mission authored campaign spine with level-gated persistent content rewards.
+- A connected-network hold objective as an alternate campaign victory condition.
 - Playable graybox presentation followed by one polished representative slice.
 
 ### Explicitly deferred
 
 - Online multiplayer.
-- Full campaign production and branching narrative.
-- Persistent progression or metagame.
+- Full campaign production, branching narrative, and campaign choice consequences.
 - Air and naval warfare.
 - Full environmental destruction.
 - Modding tools and map editor.
@@ -469,13 +477,17 @@ boundary. Network Hold provides the first fixed-tick alternate victory
 condition, with live objective markers, progress feedback, result handling, and
 clean rematch flow.
 
-### Milestone 5 — Representative visual slice — first pass started
+### Milestone 4.75 — Campaign progression and alternate objectives — first pass complete
 
-The central relay corridor has a code-native signal-core treatment and lane markers. The next pass can replace this treatment selectively with authored assets, animation, audio, and VFX without changing the gameplay contract.
+The six-mission campaign spine now uses authored tier gates, persistent first-completion rewards, faction briefing identity, and player-facing unlock receipts. Network Sever adds a connected Central Relay hold with escalating counter-offensive waves.
+
+### Milestone 5 — Representative visual slice — first pass complete
+
+The central relay corridor now combines the code-native signal core and lane markers with authored industrial signal/transfer landmarks assembled from the existing Space Kit. The presentation regression covers the set pieces and the existing faction-neutral readability boundary remains unchanged.
 
 ### Milestone 6 — Hardening and evaluation — active
 
-Scenario tests, clean restart coverage, first-minute guidance, and the 100-unit simulation benchmark are in place. The next review must tune match pacing and verify the actual 60 FPS visual baseline on the chosen PC hardware.
+Scenario tests, campaign progression/reward coverage, clean restart coverage, first-minute guidance, and both simulation and visual 100-unit benchmarks are in place. The next review must tune match pacing and verify the actual 60 FPS visual baseline on the chosen PC hardware.
 
 ## 15. Acceptance Tests
 
@@ -541,14 +553,15 @@ Scenario tests, clean restart coverage, first-minute guidance, and the 100-unit 
 
 ## 17. Future Roadmap
 
-After the local skirmish is proven, the likely order is:
+After the current campaign expansion is proven, the likely order is:
 
 1. Additional maps, balance, accessibility, and quality-of-life controls.
-2. More faction depth and alternate territory objectives.
-3. Campaign missions with authored objectives, briefings, and persistent progression.
-4. Replay, observer, and advanced AI tooling.
-5. Multiplayer feasibility prototype using the established simulation boundary.
-6. Additional factions, environments, air/naval systems, and modding support only if the core game supports them.
+2. First-time-player validation of the tier gates, reward receipts, faction briefing, and Network Sever pacing.
+3. More faction depth and alternate territory objectives, guided by balance evidence rather than hidden bonuses.
+4. Branching campaign missions, authored choices, and durable campaign consequences.
+5. Replay, observer, and advanced AI tooling.
+6. Multiplayer feasibility prototype using the established simulation boundary.
+7. Additional factions, environments, air/naval systems, and modding support only if the core game supports them.
 
 ## 18. Open Questions for the Next Revision
 
@@ -563,8 +576,9 @@ After the local skirmish is proven, the likely order is:
 
 ## 19. Recommended First Work Items
 
-1. Run focused balance sessions against the new greedy, rush, turtle, tech-first, unit-first, Collector-loss, and supply-cut scenarios; tune costs, timings, and AI aggression from observed outcomes.
-2. Do a first-time-player usability pass in the real window, checking whether the objective, queue state, Collector route, supply warning, and repair feedback are understood without reading the source.
-3. Add faction-specific economic and logistics decisions only after the shared loop remains legible under balance pressure.
-4. Expand the representative relay-corridor visual slice with authored materials, animation, audio, and VFX while preserving the current silhouettes and feedback.
-5. Repeat the 100-unit benchmark with the visual slice active on the chosen PC baseline, then begin campaign/multiplayer feasibility work only after the local skirmish is stable.
+1. Playtest the new pursuit leash, Guard/Attack-Move/Stop controls, building-only repair, and Holdfast income/defence pacing from a clean campaign start; tune only from observed player outcomes.
+2. Do a first-time-player usability pass in the real window, checking whether mission selection, the concise brief, available force, `Start Campaign`, repair ownership, and the visible research cards are understood without reading the source.
+3. Verify Assembly Bay, Command Hub, Forward Base, and Tech Centre roles in a clean campaign run; keep static defence construction out of the vehicle-production flow.
+4. Add deeper faction-specific economic and logistics decisions only after the shared loop remains legible under balance pressure.
+5. Expand the representative relay-corridor visual slice with authored materials, animation, audio, and VFX while preserving the current silhouettes and feedback.
+6. Repeat the 100-unit benchmark with the visual slice active on the chosen PC baseline, then begin branching-campaign and multiplayer feasibility work only after the local campaign is stable.

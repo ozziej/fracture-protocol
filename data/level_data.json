@@ -386,6 +386,10 @@
             "color": "#304347"
           }
         ],
+        "industrial_set_pieces": [
+          {"id": "relay_divide_signal_platform", "position": {"x": 0, "y": 0.05, "z": -1}, "scale": 1.0, "yaw": 0},
+          {"id": "relay_divide_west_transfer", "position": {"x": -48, "y": 0.05, "z": 20}, "scale": 0.82, "yaw": 90}
+        ],
         "walkable_terrain": [],
         "vegetation_zones": [
           {
@@ -1031,6 +1035,10 @@
           "color": "#4f4a25"
         }
       ],
+      "industrial_set_pieces": [
+        {"id": "crossroads_signal_platform", "position": {"x": 0, "y": 0.05, "z": 0}, "scale": 1.05, "yaw": 0},
+        {"id": "crossroads_north_transfer", "position": {"x": 0, "y": 0.05, "z": 62}, "scale": 0.86, "yaw": 90}
+      ],
       "walkable_terrain": [],
       "vegetation_zones": [
         {
@@ -1369,6 +1377,7 @@
   "mission_maps": {
     "relay_divide": {
       "base_map_id": "relay_divide_base",
+      "faction_ids": {"player": "coalition", "enemy": "frontier"},
       "objectives": {
         "first_staging_point_id": "west_crossing"
       },
@@ -1527,29 +1536,25 @@
       "allowed_buildings": [
         "refinery",
         "assembly_bay",
-        "tech_centre",
         "storage_silo"
       ],
       "allowed_player_units": [
         "ranger",
-        "bulwark",
         "collector"
       ],
       "allowed_enemy_units": [
         "raider",
-        "bulwark",
         "collector"
       ],
       "allowed_enemy_buildings": [
         "refinery",
         "assembly_bay",
-        "tech_centre",
-        "storage_silo",
-        "relay"
+        "storage_silo"
       ]
     },
     "relay_crossroads": {
       "base_map_id": "relay_crossroads_base",
+      "faction_ids": {"player": "coalition", "enemy": "frontier"},
       "objectives": {
         "first_staging_point_id": "west_crossing"
       },
@@ -1763,6 +1768,7 @@
     },
     "silent_recovery": {
       "base_map_id": "mountain_corridor_base",
+      "faction_ids": {"player": "coalition", "enemy": "frontier"},
       "display_name": "Mission 3 — Silent Recovery",
       "briefing": "A small recovery team must cross the mountain corridor, retrieve the sealed cases, disable two marked relays, and exfiltrate before the alarm peaks.",
       "routes": [
@@ -1802,8 +1808,8 @@
       "spawns": {
         "player": {
           "buildings": [
-            {"id": "silent_repair_north", "kind": "field_repair_station", "position": {"x": -64, "y": 0, "z": -56}, "repair_free": true, "mission_role": "regular_repair"},
-            {"id": "silent_repair_south", "kind": "field_repair_station", "position": {"x": -64, "y": 0, "z": 56}, "repair_free": true, "mission_role": "regular_repair"}
+            {"id": "silent_repair_north", "kind": "field_repair_station", "position": {"x": -64, "y": 0, "z": -56}, "mission_role": "regular_repair"},
+            {"id": "silent_repair_south", "kind": "field_repair_station", "position": {"x": -64, "y": 0, "z": 56}, "mission_role": "regular_repair"}
           ],
           "units": [
             {"id": "silent_warden_1", "kind": "warden", "position": {"x": -90, "y": 0, "z": -5}, "mission_role": "limited_force"},
@@ -1829,14 +1835,15 @@
           ]
         }
       },
-      "allowed_buildings": ["field_repair_station", "sensor_mast", "relay"],
-      "allowed_player_buildings": ["field_repair_station", "sensor_mast"],
+      "allowed_buildings": ["field_repair_station", "relay"],
+      "allowed_player_buildings": ["field_repair_station"],
       "allowed_enemy_buildings": ["relay", "sensor_mast"],
       "allowed_player_units": ["warden", "bulwark"],
       "allowed_enemy_units": ["raider"]
     },
     "long_road": {
       "base_map_id": "mountain_corridor_base",
+      "faction_ids": {"player": "coalition", "enemy": "frontier"},
       "display_name": "Mission 4 — The Long Road",
       "briefing": "Escort a Mobile Command Unit through the mountain corridor and deploy a Forward Base at the marked eastern pad.",
       "routes": [
@@ -1848,7 +1855,7 @@
         "fog_tile_size": 8.0,
         "max_units_total": 8,
         "max_buildings_total": 6,
-        "max_buildings_by_kind": {"forward_base": 1, "field_repair_station": 2, "sensor_mast": 3, "bastion_turret": 3, "fire_support_battery": 2},
+        "max_buildings_by_kind": {"forward_base": 1, "field_repair_station": 2, "sensor_mast": 3, "bastion_turret": 3},
         "supply_disabled": true,
         "upgrades_enabled": true,
         "allowed_upgrades": ["hardened_chassis", "field_optics"],
@@ -1886,14 +1893,15 @@
           ]
         }
       },
-      "allowed_buildings": ["forward_base", "field_repair_station", "sensor_mast", "bastion_turret", "fire_support_battery"],
-      "allowed_player_buildings": ["forward_base", "field_repair_station", "sensor_mast", "bastion_turret", "fire_support_battery"],
+      "allowed_buildings": ["forward_base", "field_repair_station", "sensor_mast", "bastion_turret"],
+      "allowed_player_buildings": ["forward_base", "field_repair_station", "sensor_mast", "bastion_turret"],
       "allowed_enemy_buildings": ["sensor_mast"],
       "allowed_player_units": ["command_carrier", "warden", "ranger"],
       "allowed_enemy_units": ["raider"]
     },
     "holdfast": {
       "base_map_id": "mountain_corridor_base",
+      "faction_ids": {"player": "coalition", "enemy": "frontier"},
       "display_name": "Mission 5 — Holdfast",
       "briefing": "The Forward Base is online with a nearby Energy Field, Resource Processor, and Assembly Bay. Build a defensive perimeter, then hold the mountain corridor against five escalating assault waves.",
       "routes": [
@@ -1925,7 +1933,7 @@
         "player": {
           "buildings": [
             {"id": "holdfast_forward_base", "kind": "forward_base", "position": {"x": 88, "y": 0, "z": 0}, "mission_deployed": true, "mission_role": "defence_anchor"},
-            {"id": "holdfast_repair", "kind": "field_repair_station", "position": {"x": 80, "y": 0, "z": 8}, "repair_free": true, "mission_role": "regular_repair"},
+            {"id": "holdfast_repair", "kind": "field_repair_station", "position": {"x": 80, "y": 0, "z": 8}, "mission_role": "regular_repair"},
             {"id": "holdfast_tech", "kind": "tech_centre", "position": {"x": 80, "y": 0, "z": -9}, "mission_role": "upgrade_support"},
             {"id": "holdfast_refinery", "kind": "refinery", "position": {"x": 78, "y": 0, "z": 16}, "mission_role": "economy"},
             {"id": "holdfast_assembly", "kind": "assembly_bay", "position": {"x": 66, "y": 0, "z": 11}, "mission_role": "reinforcement"}
@@ -1948,6 +1956,110 @@
       "allowed_enemy_buildings": [],
       "allowed_player_units": ["warden", "ranger", "bulwark", "collector"],
       "allowed_enemy_units": ["raider"]
+    },
+    "network_sever": {
+      "base_map_id": "relay_crossroads_base",
+      "faction_ids": {"player": "coalition", "enemy": "frontier"},
+      "display_name": "Mission 6 — Network Sever",
+      "briefing": "The Frontier has turned the Central Relay into a counter-offensive anchor. The western relay chain is ready; capture the hub, keep the link connected, and hold the network online while mobile raiders push back through the Crossroads.",
+      "objectives": {"first_staging_point_id": "central_relay"},
+      "rules": {
+        "max_queue": 5,
+        "fog_tile_size": 8.0,
+        "max_units_total": 28,
+        "max_buildings_total": 12,
+        "max_buildings_by_kind": {"command_hub": 1, "refinery": 2, "assembly_bay": 2, "tech_centre": 1, "storage_silo": 2, "relay": 8, "sensor_mast": 3, "bastion_turret": 3, "fire_support_battery": 1},
+        "upgrades_enabled": true,
+        "allowed_upgrades": ["refining_efficiency", "fabrication_systems", "hardened_chassis", "field_optics", "breach_package"],
+        "allowed_technologies": ["advanced_targeting", "hardened_chassis", "field_optics", "breach_package"]
+      },
+      "campaign_mission": {
+        "id": "network_sever",
+        "display_name": "NETWORK SEVER",
+        "briefing": "Capture Central Relay and keep it connected for 90 seconds. Progress is retained while the link is online, but contested territory drains the clock and the Frontier counter-attacks in escalating waves.",
+        "ignore_hq_victory": true,
+        "scripted_ai": true,
+        "phases": [
+          {
+            "id": "hold_central_relay",
+            "display_name": "HOLD CENTRAL RELAY",
+            "type": "network_hold",
+            "target_ids": ["central_relay"],
+            "owner": "player",
+            "require_connected": true,
+            "duration_ticks": 900,
+            "offline_decay_ticks": 5,
+            "wave_delay_ticks": 90,
+            "wave_interval_ticks": 150,
+            "wave_count": 5,
+            "wave_units": ["raider", "raider"],
+            "wave_unit_sets": [["raider", "raider", "raider"], ["raider", "raider", "raider", "raider"], ["raider", "raider", "warden", "raider"], ["raider", "warden", "raider", "bulwark"], ["raider", "raider", "warden", "bulwark", "raider", "raider"]],
+            "wave_spawn_position": {"x": 96, "y": 0, "z": -58},
+            "target_position": {"x": 0, "y": 0, "z": 0},
+            "description": "Capture Central Relay and keep the connected network online. If the relay is contested, progress decays while the counter-offensive closes in.",
+            "completion_message": "Central Relay held. The Frontier network has been severed.",
+            "failure_message": "The connected network collapsed."
+          }
+        ],
+        "completion_flags": ["network_sever_complete"]
+      },
+      "spawns": {
+        "player": {
+          "buildings": [
+            {"id": "network_player_hq", "kind": "command_hub", "position": {"x": -96, "y": 0, "z": 58}},
+            {"id": "network_player_refinery", "kind": "refinery", "position": {"x": -86, "y": 0, "z": 58}},
+            {"id": "network_player_assembly", "kind": "assembly_bay", "position": {"x": -96, "y": 0, "z": 46}},
+            {"id": "network_player_relay_1", "kind": "relay", "position": {"x": -80, "y": 0, "z": 50}, "mission_role": "connected_chain"},
+            {"id": "network_player_relay_2", "kind": "relay", "position": {"x": -67, "y": 0, "z": 37}, "mission_role": "connected_chain"},
+            {"id": "network_player_relay_3", "kind": "relay", "position": {"x": -54, "y": 0, "z": 24}, "mission_role": "connected_chain"},
+            {"id": "network_player_relay_4", "kind": "relay", "position": {"x": -40, "y": 0, "z": 12}, "mission_role": "connected_chain"},
+            {"id": "network_player_relay_5", "kind": "relay", "position": {"x": -24, "y": 0, "z": 4}, "mission_role": "connected_chain"}
+          ],
+          "units": [
+            {"id": "network_player_ranger", "kind": "ranger", "position": {"x": -84, "y": 0, "z": 46}},
+            {"id": "network_player_warden", "kind": "warden", "position": {"x": -88, "y": 0, "z": 42}},
+            {"id": "network_player_collector", "kind": "collector", "position": {"x": -76, "y": 0, "z": 62}, "source_id": "north_field", "destination_id": "network_player_refinery", "home_id": "network_player_hq"}
+          ]
+        },
+        "enemy": {
+          "buildings": [
+            {"id": "network_enemy_hq", "kind": "command_hub", "position": {"x": 96, "y": 0, "z": -58}},
+            {"id": "network_enemy_refinery", "kind": "refinery", "position": {"x": 86, "y": 0, "z": -58}},
+            {"id": "network_enemy_assembly", "kind": "assembly_bay", "position": {"x": 96, "y": 0, "z": -46}}
+          ],
+          "units": [
+            {"id": "network_enemy_raider_1", "kind": "raider", "position": {"x": 84, "y": 0, "z": -46}},
+            {"id": "network_enemy_raider_2", "kind": "raider", "position": {"x": 88, "y": 0, "z": -42}},
+            {"id": "network_enemy_bulwark", "kind": "bulwark", "position": {"x": 92, "y": 0, "z": -38}},
+            {"id": "network_enemy_collector", "kind": "collector", "position": {"x": 86, "y": 0, "z": -58}, "source_id": "south_field", "destination_id": "network_enemy_refinery", "home_id": "network_enemy_hq"}
+          ]
+        }
+      },
+      "ai": {
+        "difficulty": "standard",
+        "intent": "sever_network",
+        "intent_display_name": "SEVER CENTRAL RELAY",
+        "intent_message": "Contest Central Relay and break the connected network before the Coalition can stabilize its hold.",
+        "map_tactic": "central_pressure",
+        "map_tactic_display_name": "CENTRAL PRESSURE",
+        "map_tactic_message": "The Frontier will pressure the relay chain rather than waiting for an HQ assault.",
+        "map_tactic_attack_delay_multiplier": 0.8,
+        "defensive_health_threshold": 0.72,
+        "passive_delivery_threshold": 1,
+        "passive_window_ticks": 300,
+        "posture_change_cooldown_ticks": 90,
+        "collector_source_id": "south_field",
+        "relay_position": {"x": 82, "y": 0, "z": -46},
+        "staging_point_id": "east_crossing",
+        "opening_attack_delay_ticks": 900,
+        "proactive_attack_delay_ticks": 300,
+        "minimum_attack_group_size": 3
+      },
+      "allowed_buildings": ["refinery", "assembly_bay", "tech_centre", "storage_silo", "relay", "sensor_mast", "bastion_turret", "fire_support_battery"],
+      "allowed_player_buildings": ["refinery", "assembly_bay", "tech_centre", "storage_silo", "relay", "sensor_mast", "bastion_turret", "fire_support_battery"],
+      "allowed_enemy_buildings": ["refinery", "assembly_bay", "tech_centre", "storage_silo", "relay"],
+      "allowed_player_units": ["ranger", "warden", "bulwark", "collector"],
+      "allowed_enemy_units": ["raider", "bulwark", "collector"]
     }
   }
 }

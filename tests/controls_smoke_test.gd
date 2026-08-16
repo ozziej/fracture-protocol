@@ -27,8 +27,8 @@ func _initialize() -> void:
 	var bottom_panel_rect: Rect2 = main.bottom_panel.get_global_rect()
 	if bottom_panel_rect.position.x < viewport_rect.position.x or bottom_panel_rect.end.x > viewport_rect.end.x or bottom_panel_rect.end.y > viewport_rect.end.y:
 		failures.append("context action panel should stay inside the viewport at the current window size")
-	if main.action_card_icons.size() != 6 or main.action_card_titles.size() != 6 or main.action_card_prices.size() != 6:
-		failures.append("context actions should expose six compact icon cards")
+	if main.action_card_icons.size() != 7 or main.action_card_titles.size() != 7 or main.action_card_prices.size() != 7:
+		failures.append("context actions should expose seven compact icon cards, including overflow repair")
 	for action_button in [main.build_button, main.queue_button, main.heavy_queue_button, main.research_button, main.repair_button, main.collector_button]:
 		if action_button.text != "":
 			failures.append("context action cards should use icon and price content instead of a long button label")
@@ -126,6 +126,19 @@ func _initialize() -> void:
 		failures.append("central relay should expose the representative signal core visual")
 	var tech_centre_id: String = main.simulation._add_building("player", "tech_centre", Vector3(-96.0, 0.0, 38.0))
 	main._sync_views()
+	main.selected_ids = [tech_centre_id]
+	main._update_context_cards()
+	var research_options := ["advanced_targeting", "hardened_chassis", "field_optics", "breach_package"]
+	for research_id in research_options:
+		if not main.context_actions.has("research:%s" % research_id):
+			failures.append("Tech Centre should keep unfinished research card %s visible before research starts" % research_id)
+	main.simulation.player_credits = 2000.0
+	main.simulation.issue_command("research", "player", {"building_id": tech_centre_id, "technology_id": "advanced_targeting"})
+	main.simulation.step_fixed()
+	main._update_context_cards()
+	for research_id in research_options:
+		if not main.context_actions.has("research:%s" % research_id):
+			failures.append("Tech Centre should keep unfinished research card %s visible while another research is active" % research_id)
 	var target_enemy_id := _find_entity(main.simulation.units, "raider", "enemy")
 	var target_player_id := _find_entity(main.simulation.units, "ranger", "player")
 	if target_enemy_id.is_empty() or target_player_id.is_empty():
@@ -228,9 +241,24 @@ func _initialize() -> void:
 			failures.append("controls smoke test needs a player Assembly Bay")
 		else:
 			main._unhandled_input(_key_event(KEY_T))
+			if not main.attack_move_mode:
+				failures.append("T should enter Attack-Move mode for the selected force")
+			main._unhandled_input(_key_event(KEY_ESCAPE))
+			if main.attack_move_mode:
+				failures.append("Escape should cancel Attack-Move mode")
+			main._unhandled_input(_key_event(KEY_G))
 			main.simulation.step_fixed()
-			if str(main.simulation.get_research_status("player")["active_id"]) != "advanced_targeting":
-				failures.append("T should start Advanced Targeting research")
+			var armed_player_ids: Array = main._selected_combat_unit_ids()
+			for entity_id in armed_player_ids:
+				if str(main.simulation.units[entity_id].get("order", "")) != "guard":
+					failures.append("G should issue Guard to every selected armed unit")
+					break
+			main._unhandled_input(_key_event(KEY_X))
+			main.simulation.step_fixed()
+			for entity_id in armed_player_ids:
+				if str(main.simulation.units[entity_id].get("order", "")) != "idle":
+					failures.append("X should stop every selected armed unit")
+					break
 
 		var repair_unit_id: String = player_ids[0]
 		var hub_id := _find_entity(main.simulation.buildings, "command_hub", "player")
@@ -243,8 +271,18 @@ func _initialize() -> void:
 			main.selected_ids = [repair_unit_id]
 			main._unhandled_input(_key_event(KEY_Y))
 			main.simulation.step_fixed()
+			if bool(main.simulation.units[repair_unit_id].get("repair_active", false)) or main.simulation.units[repair_unit_id]["health"] != 25.0:
+				failures.append("repair should not be available as a unit keyboard action")
+			main.selected_ids = [hub_id]
+			main._update_context_cards()
+			var repair_action_slot: int = main.context_actions.find("repair")
+			if repair_action_slot < 0:
+				failures.append("the selected repair building should expose a repair action card")
+			else:
+				main._run_context_action(repair_action_slot)
+			main.simulation.step_fixed()
 			if main.simulation.units[repair_unit_id]["health"] <= 25.0:
-				failures.append("Y should repair a damaged unit near base")
+				failures.append("the selected building should repair a nearby damaged unit")
 
 	var collector_id: String = level_two_collector_id
 	if collector_id.is_empty():
@@ -271,10 +309,6 @@ func _initialize() -> void:
 	Input.action_release("camera_back")
 	if main.camera_target.z <= 0.0:
 		failures.append("S should pan the camera toward positive world Z")
-
-	main._unhandled_input(_key_event(KEY_N))
-	if main.simulation.current_tick != 0 or main.simulation.match_over or main.simulation.units.size() != 6:
-		failures.append("N should restart the match without stale state")
 
 	if failures.is_empty():
 		print("CONTROLS_SMOKE_PASS")

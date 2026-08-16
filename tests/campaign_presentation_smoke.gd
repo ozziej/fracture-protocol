@@ -9,6 +9,15 @@ func _initialize() -> void:
 	var main_node = MainScene.instantiate()
 	root.add_child(main_node)
 	await process_frame
+	if str(main_node.start_menu_briefing_label.text) != "SELECT A MISSION":
+		failures.append("Campaign deployment should use a concise mission-selection prompt")
+	var mission_scroll: Node = main_node.find_child("CampaignMissionScroll", true, false)
+	if mission_scroll == null:
+		failures.append("Campaign deployment should provide a scrollable mission list")
+	if main_node.campaign_start_button == null or main_node.campaign_start_button.text != "START CAMPAIGN":
+		failures.append("Campaign deployment should expose a Start Campaign button")
+	if str(main_node.campaign_mission_detail_label.text).find("UNITS AVAILABLE") < 0 or str(main_node.campaign_mission_detail_label.text).find("TIER") >= 0:
+		failures.append("Campaign selection should show a concise brief and units without tier duplication")
 	for level_id in ["silent_recovery", "long_road", "holdfast"]:
 		main_node.simulation.start_match(level_id, "", {"mode": "campaign"})
 		main_node._clear_match_views()

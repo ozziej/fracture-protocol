@@ -91,6 +91,8 @@ func update() -> void:
 			_update_deploy(phase)
 		"defend":
 			_update_defend(phase)
+		"network_hold":
+			_update_network_hold(phase)
 
 
 func can_deploy_forward_base(unit_id: String) -> Dictionary:
@@ -183,6 +185,8 @@ func get_state() -> Dictionary:
 		final_destination_position = simulation._level_vector3(final_destination_phase.get("position", {}), Vector3.INF)
 		final_destination_index = int(final_destination_phase.get("_phase_index", -1))
 	var final_destination_revealed := _final_destination_revealed(mission_item_ids, final_destination_index)
+	var required_point_ids: Array = phase.get("target_ids", []) if str(phase.get("type", "")) == "network_hold" else []
+	var network_online := _network_targets_online(phase) if not required_point_ids.is_empty() else false
 	return {
 		"active": true,
 		"id": str(definition.get("id", simulation.get_level_id())),
@@ -208,6 +212,8 @@ func get_state() -> Dictionary:
 		"target": float(phase_state.get("target", target_count)),
 		"completed_targets": completed_count,
 		"target_count": target_count,
+		"required_point_ids": required_point_ids.duplicate(),
+		"network_online": network_online,
 		"detected": detected,
 		"alarm_ticks": alarm_ticks,
 		"detection_source_id": detection_source_id,
@@ -283,6 +289,8 @@ func _start_phase() -> void:
 	if str(phase.get("type", "")) == "escort" and route_points.size() >= 2:
 		phase_state["route_progress"] = {}
 		phase_state["route_checkpoint_count"] = route_points.size()
+	if str(phase.get("type", "")) == "network_hold":
+		phase_state["network_online"] = false
 	wave_index = 0
 	next_wave_tick = simulation.current_tick + maxi(1, int(phase.get("wave_delay_ticks", 30)))
 	simulation._emit_event("CampaignPhaseStarted", {
@@ -505,6 +513,63 @@ func _update_defend(phase: Dictionary) -> void:
 		_complete_phase(str(phase.get("completion_message", "The Forward Base held through the assault.")))
 
 
+func _update_network_hold(phase: Dictionary) -> void:
+	var online := _network_targets_online(phase)
+	phase_state["network_online"] = online
+	var duration: int = maxi(1, int(phase.get("duration_ticks", 600)))
+	var progress := int(phase_state.get("progress", 0.0))
+	if online:
+		progress += 1
+	else:
+		progress = max(0, progress - maxi(1, int(phase.get("offline_decay_ticks", 3))))
+	phase_state["progress"] = min(duration, progress)
+	phase_state["target"] = duration
+	if bool(definition.get("scripted_ai", false)) and wave_index < int(phase.get("wave_count", 0)) and simulation.current_tick >= next_wave_tick:
+		_spawn_network_wave(phase)
+	if progress >= duration:
+		_complete_phase(str(phase.get("completion_message", "The network remained online through the counter-offensive.")))
+
+
+func _network_targets_online(phase: Dictionary) -> bool:
+	var target_ids: Array = phase.get("target_ids", [])
+	if target_ids.is_empty():
+		return false
+	for point_id_value in target_ids:
+		var point_id := str(point_id_value)
+		if not simulation.control_points.has(point_id):
+			return false
+		var point: Dictionary = simulation.control_points[point_id]
+		if str(point.get("owner", "neutral")) != str(phase.get("owner", "player")):
+			return false
+		if bool(phase.get("require_connected", true)) and not simulation._is_forward_staging_active(str(phase.get("owner", "player")), point_id):
+			return false
+	return true
+
+
+func _spawn_network_wave(phase: Dictionary) -> void:
+	var spawn_position: Vector3 = simulation._level_vector3(phase.get("wave_spawn_position", {}))
+	var target_position: Vector3 = simulation._level_vector3(phase.get("target_position", {}), Vector3.ZERO)
+	var target_ids: Array = phase.get("target_ids", [])
+	if target_ids.size() > 0 and simulation.control_points.has(str(target_ids[0])):
+		target_position = simulation.control_points[str(target_ids[0])]["position"]
+	var kinds: Array = phase.get("wave_units", ["raider", "raider"])
+	var wave_unit_sets: Array = phase.get("wave_unit_sets", [])
+	if wave_index < wave_unit_sets.size() and wave_unit_sets[wave_index] is Array:
+		kinds = wave_unit_sets[wave_index]
+	var spawned: Array = []
+	for kind_value in kinds:
+		var kind := str(kind_value)
+		if not simulation.unit_definitions.has(kind):
+			continue
+		var unit_id: String = simulation._add_unit("enemy", kind, spawn_position + Vector3(float(spawned.size()) * 1.8, 0.0, float(spawned.size() % 2) * 1.6))
+		spawned.append(unit_id)
+	if not spawned.is_empty():
+		simulation.issue_command("attack_move", "enemy", {"entity_ids": spawned, "position": target_position})
+		simulation._emit_event("CampaignNetworkWaveStarted", {"team": "enemy", "wave": wave_index + 1, "unit_count": spawned.size(), "message": "COUNTER-OFFENSIVE WAVE %d — keep the Central Relay online." % (wave_index + 1)})
+	wave_index += 1
+	next_wave_tick = simulation.current_tick + max(1, int(phase.get("wave_interval_ticks", 180)))
+
+
 func _spawn_defence_wave(phase: Dictionary, base_id: String) -> void:
 	var spawn_position: Vector3 = simulation._level_vector3(phase.get("wave_spawn_position", {}))
 	var target_position: Vector3 = simulation.buildings[base_id]["position"]
@@ -598,6 +663,8 @@ func _mission_target_position(target_id: String) -> Vector3:
 		var building: Dictionary = simulation.buildings[building_id]
 		if str(building.get("authored_id", "")) == target_id or str(building.get("mission_target_id", "")) == target_id:
 			return building["position"]
+	if simulation.control_points.has(target_id):
+		return simulation.control_points[target_id]["position"]
 	return Vector3.INF
 
 

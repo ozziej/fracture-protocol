@@ -341,21 +341,23 @@ func _has_enemy_unit_near_position(position: Vector3, radius: float) -> bool:
 
 
 func _manage_repairs() -> void:
-	var repair_ids: Array = []
+	var repair_sources: Dictionary = {}
 	var repair_ratio: float = clamp(float(profile.get("repair_health_ratio", 0.45)), 0.1, 0.95)
 	var retreat_ratio: float = clamp(float(profile.get("retreat_health_ratio", 0.45)), 0.1, 0.95)
 	for entity_id in simulation.units:
 		var unit: Dictionary = simulation.units[entity_id]
 		if unit["team"] != "enemy" or float(unit["health"]) >= float(unit["max_health"]) or bool(unit.get("repair_active", false)):
 			continue
-		if simulation._is_repair_station_nearby("enemy", unit["position"]) and float(unit["health"]) <= float(unit["max_health"]) * repair_ratio + 0.01:
-			repair_ids.append(entity_id)
+		var repair_source_id: String = simulation.get_repair_station_id("enemy", unit["position"])
+		if not repair_source_id.is_empty() and float(unit["health"]) <= float(unit["max_health"]) * repair_ratio + 0.01:
+			repair_sources[repair_source_id] = true
 		elif unit["kind"] != "collector" and float(unit["health"]) <= float(unit["max_health"]) * retreat_ratio and str(unit.get("attack_target", "")).is_empty():
 			var home_id: String = simulation._first_building_for_team("enemy", "command_hub")
 			if not home_id.is_empty():
 				simulation.issue_command("move", "enemy", {"entity_ids": [entity_id], "position": simulation.buildings[home_id]["position"]})
-	if not repair_ids.is_empty() and simulation.enemy_credits >= simulation.REPAIR_UNIT_COST:
-		simulation.issue_command("repair", "enemy", {"entity_ids": repair_ids})
+	for repair_source_id in repair_sources:
+		if simulation.enemy_credits >= simulation.REPAIR_UNIT_COST:
+			simulation.issue_command("repair", "enemy", {"building_id": str(repair_source_id)})
 	for building_id in simulation.buildings:
 		var building: Dictionary = simulation.buildings[building_id]
 		if building["team"] == "enemy" and building["complete"] and float(building["health"]) < float(building["max_health"]) and simulation.enemy_credits >= simulation.REPAIR_BUILDING_COST:

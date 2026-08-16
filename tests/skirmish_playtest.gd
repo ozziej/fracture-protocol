@@ -104,7 +104,7 @@ func _initialize() -> void:
 			technology_sim.units[repair_unit_id]["target_position"] = technology_sim.units[repair_unit_id]["position"]
 			technology_sim.units[repair_unit_id]["health"] = 40.0
 			var credits_before_repair: float = technology_sim.player_credits
-			technology_sim.issue_command("repair", "player", {"entity_ids": [repair_unit_id]})
+			technology_sim.issue_command("repair", "player", {"building_id": repair_hub_id})
 			_run_ticks(technology_sim, 1)
 			if technology_sim.units[repair_unit_id]["health"] <= 40.0:
 				failures.append("a damaged unit near base should be repairable")
@@ -238,6 +238,7 @@ func _initialize() -> void:
 	else:
 		combat_sim.units[attacker_id]["position"] = Vector3(-6.0, 0.0, -1.0)
 		combat_sim.units[attacker_id]["target_position"] = combat_sim.units[attacker_id]["position"]
+		var attack_move_origin: Vector3 = combat_sim.units[attacker_id]["position"]
 		combat_sim.units[target_id]["position"] = Vector3(0.0, 0.0, -1.0)
 		combat_sim.units[target_id]["target_position"] = combat_sim.units[target_id]["position"]
 		combat_sim.units[target_id]["health"] = 1.0
@@ -251,8 +252,11 @@ func _initialize() -> void:
 		if combat_sim.units.has(target_id):
 			failures.append("an attack-move unit should be able to destroy its target")
 		_run_ticks(combat_sim, 30)
-		if combat_sim.units.has(attacker_id) and combat_sim.units[attacker_id]["position"].distance_to(Vector3(2.0, 0.0, -1.0)) > 0.75:
-			failures.append("an attack-move unit should resume its route after combat")
+		if combat_sim.units.has(attacker_id) and combat_sim.units[attacker_id]["position"].distance_to(attack_move_origin) > 0.75:
+			failures.append("an opportunistic attacker should return to its pursuit origin before moving again")
+		_run_ticks(combat_sim, 25)
+		if combat_sim.units.has(attacker_id) and str(combat_sim.units[attacker_id].get("order", "")) != "attack_move":
+			failures.append("an attack-move unit should resume its route after the five-second hold")
 
 	if failures.is_empty():
 		print("SKIRMISH_PLAYTEST_PASS")

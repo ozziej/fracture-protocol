@@ -21,14 +21,14 @@ func _initialize() -> void:
 		simulation.units[ranger_id]["position"] = outside_position
 		simulation.units[ranger_id]["target_position"] = outside_position
 		simulation.units[ranger_id]["health"] = 20.0
-		simulation.issue_command("repair", "player", {"entity_ids": [ranger_id]})
+		simulation.issue_command("repair", "player", {"building_id": assembly_id})
 		_step_without_ai(simulation, 1)
 		if float(simulation.units[ranger_id]["health"]) != 20.0 or bool(simulation.units[ranger_id].get("repair_active", false)):
 			failures.append("units outside a repair circle should not start repair")
 
 		simulation.units[ranger_id]["position"] = assembly_position
 		simulation.units[ranger_id]["target_position"] = assembly_position
-		simulation.issue_command("repair", "player", {"entity_ids": [ranger_id]})
+		simulation.issue_command("repair", "player", {"building_id": assembly_id})
 		_step_without_ai(simulation, 1)
 		var first_repair_health: float = float(simulation.units[ranger_id]["health"])
 		_step_without_ai(simulation, 10)
@@ -41,7 +41,7 @@ func _initialize() -> void:
 		simulation.units[ranger_id]["health"] = 20.0
 		simulation.units[ranger_id]["position"] = hub_position
 		simulation.units[ranger_id]["target_position"] = hub_position
-		simulation.issue_command("repair", "player", {"entity_ids": [ranger_id]})
+		simulation.issue_command("repair", "player", {"building_id": hub_id})
 		_step_without_ai(simulation, 2)
 		if float(simulation.units[ranger_id]["health"]) <= 20.0:
 			failures.append("the Command Hub should repair combat units")
@@ -52,7 +52,7 @@ func _initialize() -> void:
 		simulation.units[collector_id]["health"] = 20.0
 		simulation.units[collector_id]["position"] = hub_position
 		simulation.units[collector_id]["target_position"] = hub_position
-		simulation.issue_command("repair", "player", {"entity_ids": [collector_id]})
+		simulation.issue_command("repair", "player", {"building_id": hub_id})
 		_step_without_ai(simulation, 1)
 		if float(simulation.units[collector_id]["health"]) <= 20.0:
 			failures.append("the Command Hub should repair Collectors")

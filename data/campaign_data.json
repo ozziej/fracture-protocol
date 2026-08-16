@@ -1,14 +1,91 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
+  "initial_content": {
+    "units": ["ranger", "collector"],
+    "buildings": ["refinery", "assembly_bay", "storage_silo"],
+    "technologies": []
+  },
   "factions": {
-    "coalition": {"display_name": "Coalition", "team": "player", "unique_unit": "warden"},
-    "frontier": {"display_name": "Frontier", "team": "enemy", "unique_unit": "raider"}
+    "coalition": {
+      "display_name": "Coalition",
+      "team": "player",
+      "doctrine": "Fortified network",
+      "summary": "Sensors, durable defensive infrastructure, and deliberate combined-arms pushes.",
+      "strengths": ["sensor coverage", "fortified turrets", "armoured line vehicles"],
+      "weaknesses": ["expensive specialist units", "slower recovery when links are cut"],
+      "unique_unit": "warden",
+      "unique_building": "bastion_turret"
+    },
+    "frontier": {
+      "display_name": "Frontier",
+      "team": "enemy",
+      "doctrine": "Mobile pressure",
+      "summary": "Fast raiders and resilient field logistics turn captured ground into momentum.",
+      "strengths": ["raider mobility", "collector recovery", "rapid pressure"],
+      "weaknesses": ["lighter static defenses", "lower individual unit durability"],
+      "unique_unit": "raider",
+      "unique_building": "relay"
+    }
   },
   "missions": [
-    {"id": "relay_divide", "display_name": "Level 1 — Relay Divide", "initially_unlocked": true, "unlock_on_complete": "relay_crossroads"},
-    {"id": "relay_crossroads", "display_name": "Level 2 — Relay Crossroads", "initially_unlocked": false, "unlock_on_complete": "silent_recovery"},
-    {"id": "silent_recovery", "display_name": "Level 3 — Silent Recovery", "initially_unlocked": false, "unlock_on_complete": "long_road"},
-    {"id": "long_road", "display_name": "Level 4 — The Long Road", "initially_unlocked": false, "unlock_on_complete": "holdfast"},
-    {"id": "holdfast", "display_name": "Level 5 — Holdfast", "initially_unlocked": false}
+    {
+      "id": "relay_divide",
+      "display_name": "Level 1 — Relay Divide",
+      "tier": 1,
+      "tier_label": "FOUNDATION",
+      "initially_unlocked": true,
+      "unlock_on_complete": "relay_crossroads",
+      "rewards": {"units": ["warden"], "buildings": ["relay"], "technologies": []},
+      "reward_text": "UNLOCKS  //  Warden armoured line vehicle  ·  Forward Relay logistics"
+    },
+    {
+      "id": "relay_crossroads",
+      "display_name": "Level 2 — Relay Crossroads",
+      "tier": 2,
+      "tier_label": "NETWORK EXPANSION",
+      "initially_unlocked": false,
+      "unlock_on_complete": "silent_recovery",
+      "rewards": {"units": ["bulwark"], "buildings": ["tech_centre"], "technologies": ["advanced_targeting"]},
+      "reward_text": "UNLOCKS  //  Bulwark siege vehicle  ·  Tech Centre  ·  Advanced Targeting"
+    },
+    {
+      "id": "silent_recovery",
+      "display_name": "Level 3 — Silent Recovery",
+      "tier": 3,
+      "tier_label": "SPECIAL OPERATIONS",
+      "initially_unlocked": false,
+      "unlock_on_complete": "long_road",
+      "rewards": {"units": [], "buildings": ["forward_base", "field_repair_station"], "technologies": ["field_optics", "hardened_chassis"]},
+      "reward_text": "UNLOCKS  //  Forward Base logistics  ·  Field Repair Station  ·  Field Optics  ·  Hardened Chassis"
+    },
+    {
+      "id": "long_road",
+      "display_name": "Level 4 — The Long Road",
+      "tier": 4,
+      "tier_label": "FORTIFIED ADVANCE",
+      "initially_unlocked": false,
+      "unlock_on_complete": "holdfast",
+      "rewards": {"units": [], "buildings": ["sensor_mast", "bastion_turret"], "technologies": ["breach_package"]},
+      "reward_text": "UNLOCKS  //  Sensor Mast  ·  Bastion Turret  ·  Breach Package"
+    },
+    {
+      "id": "holdfast",
+      "display_name": "Level 5 — Holdfast",
+      "tier": 5,
+      "tier_label": "LAYERED DEFENCE",
+      "initially_unlocked": false,
+      "unlock_on_complete": "network_sever",
+      "rewards": {"units": [], "buildings": ["fire_support_battery"], "technologies": []},
+      "reward_text": "UNLOCKS  //  Fire Support Battery  ·  advanced perimeter operations"
+    },
+    {
+      "id": "network_sever",
+      "display_name": "Level 6 — Network Sever",
+      "tier": 6,
+      "tier_label": "COUNTER-OFFENSIVE",
+      "initially_unlocked": false,
+      "rewards": {"units": [], "buildings": [], "technologies": []},
+      "reward_text": "CAMPAIGN MASTERY  //  Hold the Central Relay while the Frontier counter-attacks"
+    }
   ]
 }

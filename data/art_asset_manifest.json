@@ -72,6 +72,11 @@
       "upgraded_source_parts": ["platform_small.glb", "turret_double.glb"],
       "role": "static anti-unit perimeter defence"
     },
+    "visual_set_piece_slice": {
+      "runtime_scene": "data-driven terrain set piece",
+      "source_parts": ["platform_long.glb", "structure_detailed.glb", "monorail_trackSupport.glb", "monorail_trainPassenger.glb"],
+      "role": "readable industrial signal and transfer landmarks for the Relay Divide and Relay Crossroads visual slice"
+    },
     "relay": {
       "runtime_scene": "art/fracture_protocol_assets/building_forward_relay.glb",
       "source_parts": ["platform_small.glb", "supports_high.glb", "satelliteDish_detailed.glb", "pipe_ring.glb"],
