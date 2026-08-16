@@ -48,7 +48,9 @@ static func build_path(start: Vector3, destination: Vector3, obstacles: Array, p
 				previous[neighbor] = current
 
 	if previous[1] == -1:
-		return [destination]
+		# An endpoint inside an obstacle, or a genuinely sealed pocket, must not
+		# silently become a direct path through the obstacle.
+		return []
 	var node_path: Array = []
 	var cursor := 1
 	while cursor != -1:
@@ -61,6 +63,53 @@ static func build_path(start: Vector3, destination: Vector3, obstacles: Array, p
 		var point: Vector2 = nodes[node_index]
 		result.append(Vector3(point.x, 0.0, point.y))
 	return result
+
+
+static func resolve_destination(start: Vector3, destination: Vector3, obstacles: Array, path_margin: float, corner_padding: float) -> Vector3:
+	var target := Vector2(destination.x, destination.z)
+	if point_clear(target, obstacles, path_margin):
+		return destination
+	var candidates: Array[Vector2] = []
+	for obstacle in obstacles:
+		var blocked: Rect2 = obstacle.grow(path_margin)
+		if not blocked.has_point(target):
+			continue
+		var clamped_x := clampf(target.x, blocked.position.x, blocked.end.x)
+		var clamped_y := clampf(target.y, blocked.position.y, blocked.end.y)
+		candidates.append(Vector2(blocked.position.x - corner_padding, clamped_y))
+		candidates.append(Vector2(blocked.end.x + corner_padding, clamped_y))
+		candidates.append(Vector2(clamped_x, blocked.position.y - corner_padding))
+		candidates.append(Vector2(clamped_x, blocked.end.y + corner_padding))
+	var best_point := Vector2(start.x, start.z)
+	var best_cost := INF
+	for candidate in candidates:
+		if not point_clear(candidate, obstacles, path_margin):
+			continue
+		var candidate_world := Vector3(candidate.x, destination.y, candidate.y)
+		var path := build_path(start, candidate_world, obstacles, path_margin, corner_padding)
+		if path.is_empty() and Vector2(start.x, start.z).distance_to(candidate) > 0.15:
+			continue
+		var path_cost := 0.0
+		var previous_point := Vector2(start.x, start.z)
+		for waypoint_value in path:
+			var waypoint: Vector3 = waypoint_value
+			var waypoint_point := Vector2(waypoint.x, waypoint.z)
+			path_cost += previous_point.distance_to(waypoint_point)
+			previous_point = waypoint_point
+		# Prefer the closest reachable edge of the clicked solid, while using
+		# actual route distance to avoid choosing the far side of a mountain.
+		var cost := path_cost + candidate.distance_to(target) * 0.25
+		if cost < best_cost:
+			best_cost = cost
+			best_point = candidate
+	return Vector3(best_point.x, destination.y, best_point.y)
+
+
+static func point_clear(point: Vector2, obstacles: Array, path_margin: float) -> bool:
+	for obstacle in obstacles:
+		if (obstacle as Rect2).grow(path_margin).has_point(point):
+			return false
+	return true
 
 
 static func segment_clear(from_point: Vector2, to_point: Vector2, obstacles: Array, path_margin: float) -> bool:

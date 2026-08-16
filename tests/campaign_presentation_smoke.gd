@@ -1,0 +1,57 @@
+extends SceneTree
+
+const MainScene = preload("res://main.tscn")
+
+
+func _initialize() -> void:
+	await process_frame
+	var failures: Array[String] = []
+	var main_node = MainScene.instantiate()
+	root.add_child(main_node)
+	await process_frame
+	for level_id in ["silent_recovery", "long_road", "holdfast"]:
+		main_node.simulation.start_match(level_id, "", {"mode": "campaign"})
+		main_node._clear_match_views()
+		main_node._build_world_shell()
+		main_node._sync_views()
+		await process_frame
+		if main_node.world_shell.find_child("AuthoredRoute_*", true, false) == null:
+			failures.append("%s should build at least one authored campaign route" % level_id)
+		if main_node.minimap.snapshot.get("campaign", {}).get("active", false) != true:
+			failures.append("%s should publish campaign state to the minimap" % level_id)
+		if main_node.campaign_marker_views.is_empty():
+			failures.append("%s should create visible campaign objective markers" % level_id)
+		if level_id == "long_road":
+			var carrier_id := _find_unit_kind(main_node.simulation.units, "command_carrier")
+			var carrier_view: Node3D = main_node.unit_views.get(carrier_id)
+			if carrier_view == null:
+				failures.append("The Long Road should create a visible Mobile Command Unit")
+			else:
+				var rear_screen: Vector2 = main_node.camera.unproject_position(carrier_view.global_transform * Vector3(0.0, 0.7, 3.0))
+				if main_node._entity_at_screen(rear_screen, false) != carrier_id:
+					failures.append("Clicking the rendered end of the Mobile Command Unit should select the carrier")
+			main_node.simulation.units[carrier_id]["position"] = Vector3(90.0, 0.0, 0.0)
+			main_node.simulation.step_fixed()
+			main_node.selected_ids = [carrier_id]
+			main_node._sync_views()
+			main_node._update_context_cards()
+			if str(main_node.context_actions[0]) != "deploy" or main_node.build_button.disabled:
+				failures.append("Arrival at the eastern pad should expose an enabled DEPLOY BASE action")
+	var campaign: Dictionary = main_node.simulation.get_campaign_state()
+	if str(campaign.get("id", "")) != "holdfast":
+		failures.append("presentation smoke should finish on the requested Holdfast mission")
+	if failures.is_empty():
+		print("CAMPAIGN_PRESENTATION_SMOKE_PASS")
+		quit(0)
+		return
+	for failure in failures:
+		push_error(failure)
+	print("CAMPAIGN_PRESENTATION_SMOKE_FAIL")
+	quit(1)
+
+
+func _find_unit_kind(units: Dictionary, kind: String) -> String:
+	for unit_id in units:
+		if str(units[unit_id].get("kind", "")) == kind:
+			return str(unit_id)
+	return ""

@@ -60,12 +60,15 @@ func _draw() -> void:
 	draw_line(Vector2(map_rect.position.x, map_rect.get_center().y), Vector2(map_rect.end.x, map_rect.get_center().y), Color(0.15, 0.3, 0.32, 0.5), 1.0)
 	draw_line(Vector2(map_rect.get_center().x, map_rect.position.y), Vector2(map_rect.get_center().x, map_rect.end.y), Color(0.15, 0.3, 0.32, 0.5), 1.0)
 	draw_string(ThemeDB.fallback_font, Vector2(10.0, 16.0), "TACTICAL MAP", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(0.61, 0.87, 0.91, 1.0))
-	if not objective_target_point_ids.is_empty():
+	var campaign: Dictionary = snapshot.get("campaign", {})
+	if not objective_target_point_ids.is_empty() or bool(campaign.get("active", false)):
 		draw_string(ThemeDB.fallback_font, Vector2(max(96.0, size.x - 96.0), 16.0), "OBJECTIVES", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color("#ffd36a"))
 
 	if snapshot.is_empty():
 		return
 	_draw_fog_overlay(map_rect)
+	_draw_campaign_routes(map_rect, campaign)
+	_draw_campaign_markers(map_rect, campaign)
 	for resource_id in snapshot.get("resource_nodes", {}):
 		var resource: Dictionary = snapshot["resource_nodes"][resource_id]
 		if str(resource.get("visibility_state", "visible")) == "hidden":
@@ -121,6 +124,118 @@ func _draw() -> void:
 			draw_arc(_map_point(unit["position"], map_rect), 4.5, 0.0, TAU, 14, Color("#d9fbff"), 1.2)
 
 	_draw_camera_view(map_rect)
+
+
+func _draw_campaign_routes(map_rect: Rect2, campaign: Dictionary) -> void:
+	var routes: Array = snapshot.get("routes", [])
+	var active_route_id := str(campaign.get("route_id", ""))
+	for route_value in routes:
+		var route: Dictionary = route_value
+		var waypoints: Array = route.get("waypoints", [])
+		if waypoints.size() < 2:
+			continue
+		var route_id := str(route.get("id", ""))
+		var is_active := not active_route_id.is_empty() and route_id == active_route_id
+		var route_color := Color(1.0, 0.68, 0.28, 0.82) if is_active else Color(0.86, 0.54, 0.24, 0.32)
+		var route_width := 2.8 if is_active else 1.4
+		for waypoint_index in range(waypoints.size() - 1):
+			var from_world := _route_point(waypoints[waypoint_index])
+			var to_world := _route_point(waypoints[waypoint_index + 1])
+			var tile_size := _visibility_tile_size()
+			var segment_steps := maxi(1, int(ceil(from_world.distance_to(to_world) / tile_size)))
+			for step in range(segment_steps):
+				var start_ratio := float(step) / float(segment_steps)
+				var end_ratio := float(step + 1) / float(segment_steps)
+				var segment_start := from_world.lerp(to_world, start_ratio)
+				var segment_end := from_world.lerp(to_world, end_ratio)
+				# Route geometry is intelligence, not terrain. Only draw the
+				# portion the player has actually exposed or already explored.
+				if not _route_point_exposed(segment_start.lerp(segment_end, 0.5)):
+					continue
+				draw_line(_map_point(segment_start, map_rect), _map_point(segment_end, map_rect), route_color, route_width, true)
+		if is_active:
+			var checkpoint := int(campaign.get("route_checkpoint", 1))
+			if checkpoint >= 0 and checkpoint < waypoints.size():
+				var checkpoint_world := _route_point(waypoints[checkpoint])
+				if _route_point_exposed(checkpoint_world):
+					var checkpoint_position: Vector2 = _map_point(checkpoint_world, map_rect)
+					draw_circle(checkpoint_position, 5.0, Color(1.0, 0.92, 0.5, 0.9), true)
+					draw_arc(checkpoint_position, 8.0, 0.0, TAU, 20, Color("#fff0a4"), 1.6)
+
+
+func _draw_campaign_markers(map_rect: Rect2, campaign: Dictionary) -> void:
+	if not bool(campaign.get("active", false)):
+		return
+	var mission_items: Dictionary = snapshot.get("mission_items", {})
+	var mission_item_ids: Array = campaign.get("mission_item_ids", [])
+	for item_id_value in mission_item_ids:
+		var item_id := str(item_id_value)
+		if not mission_items.has(item_id):
+			continue
+		var item: Dictionary = mission_items[item_id]
+		if bool(item.get("collected", false)):
+			continue
+		var case_position: Vector2 = _map_point(item.get("position", Vector3.ZERO), map_rect)
+		var case_shape := PackedVector2Array([
+			case_position + Vector2(0.0, -5.5),
+			case_position + Vector2(5.5, 0.0),
+			case_position + Vector2(0.0, 5.5),
+			case_position + Vector2(-5.5, 0.0),
+		])
+		draw_colored_polygon(case_shape, Color("#7cf1ad"))
+		draw_arc(case_position, 8.5, 0.0, TAU, 20, Color("#baffcf"), 1.5)
+		draw_string(ThemeDB.fallback_font, case_position + Vector2(7.0, 3.5), "CASE", HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color("#baffcf"))
+
+	var final_destination_position: Vector3 = campaign.get("final_destination_position", Vector3.INF)
+	if bool(campaign.get("final_destination_revealed", false)) and final_destination_position != Vector3.INF:
+		var destination: Vector2 = _map_point(final_destination_position, map_rect)
+		var destination_shape := PackedVector2Array([
+			destination + Vector2(0.0, -6.5),
+			destination + Vector2(6.5, 0.0),
+			destination + Vector2(0.0, 6.5),
+			destination + Vector2(-6.5, 0.0),
+		])
+		draw_colored_polygon(destination_shape, Color("#ffd36a"))
+		draw_arc(destination, 10.0, 0.0, TAU, 24, Color("#fff0a4"), 2.0)
+		draw_line(destination + Vector2(-8.0, 0.0), destination + Vector2(8.0, 0.0), Color("#fff0a4"), 1.2)
+		draw_line(destination + Vector2(0.0, -8.0), destination + Vector2(0.0, 8.0), Color("#fff0a4"), 1.2)
+		draw_string(ThemeDB.fallback_font, destination + Vector2(8.0, 3.5), "EXFIL", HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color("#fff0a4"))
+
+	var breach_position: Vector3 = campaign.get("detection_source_position", Vector3.INF)
+	if bool(campaign.get("detected", false)) and breach_position != Vector3.INF:
+		var breach: Vector2 = _map_point(breach_position, map_rect)
+		draw_circle(breach, 5.0, Color("#ff5964"), true)
+		draw_arc(breach, 9.0, 0.0, TAU, 24, Color("#ff8a8f"), 2.0)
+		draw_string(ThemeDB.fallback_font, breach + Vector2(8.0, 3.5), "BREACH", HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color("#ff8a8f"))
+
+
+func _route_point(value: Variant) -> Vector3:
+	if value is Vector3:
+		return value
+	if value is Dictionary:
+		var data: Dictionary = value
+		return Vector3(float(data.get("x", 0.0)), float(data.get("y", 0.0)), float(data.get("z", 0.0)))
+	return Vector3.ZERO
+
+
+func _visibility_tile_size() -> float:
+	var visibility: Dictionary = snapshot.get("visibility", {})
+	return maxf(2.0, float(visibility.get("tile_size", 8.0)))
+
+
+func _route_point_exposed(world_position: Vector3) -> bool:
+	var visibility: Dictionary = snapshot.get("visibility", {})
+	if visibility.is_empty():
+		return true
+	var tile_size := _visibility_tile_size()
+	var half_tile := tile_size * 0.5
+	for center in visibility.get("visible_cells", PackedVector3Array()):
+		if absf(world_position.x - center.x) <= half_tile and absf(world_position.z - center.z) <= half_tile:
+			return true
+	for center in visibility.get("explored_cells", PackedVector3Array()):
+		if absf(world_position.x - center.x) <= half_tile and absf(world_position.z - center.z) <= half_tile:
+			return true
+	return false
 
 
 func _map_point(world_position: Vector3, map_rect: Rect2) -> Vector2:

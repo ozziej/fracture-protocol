@@ -10,6 +10,7 @@ var team := "neutral"
 var kind := ""
 var complete := false
 var repair_radius := 0.0
+var vision_range := 0.0
 var body_mesh: MeshInstance3D
 var cap_mesh: MeshInstance3D
 var antenna_mesh: MeshInstance3D
@@ -19,6 +20,8 @@ var target_flash_disc: MeshInstance3D
 var under_fire_ring: MeshInstance3D
 var repair_zone: MeshInstance3D
 var repair_zone_ring: MeshInstance3D
+var vision_zone: MeshInstance3D
+var vision_zone_ring: MeshInstance3D
 var network_link_zone: MeshInstance3D
 var network_link_zone_ring: MeshInstance3D
 var visual_body_height := 0.0
@@ -40,6 +43,7 @@ func setup(data: Dictionary) -> void:
 	kind = data["kind"]
 	complete = bool(data.get("complete", false))
 	repair_radius = float(data.get("repair_radius", 0.0))
+	vision_range = float(data.get("vision_range", 0.0))
 	_build_visuals()
 	sync(data, false)
 
@@ -47,6 +51,7 @@ func setup(data: Dictionary) -> void:
 func sync(data: Dictionary, selected: bool) -> void:
 	global_position = data["position"]
 	complete = bool(data.get("complete", false))
+	vision_range = float(data.get("vision_range", vision_range))
 	_sync_status_billboard()
 	set_selected(selected)
 	var under_fire := bool(data.get("under_fire", false))
@@ -58,6 +63,12 @@ func sync(data: Dictionary, selected: bool) -> void:
 		var zone_visible := repair_radius > 0.0 and team == "player" and bool(data.get("complete", false))
 		repair_zone.visible = zone_visible
 		repair_zone_ring.visible = zone_visible
+	if vision_zone:
+		var vision_visible := kind == "sensor_mast" and vision_range > 0.0 and complete
+		vision_zone.visible = vision_visible
+		vision_zone_ring.visible = vision_visible
+		vision_zone.scale = Vector3(vision_range, 1.0, vision_range)
+		vision_zone_ring.scale = Vector3(vision_range, 1.0, vision_range)
 	if network_link_zone:
 		var link_visible := selected and team == "player" and complete
 		network_link_zone.visible = link_visible
@@ -98,6 +109,8 @@ func sync(data: Dictionary, selected: bool) -> void:
 		label_text += "\nRESEARCH %s %d%%" % [research_id.replace("_", "-").to_upper(), int(research_progress * 100.0)]
 	if under_fire:
 		label_text += "\n! UNDER FIRE"
+	if kind == "sensor_mast" and complete:
+		label_text += "\nVIEW RANGE %.0f" % vision_range
 	name_label.text = label_text
 
 
@@ -139,6 +152,16 @@ func _build_visuals() -> void:
 		body_size = Vector3(3.1, 2.4, 3.1)
 	elif kind == "storage_silo":
 		body_size = Vector3(2.2, 2.8, 2.2)
+	elif kind == "forward_base":
+		body_size = Vector3(4.8, 2.6, 4.8)
+	elif kind == "sensor_mast":
+		body_size = Vector3(2.0, 3.4, 2.0)
+	elif kind == "field_repair_station":
+		body_size = Vector3(2.8, 1.7, 2.8)
+	elif kind == "bastion_turret":
+		body_size = Vector3(2.8, 2.0, 2.8)
+	elif kind == "fire_support_battery":
+		body_size = Vector3(3.4, 2.1, 3.4)
 	visual_marker_height = body_size.y + 0.16
 	if kind == "command_hub":
 		visual_marker_height = 3.15
@@ -152,6 +175,16 @@ func _build_visuals() -> void:
 		visual_marker_height = 2.38
 	elif kind == "relay":
 		visual_marker_height = 2.85
+	elif kind == "forward_base":
+		visual_marker_height = 3.2
+	elif kind == "sensor_mast":
+		visual_marker_height = 3.8
+	elif kind == "field_repair_station":
+		visual_marker_height = 2.1
+	elif kind == "bastion_turret":
+		visual_marker_height = 2.55
+	elif kind == "fire_support_battery":
+		visual_marker_height = 2.65
 
 	visual_body_height = body_size.y
 	var body := BoxMesh.new()
@@ -170,11 +203,11 @@ func _build_visuals() -> void:
 	cap_mesh.position.y = body_size.y + 0.12
 	add_child(cap_mesh)
 
-	if kind == "command_hub" or kind == "relay":
+	if kind == "command_hub" or kind == "relay" or kind == "forward_base" or kind == "sensor_mast":
 		var antenna := CylinderMesh.new()
 		antenna.top_radius = 0.07
 		antenna.bottom_radius = 0.11
-		antenna.height = 2.2 if kind == "command_hub" else 1.6
+		antenna.height = 2.2 if kind == "command_hub" else 1.6 if kind == "relay" else 2.4
 		antenna.radial_segments = 8
 		visual_antenna_height = antenna.height
 		antenna_mesh = MeshInstance3D.new()
@@ -184,6 +217,34 @@ func _build_visuals() -> void:
 		add_child(antenna_mesh)
 
 	_attach_asset_visual()
+	if kind == "sensor_mast":
+		# Sensor coverage is a tactical footprint, not a decorative halo. Keep
+		# enemy coverage in the strong red language used by the mission warning.
+		var vision_material_color := Color(1.0, 0.06, 0.03, 0.18) if team == "enemy" else Color(0.18, 0.86, 0.94, 0.10)
+		var vision_mesh := CylinderMesh.new()
+		vision_mesh.top_radius = 1.0
+		vision_mesh.bottom_radius = 1.0
+		vision_mesh.height = 0.018
+		vision_mesh.radial_segments = 96
+		vision_zone = MeshInstance3D.new()
+		vision_zone.name = "SensorVisionInfluence"
+		vision_zone.mesh = vision_mesh
+		vision_zone.material_override = _material(vision_material_color)
+		vision_zone.position.y = 0.075
+		vision_zone.visible = false
+		add_child(vision_zone)
+		var vision_ring_mesh := TorusMesh.new()
+		vision_ring_mesh.outer_radius = 1.0
+		vision_ring_mesh.inner_radius = 0.96
+		vision_ring_mesh.rings = 96
+		vision_ring_mesh.ring_segments = 8
+		vision_zone_ring = MeshInstance3D.new()
+		vision_zone_ring.name = "SensorVisionInfluenceRing"
+		vision_zone_ring.mesh = vision_ring_mesh
+		vision_zone_ring.material_override = _material(Color(1.0, 0.10, 0.03, 0.98) if team == "enemy" else Color("#52e7ef"))
+		vision_zone_ring.position.y = 0.12
+		vision_zone_ring.visible = false
+		add_child(vision_zone_ring)
 	if kind == "command_hub" or kind == "relay":
 		var link_mesh := CylinderMesh.new()
 		link_mesh.top_radius = SimulationScript.SUPPLY_LINK_RADIUS

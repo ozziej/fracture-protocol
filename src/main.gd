@@ -10,6 +10,7 @@ const CombatEffectsScript = preload("res://src/presentation/rts_combat_effects.g
 const AudioManagerScript = preload("res://src/presentation/rts_audio_manager.gd")
 const WorldViewSynchronizerScript = preload("res://src/presentation/rts_world_view_synchronizer.gd")
 const FogOfWarViewScript = preload("res://src/presentation/rts_fog_of_war_view.gd")
+const CampaignMarkerViewScript = preload("res://src/presentation/rts_campaign_marker_view.gd")
 const HudIconScript = preload("res://src/ui/rts_hud_icon.gd")
 
 const MAP_HALF_WIDTH := 80.0
@@ -33,6 +34,7 @@ var unit_views: Dictionary = {}
 var building_views: Dictionary = {}
 var control_views: Dictionary = {}
 var resource_views: Dictionary = {}
+var campaign_marker_views: Dictionary = {}
 var selected_ids: Array = []
 var selected_resource_id := ""
 var inspected_target_id := ""
@@ -96,6 +98,7 @@ var action_card_prices: Array = []
 var minimap
 var mission_one_button: Button
 var mission_two_button: Button
+var campaign_mission_buttons: Dictionary = {}
 var start_menu_overlay: ColorRect
 var start_menu_panel: PanelContainer
 var start_menu_briefing_label: Label
@@ -825,6 +828,20 @@ func _build_campaign_start_menu(root: Control) -> void:
 	mission_two_button.tooltip_text = "Complete Relay Divide to unlock this mission."
 	mission_two_button.pressed.connect(_load_campaign_level.bind("relay_crossroads"))
 	campaign_menu_container.add_child(mission_two_button)
+	campaign_mission_buttons = {"relay_divide": mission_one_button, "relay_crossroads": mission_two_button}
+	if campaign_progress:
+		for mission_data in campaign_progress.get_missions():
+			var mission: Dictionary = mission_data
+			var mission_id := str(mission.get("id", ""))
+			if mission_id.is_empty() or campaign_mission_buttons.has(mission_id):
+				continue
+			var mission_button := Button.new()
+			mission_button.name = "%sButton" % mission_id.capitalize()
+			mission_button.custom_minimum_size = Vector2(0.0, 48.0)
+			mission_button.text = str(mission.get("display_name", mission_id.replace("_", " ").capitalize())).to_upper()
+			mission_button.pressed.connect(_load_campaign_level.bind(mission_id))
+			campaign_menu_container.add_child(mission_button)
+			campaign_mission_buttons[mission_id] = mission_button
 	var footer := _label("The opponent tactic is authored by the mission and adapts to battlefield pressure automatically.", 12, Color("#8ca9b5"))
 	footer.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	campaign_menu_container.add_child(footer)
@@ -1129,16 +1146,30 @@ func _show_objective_briefing() -> void:
 		else:
 			lines.append("Keep the marked sites connected and watch the objective progress bar for interruptions.")
 	else:
-		objective_briefing_title_label.text = "MISSION BRIEFING  //  %s" % simulation.get_level_display_name().to_upper()
-		lines.append("PRIMARY OBJECTIVE")
-		lines.append(simulation.get_level_briefing())
-		var objective_text: Dictionary = simulation.get_level_objective_text()
-		var first_action := str(objective_text.get("build_processor", "Follow the objective bar and yellow markers to establish your forward network."))
-		lines.append("")
-		lines.append("FIRST ACTION")
-		lines.append(first_action)
-		lines.append("")
-		lines.append("The objective bar, yellow tactical-map circles, and world markers will guide you through the next step.")
+		var campaign: Dictionary = simulation.get_campaign_state()
+		if bool(campaign.get("active", false)):
+			objective_briefing_title_label.text = "MISSION BRIEFING  //  %s" % str(campaign.get("display_name", simulation.get_level_display_name())).to_upper()
+			lines.append("PRIMARY OBJECTIVE")
+			lines.append(str(campaign.get("objective_text", "Complete the current campaign phase.")))
+			lines.append("")
+			lines.append(str(campaign.get("briefing", simulation.get_level_briefing())))
+			var route_id := str(campaign.get("route_id", ""))
+			if not route_id.is_empty():
+				lines.append("")
+				lines.append("AUTHORED ROUTE  //  %s" % route_id.replace("_", " ").to_upper())
+			lines.append("")
+			lines.append("The phase bar will show progress, alarm pressure, convoy readiness, and the next handoff. Follow the marked passes instead of crossing the mountain walls.")
+		else:
+			objective_briefing_title_label.text = "MISSION BRIEFING  //  %s" % simulation.get_level_display_name().to_upper()
+			lines.append("PRIMARY OBJECTIVE")
+			lines.append(simulation.get_level_briefing())
+			var objective_text: Dictionary = simulation.get_level_objective_text()
+			var first_action := str(objective_text.get("build_processor", "Follow the objective bar and yellow markers to establish your forward network."))
+			lines.append("")
+			lines.append("FIRST ACTION")
+			lines.append(first_action)
+			lines.append("")
+			lines.append("The objective bar, yellow tactical-map circles, and world markers will guide you through the next step.")
 	objective_briefing_body_label.text = "\n".join(lines)
 	objective_briefing_visible = true
 	objective_briefing_overlay.visible = true
@@ -1248,8 +1279,7 @@ func _finish_left_click() -> void:
 			var unit: Dictionary = simulation.units[entity_id]
 			if unit["team"] != "player":
 				continue
-			var projected := camera.unproject_position(unit["position"] + Vector3.UP * 0.6)
-			if drag_rect.has_point(projected):
+			if _unit_intersects_screen_rect(str(entity_id), unit, drag_rect):
 				selected_ids.append(entity_id)
 	_update_selected_visuals()
 
@@ -1366,17 +1396,18 @@ func _focus_selection(show_status := true) -> void:
 
 func _entity_at_screen(screen_position: Vector2, player_only: bool) -> String:
 	var closest_id := ""
-	var closest_distance := 32.0
+	var closest_score := 1.0
 	for entity_id in simulation.units:
 		var unit: Dictionary = simulation.units[entity_id]
 		if player_only and unit["team"] != "player":
 			continue
 		if not player_only and unit["team"] != "player" and not simulation.is_entity_visible_to_team("player", entity_id):
 			continue
-		var projected := camera.unproject_position(unit["position"] + Vector3.UP * 0.7)
-		var distance := projected.distance_to(screen_position)
-		if distance < closest_distance:
-			closest_distance = distance
+		var hit_radius := 42.0 if str(unit.get("kind", "")) == "command_carrier" else 32.0
+		var distance := _unit_screen_distance(str(entity_id), unit, screen_position)
+		var score := distance / hit_radius
+		if score < closest_score:
+			closest_score = score
 			closest_id = entity_id
 	for entity_id in simulation.buildings:
 		var building: Dictionary = simulation.buildings[entity_id]
@@ -1386,10 +1417,33 @@ func _entity_at_screen(screen_position: Vector2, player_only: bool) -> String:
 			continue
 		var projected := camera.unproject_position(building["position"] + Vector3.UP * 1.0)
 		var distance := projected.distance_to(screen_position)
-		if distance < closest_distance:
-			closest_distance = distance
+		var score := distance / 32.0
+		if score < closest_score:
+			closest_score = score
 			closest_id = entity_id
 	return closest_id
+
+
+func _unit_screen_distance(entity_id: String, unit: Dictionary, screen_position: Vector2) -> float:
+	if str(unit.get("kind", "")) != "command_carrier" or not unit_views.has(entity_id) or not is_instance_valid(unit_views[entity_id]):
+		return camera.unproject_position(unit["position"] + Vector3.UP * 0.7).distance_to(screen_position)
+	var view: Node3D = unit_views[entity_id]
+	var first_endpoint := camera.unproject_position(view.global_transform * Vector3(0.0, 0.7, -3.2))
+	var second_endpoint := camera.unproject_position(view.global_transform * Vector3(0.0, 0.7, 3.2))
+	var nearest := Geometry2D.get_closest_point_to_segment(screen_position, first_endpoint, second_endpoint)
+	return nearest.distance_to(screen_position)
+
+
+func _unit_intersects_screen_rect(entity_id: String, unit: Dictionary, rectangle: Rect2) -> bool:
+	if str(unit.get("kind", "")) != "command_carrier" or not unit_views.has(entity_id) or not is_instance_valid(unit_views[entity_id]):
+		return rectangle.has_point(camera.unproject_position(unit["position"] + Vector3.UP * 0.6))
+	var view: Node3D = unit_views[entity_id]
+	for sample_index in range(7):
+		var local_z := lerpf(-3.2, 3.2, float(sample_index) / 6.0)
+		var projected := camera.unproject_position(view.global_transform * Vector3(0.0, 0.6, local_z))
+		if rectangle.has_point(projected):
+			return true
+	return false
 
 
 func _entity_display_name(entity_id: String) -> String:
@@ -1824,10 +1878,13 @@ func _run_context_action(slot: int) -> void:
 		_begin_build_from_selection(action.trim_prefix("build:"))
 	elif action.begins_with("produce:") and selected_ids.size() == 1:
 		simulation.issue_command("produce", "player", {"building_id": selected_ids[0], "unit_type": action.trim_prefix("produce:")})
-	elif action == "research" and selected_ids.size() == 1:
-		simulation.issue_command("research", "player", {"building_id": selected_ids[0], "technology_id": "advanced_targeting"})
+	elif (action == "research" or action.begins_with("research:")) and selected_ids.size() == 1:
+		var technology_id := "advanced_targeting" if action == "research" else action.trim_prefix("research:")
+		simulation.issue_command("research", "player", {"building_id": selected_ids[0], "technology_id": technology_id})
 	elif action == "upgrade" and selected_ids.size() == 1:
 		simulation.issue_command("upgrade", "player", {"building_id": selected_ids[0]})
+	elif action == "deploy" and selected_ids.size() == 1:
+		simulation.issue_command("deploy", "player", {"unit_id": str(selected_ids[0])})
 	elif action == "collector_route":
 		_begin_collector_assignment()
 	elif action == "repair":
@@ -1930,6 +1987,7 @@ func _sync_views(frame_delta: float = 0.0) -> void:
 	if not state["resource_nodes"].has(selected_resource_id):
 		selected_resource_id = ""
 	WorldViewSynchronizerScript.sync(self, state, selected_ids, unit_views, building_views, control_views, resource_views, selected_resource_id, objective_target_point_ids, minimap, frame_delta)
+	_sync_campaign_markers(state)
 	var terrain: Dictionary = simulation.get_level_terrain()
 	for entity_id in unit_views:
 		if state["units"].has(entity_id):
@@ -1941,6 +1999,130 @@ func _sync_views(frame_delta: float = 0.0) -> void:
 		fog_view.sync(state.get("visibility", {}))
 	if minimap:
 		minimap.set_selection(selected_ids, selected_resource_id, objective_target_point_ids)
+
+
+func _sync_campaign_markers(state: Dictionary) -> void:
+	if not world_shell:
+		return
+	var active_markers: Dictionary = {}
+	var campaign: Dictionary = state.get("campaign", {})
+	if bool(campaign.get("active", false)):
+		var phase_id := str(campaign.get("phase_id", "phase"))
+		var objective_type := str(campaign.get("objective_type", ""))
+		var mission_items: Dictionary = state.get("mission_items", {})
+		var final_destination_position: Vector3 = campaign.get("final_destination_position", Vector3.INF)
+		if bool(campaign.get("final_destination_revealed", false)) and final_destination_position != Vector3.INF and objective_type != "reach":
+			_add_campaign_marker(active_markers, {
+				"id": "%s:final-destination" % phase_id,
+				"type": "objective",
+				"position": final_destination_position,
+				"label": "EXFIL  //  FINAL DESTINATION",
+				"color": Color("#ffd36a"),
+				"radius": 3.6,
+			})
+		var breach_position: Vector3 = campaign.get("detection_source_position", Vector3.INF)
+		if bool(campaign.get("detected", false)) and breach_position != Vector3.INF:
+			var breach_kind := str(campaign.get("detection_source_kind", ""))
+			var breach_label := "SENSOR GRID BREACHED" if breach_kind == "sensor_mast" else "CONTACT"
+			_add_campaign_marker(active_markers, {
+				"id": "%s:sensor-breach" % phase_id,
+				"type": "breach",
+				"position": breach_position,
+				"label": breach_label,
+				"color": Color("#ff5964"),
+				"radius": 3.2,
+			})
+		if objective_type == "collect_items":
+			for item_id_value in campaign.get("item_ids", []):
+				var item_id := str(item_id_value)
+				var item: Dictionary = mission_items.get(item_id, {})
+				if item.is_empty() or bool(item.get("collected", false)):
+					continue
+				_add_campaign_marker(active_markers, {
+					"id": "%s:item:%s" % [phase_id, item_id],
+					"type": "item",
+					"position": item.get("position", Vector3.ZERO),
+					"label": "RECOVER  //  %s" % str(item.get("display_name", item_id)).to_upper(),
+					"color": Color("#7cf1ad"),
+					"radius": 2.5,
+				})
+		if objective_type == "destroy_targets":
+			var target_index := 0
+			for target_position_value in campaign.get("target_positions", []):
+				var target_position: Vector3 = target_position_value
+				_add_campaign_marker(active_markers, {
+					"id": "%s:target:%d" % [phase_id, target_index],
+					"type": "target",
+					"position": target_position,
+					"label": "DISABLE  //  RELAY %d" % (target_index + 1),
+					"color": Color("#ff8066"),
+					"radius": 3.4,
+				})
+				target_index += 1
+		if objective_type in ["reach", "escort", "deploy"]:
+			var phase_position: Vector3 = campaign.get("target_position", Vector3.INF)
+			if phase_position != Vector3.INF:
+				var phase_label := "REACH  //  EXTRACTION" if objective_type == "reach" else "DEPLOY  //  FORWARD BASE" if objective_type == "deploy" else "CONVOY  //  ARRIVAL"
+				var phase_color := Color("#ffd36a") if objective_type != "deploy" else Color("#7ce7ff")
+				_add_campaign_marker(active_markers, {
+					"id": "%s:phase-target" % phase_id,
+					"type": "deploy" if objective_type == "deploy" else "objective",
+					"position": phase_position,
+					"label": phase_label,
+					"color": phase_color,
+					"radius": 4.0 if objective_type == "deploy" else 3.0,
+				})
+		if objective_type == "escort":
+			var route_id := str(campaign.get("route_id", ""))
+			var route: Dictionary = simulation.get_level_route(route_id)
+			var route_points: Array = route.get("waypoints", [])
+			var next_checkpoint := int(campaign.get("route_checkpoint", 1))
+			if route_points.size() > 1 and next_checkpoint < route_points.size():
+				var checkpoint_position: Vector3 = simulation._level_vector3(route_points[next_checkpoint])
+				_add_campaign_marker(active_markers, {
+					"id": "%s:route-checkpoint" % phase_id,
+					"type": "route",
+					"position": checkpoint_position,
+					"label": "PASS %02d  //  %s" % [next_checkpoint, str(route.get("display_name", route_id)).to_upper()],
+					"color": Color("#ffd36a"),
+					"radius": 2.7,
+				})
+		if objective_type in ["build_structures", "defend"]:
+			var forward_base_id := str(campaign.get("forward_base_id", ""))
+			var buildings: Dictionary = state.get("buildings", {})
+			if buildings.has(forward_base_id):
+				var forward_base: Dictionary = buildings[forward_base_id]
+				_add_campaign_marker(active_markers, {
+					"id": "%s:forward-base" % phase_id,
+					"type": "defend" if objective_type == "defend" else "objective",
+					"position": forward_base.get("position", Vector3.ZERO),
+					"label": "HOLD  //  FORWARD BASE" if objective_type == "defend" else "BUILD  //  FORWARD BASE PERIMETER",
+					"color": Color("#7ce7ff"),
+					"radius": 4.5 if objective_type == "defend" else 3.0,
+				})
+	for marker_id in campaign_marker_views.keys().duplicate():
+		if not active_markers.has(marker_id):
+			var stale_view = campaign_marker_views[marker_id]
+			if is_instance_valid(stale_view):
+				stale_view.queue_free()
+			campaign_marker_views.erase(marker_id)
+	for marker_id in active_markers:
+		var marker_data: Dictionary = active_markers[marker_id]
+		if not campaign_marker_views.has(marker_id):
+			var marker_view = CampaignMarkerViewScript.new()
+			marker_view.name = "CampaignMarker_%s" % str(marker_id).replace(":", "_")
+			world_shell.add_child(marker_view)
+			marker_view.setup(marker_data)
+			campaign_marker_views[marker_id] = marker_view
+		else:
+			campaign_marker_views[marker_id].sync(marker_data)
+
+
+func _add_campaign_marker(active_markers: Dictionary, marker_data: Dictionary) -> void:
+	var marker_id := str(marker_data.get("id", ""))
+	if marker_id.is_empty():
+		return
+	active_markers[marker_id] = marker_data
 
 
 func _on_minimap_world_position_clicked(world_position: Vector3) -> void:
@@ -1984,10 +2166,14 @@ func _clear_match_views() -> void:
 	for view in resource_views.values():
 		if is_instance_valid(view):
 			view.queue_free()
+	for view in campaign_marker_views.values():
+		if is_instance_valid(view):
+			view.queue_free()
 	unit_views.clear()
 	building_views.clear()
 	control_views.clear()
 	resource_views.clear()
+	campaign_marker_views.clear()
 
 
 func _restart_match() -> void:
@@ -2019,7 +2205,7 @@ func _restart_match() -> void:
 
 func _load_campaign_level(level_id: String) -> void:
 	if campaign_progress and not campaign_progress.is_unlocked(level_id):
-		status_label.text = "Complete Level 1 to unlock Level 2."
+		status_label.text = _campaign_unlock_reason(level_id)
 		return
 	_hide_pause_menu()
 	_hide_match_result()
@@ -2047,6 +2233,23 @@ func _load_campaign_level(level_id: String) -> void:
 	_sync_views()
 	_update_hud()
 	_show_objective_briefing()
+
+
+func _campaign_unlock_reason(level_id: String) -> String:
+	if not campaign_progress:
+		return "Campaign mission unavailable."
+	for mission_data in campaign_progress.get_missions():
+		var mission: Dictionary = mission_data
+		if str(mission.get("unlock_on_complete", "")) == level_id:
+			var prerequisite_id := str(mission.get("id", ""))
+			var prerequisite_name := prerequisite_id.replace("_", " ").capitalize()
+			for candidate_data in campaign_progress.get_missions():
+				var candidate: Dictionary = candidate_data
+				if str(candidate.get("id", "")) == prerequisite_id:
+					prerequisite_name = str(candidate.get("display_name", prerequisite_name))
+					break
+			return "Complete %s to unlock this mission." % prerequisite_name
+	return "This campaign mission is locked."
 
 
 func _load_skirmish_match(level_id: String, settings: Dictionary) -> void:
@@ -2123,12 +2326,22 @@ func _has_player_staging_rally(point_id: String) -> bool:
 
 
 func _starting_camera_target() -> Vector3:
+	var fallback_target := Vector3.ZERO
 	for building_id in simulation.buildings:
 		var building: Dictionary = simulation.buildings[building_id]
 		if building["team"] == "player" and building["kind"] == "command_hub":
 			var bounds: Vector2 = simulation.get_level_bounds()
 			var position: Vector3 = building["position"]
 			return Vector3(clamp(position.x, -bounds.x * CAMERA_TARGET_X_FACTOR, bounds.x * CAMERA_TARGET_X_FACTOR), 0.0, clamp(position.z, -bounds.y * CAMERA_TARGET_Z_FACTOR, bounds.y * CAMERA_TARGET_Z_FACTOR))
+		if fallback_target == Vector3.ZERO and building["team"] == "player" and building["kind"] == "forward_base":
+			fallback_target = building["position"]
+	if fallback_target != Vector3.ZERO:
+		var fallback_bounds: Vector2 = simulation.get_level_bounds()
+		return Vector3(clamp(fallback_target.x, -fallback_bounds.x * CAMERA_TARGET_X_FACTOR, fallback_bounds.x * CAMERA_TARGET_X_FACTOR), 0.0, clamp(fallback_target.z, -fallback_bounds.y * CAMERA_TARGET_Z_FACTOR, fallback_bounds.y * CAMERA_TARGET_Z_FACTOR))
+	for unit_id in simulation.units:
+		var unit: Dictionary = simulation.units[unit_id]
+		if unit.get("team", "") == "player":
+			return unit["position"]
 	return Vector3.ZERO
 
 
@@ -2156,10 +2369,18 @@ func _update_objective() -> void:
 			var scenario_result: Dictionary = simulation.get_scenario_state("player")
 			objective_label.text = "OBJECTIVE COMPLETE — %s" % str(scenario_result.get("result_reason", "Network objective resolved.")) if simulation.match_winner == "player" else "OBJECTIVE FAILED — %s" % str(scenario_result.get("result_reason", "Network objective lost."))
 		else:
-			objective_label.text = "OBJECTIVE COMPLETE — %s" % _mission_text("match_complete") if simulation.match_winner == "player" else "OBJECTIVE FAILED"
+			var campaign_result: Dictionary = simulation.get_campaign_state()
+			var campaign_reason := str(campaign_result.get("result_reason", ""))
+			if campaign_reason.is_empty():
+				campaign_reason = _mission_text("match_complete")
+			objective_label.text = "OBJECTIVE COMPLETE — %s" % campaign_reason if simulation.match_winner == "player" else "OBJECTIVE FAILED — %s" % campaign_reason
 		return
 	if simulation.get_match_mode() == "skirmish":
 		_update_skirmish_objective()
+		return
+	var campaign: Dictionary = simulation.get_campaign_state()
+	if bool(campaign.get("active", false)):
+		_update_campaign_objective(campaign)
 		return
 	if _find_player_building("refinery").is_empty():
 		_set_objective("build_processor")
@@ -2218,10 +2439,52 @@ func _update_skirmish_objective() -> void:
 	objective_label.text = "OBJECTIVE: %s — %s" % [str(scenario.get("display_name", "SKIRMISH")).to_upper(), objective_text.to_upper()]
 
 
+func _update_campaign_objective(campaign: Dictionary) -> void:
+	objective_target_point_id = ""
+	objective_target_point_ids = []
+	var phase_name := str(campaign.get("phase_display_name", "OBJECTIVE")).to_upper()
+	var objective_text := str(campaign.get("objective_text", "Complete the current campaign phase."))
+	var route_id := str(campaign.get("route_id", ""))
+	if not route_id.is_empty():
+		objective_text += "  ·  ROUTE %s" % route_id.replace("_", " ").to_upper()
+	if bool(campaign.get("detected", false)):
+		var detection_label := "SENSOR GRID BREACHED" if str(campaign.get("detection_source_kind", "")) == "sensor_mast" else "CONTACT"
+		objective_text += "  ·  %s — BREAK CONTACT" % detection_label
+	objective_label.text = "OBJECTIVE: %s — %s" % [phase_name, objective_text.to_upper()]
+	objective_label.modulate = Color("#ff7b86") if bool(campaign.get("detected", false)) else Color("#ffd36a")
+
+
 func _update_scenario_progress_hud() -> void:
-	if not scenario_progress_label or not simulation or simulation.get_match_mode() != "skirmish":
+	if not scenario_progress_label or not simulation:
 		if scenario_progress_label:
 			scenario_progress_label.text = ""
+		return
+	if simulation.get_match_mode() != "skirmish":
+		var campaign: Dictionary = simulation.get_campaign_state()
+		if not bool(campaign.get("active", false)):
+			scenario_progress_label.text = ""
+			return
+		var campaign_progress_value := int(float(campaign.get("progress", 0.0)))
+		var campaign_target_value := int(float(campaign.get("target", 0.0)))
+		var campaign_text := "%s  ·  %d/%d" % [str(campaign.get("phase_display_name", "OBJECTIVE")).to_upper(), campaign_progress_value, campaign_target_value]
+		var campaign_route := str(campaign.get("route_id", ""))
+		if not campaign_route.is_empty():
+			campaign_text += "  ·  ROUTE %s" % campaign_route.replace("_", " ").to_upper()
+			var route_checkpoint_count := int(campaign.get("route_checkpoint_count", 0))
+			if route_checkpoint_count > 0:
+				campaign_text += " %d/%d" % [int(campaign.get("route_checkpoint", 0)), route_checkpoint_count]
+		var alarm_limit_seconds := float(campaign.get("alarm_limit_seconds", 0.0))
+		if alarm_limit_seconds > 0.0:
+			campaign_text += "  ·  ALARM %s/%s" % [_format_duration(float(campaign.get("alarm_seconds", 0.0))), _format_duration(alarm_limit_seconds)]
+		scenario_progress_label.text = campaign_text
+		scenario_progress_label.modulate = Color("#ffbf6a") if bool(campaign.get("detected", false)) else Color("#8cebf3")
+		if bool(campaign.get("deployment_ready", false)):
+			scenario_progress_label.text += "  ·  DEPLOY READY"
+			scenario_progress_label.modulate = Color("#7cf1ad")
+		if bool(campaign.get("detected", false)):
+			var detection_label := "SENSOR GRID BREACHED" if str(campaign.get("detection_source_kind", "")) == "sensor_mast" else "CONTACT"
+			scenario_progress_label.text += "  ·  %s" % detection_label
+			scenario_progress_label.modulate = Color("#ff7b86")
 		return
 	var scenario: Dictionary = simulation.get_scenario_state("player")
 	if str(scenario.get("objective_type", "")) == "defend_network":
@@ -2297,12 +2560,11 @@ func _update_hud() -> void:
 	force_label.modulate = force_accent
 	if top_status_icons.has("ForceChip"):
 		top_status_icons["ForceChip"].set_icon("mixed", force_accent)
-	if mission_one_button:
-		mission_one_button.disabled = false
-	if mission_two_button:
-		var level_two_unlocked: bool = campaign_progress == null or campaign_progress.is_unlocked("relay_crossroads")
-		mission_two_button.disabled = not level_two_unlocked
-		mission_two_button.tooltip_text = "Deploy Relay Crossroads" if level_two_unlocked else "Complete Relay Divide to unlock this mission."
+	for mission_id in campaign_mission_buttons:
+		var mission_button: Button = campaign_mission_buttons[mission_id]
+		var mission_unlocked: bool = campaign_progress == null or campaign_progress.is_unlocked(str(mission_id))
+		mission_button.disabled = not mission_unlocked
+		mission_button.tooltip_text = "Deploy %s" % str(mission_button.text).replace("LEVEL ", "").capitalize() if mission_unlocked else _campaign_unlock_reason(str(mission_id))
 	if start_menu_briefing_label:
 		start_menu_briefing_label.text = simulation.get_level_briefing()
 	if simulation.match_over:
@@ -2596,6 +2858,8 @@ func _unit_card_icon(unit_type: String) -> String:
 			return "FAST"
 		"collector":
 			return "CARGO"
+		"command_carrier":
+			return "CONVOY"
 		_:
 			return "UNIT"
 
@@ -2626,17 +2890,29 @@ func _upgrade_context_state(building: Dictionary) -> Dictionary:
 	return {"visible": true, "disabled": disabled, "reason": reason}
 
 
-func _research_context_state(building: Dictionary) -> Dictionary:
+func _research_context_state(building: Dictionary, requested_technology_id: String = "") -> Dictionary:
 	var definition = simulation.building_definitions.get(str(building.get("kind", "")))
 	if definition == null:
 		return {"visible": false}
-	var technology_id := str(definition.can_research)
-	if technology_id.is_empty() or not simulation.technology_definitions.has(technology_id):
+	var research_options: Array = []
+	for option in str(definition.can_research).split(","):
+		var option_id := str(option).strip_edges()
+		if not option_id.is_empty():
+			research_options.append(option_id)
+	var technology_id := requested_technology_id
+	if technology_id.is_empty():
+		for option_id in research_options:
+			if simulation.technology_definitions.has(option_id) and not simulation.is_technology_unlocked("player", option_id) and simulation.is_technology_allowed(option_id):
+				technology_id = option_id
+				break
+	if technology_id.is_empty() or not technology_id in research_options or not simulation.technology_definitions.has(technology_id) or not simulation.is_technology_allowed(technology_id):
 		return {"visible": false}
 	if simulation.is_technology_unlocked("player", technology_id):
 		return {"visible": false}
 	var active_id := str(building.get("research_id", ""))
 	if not active_id.is_empty():
+		if active_id != technology_id:
+			return {"visible": false}
 		var total: float = max(0.1, float(building.get("research_total", 0.0)))
 		var remaining: float = float(building.get("research_remaining", total))
 		var progress: int = int(clamp(1.0 - remaining / total, 0.0, 1.0) * 100.0)
@@ -2685,12 +2961,19 @@ func _context_card_title(action: String, label: String) -> String:
 		if simulation.building_definitions.has(building_type):
 			return str(simulation.building_definitions[building_type].display_name).to_upper()
 		return building_type.replace("_", " ").to_upper()
+	if action.begins_with("research:"):
+		var technology_id := action.trim_prefix("research:")
+		if simulation.technology_definitions.has(technology_id):
+			return str(simulation.technology_definitions[technology_id].display_name).to_upper()
+		return technology_id.replace("_", " ").to_upper()
 	match action:
 		"upgrade":
 			var upgrade_line := str(label).split("\n")[0].replace("▲", "").strip_edges()
 			return upgrade_line
 		"research":
 			return "TARGETING"
+		"deploy":
+			return "DEPLOY BASE"
 		"repair":
 			return "REPAIR"
 		"collector_route":
@@ -2714,6 +2997,8 @@ func _context_card_price(action: String, label: String) -> String:
 		return "45 C/PULSE" if building_selected else "30 C/PULSE"
 	if action == "collector_route":
 		return "FREE"
+	if action == "deploy":
+		return "FREE"
 	var lines := str(label).split("\n")
 	if lines.size() < 2:
 		return "—"
@@ -2731,6 +3016,8 @@ func _context_card_icon(action: String, label: String) -> String:
 		return action.trim_prefix("produce:")
 	if action.begins_with("build:"):
 		return action.trim_prefix("build:")
+	if action.begins_with("research:"):
+		return "targeting"
 	match action:
 		"upgrade":
 			return "fabrication" if str(label).find("FABRICATION") >= 0 else "refining"
@@ -2740,17 +3027,19 @@ func _context_card_icon(action: String, label: String) -> String:
 			return "repair"
 		"collector_route":
 			return "route"
+		"deploy":
+			return "forward_base"
 		_:
 			return "mixed" if str(label).find("MULTI") >= 0 else "unit"
 
 
 func _context_card_accent(icon_key: String) -> Color:
 	match icon_key:
-		"bulwark", "warden", "fabrication":
+		"bulwark", "warden", "fabrication", "bastion_turret", "fire_support_battery":
 			return Color("#ff9f43")
-		"repair", "collector", "refinery", "refining":
+		"repair", "collector", "refinery", "refining", "field_repair_station":
 			return Color("#7cf1ad")
-		"targeting", "tech_centre", "relay", "forward_relay", "route":
+		"targeting", "tech_centre", "relay", "forward_relay", "route", "forward_base", "sensor_mast":
 			return Color("#8cebf3")
 		"ranger", "raider", "assembly_bay":
 			return Color("#d6fbff")
@@ -2817,22 +3106,51 @@ func _update_context_cards() -> void:
 						if not fabrication_suffix.is_empty():
 							fabrication_label = "▲ FABRICATION\n%s" % fabrication_suffix
 						cards[3] = {"action": "upgrade", "label": fabrication_label, "visible": true, "disabled": fabrication_state.get("disabled", false), "reason": fabrication_state.get("reason", "")}
+					var sensor_state := _building_context_state("sensor_mast", "assembly_bay")
+					if bool(sensor_state.get("visible", false)):
+						cards[4] = {"action": "build:sensor_mast", "label": "◈ SENSOR MAST\n%d" % int(simulation.building_definitions["sensor_mast"].cost), "visible": true, "disabled": sensor_state.get("disabled", false), "reason": sensor_state.get("reason", "")}
+					var bastion_state := _building_context_state("bastion_turret", "assembly_bay")
+					if bool(bastion_state.get("visible", false)):
+						cards[5] = {"action": "build:bastion_turret", "label": "◈ BASTION TURRET\n%d" % int(simulation.building_definitions["bastion_turret"].cost), "visible": true, "disabled": bastion_state.get("disabled", false), "reason": bastion_state.get("reason", "")}
 				"tech_centre":
-					var research_state := _research_context_state(building)
-					if bool(research_state.get("visible", false)):
+					var research_ids: Array = ["advanced_targeting", "hardened_chassis", "field_optics", "breach_package"]
+					for research_index in research_ids.size():
+						var research_id: String = str(research_ids[research_index])
+						var research_state: Dictionary = _research_context_state(building, research_id)
+						if not bool(research_state.get("visible", false)):
+							continue
 						var research_suffix := str(research_state.get("label_suffix", ""))
-						var research_label := "▲ TARGETING\n%d" % int(simulation.technology_definitions["advanced_targeting"].cost)
+						var research_label := "▲ %s\n%d" % [str(simulation.technology_definitions[research_id].display_name).to_upper(), int(simulation.technology_definitions[research_id].cost)]
 						if not research_suffix.is_empty():
-							research_label = "▲ TARGETING\n%s" % research_suffix
-						cards[0] = {"action": "research", "label": research_label, "visible": true, "disabled": research_state.get("disabled", false), "reason": research_state.get("reason", "")}
+							research_label = "▲ %s\n%s" % [str(simulation.technology_definitions[research_id].display_name).to_upper(), research_suffix]
+						cards[research_index] = {"action": "research:%s" % research_id, "label": research_label, "visible": true, "disabled": research_state.get("disabled", false), "reason": research_state.get("reason", "")}
+					var battery_state := _building_context_state("fire_support_battery", "tech_centre")
+					if bool(battery_state.get("visible", false)):
+						cards[5] = {"action": "build:fire_support_battery", "label": "◈ FIRE SUPPORT\n%d" % int(simulation.building_definitions["fire_support_battery"].cost), "visible": true, "disabled": battery_state.get("disabled", false), "reason": battery_state.get("reason", "")}
+				"forward_base":
+					var forward_build_options: Array = ["sensor_mast", "field_repair_station", "bastion_turret", "fire_support_battery"]
+					for forward_index in forward_build_options.size():
+						var forward_kind: String = str(forward_build_options[forward_index])
+						var forward_state: Dictionary = _building_context_state(forward_kind, "")
+						if not bool(forward_state.get("visible", false)):
+							continue
+						var forward_definition = simulation.building_definitions[forward_kind]
+						cards[forward_index] = {"action": "build:%s" % forward_kind, "label": "◈ %s\n%d" % [str(forward_definition.display_name).to_upper(), int(forward_definition.cost)], "visible": true, "disabled": forward_state.get("disabled", false), "reason": forward_state.get("reason", "")}
 			var repair_state := _repair_context_state()
 			if bool(repair_state.get("visible", false)):
 				cards[4] = repair_state
-		elif simulation.units.has(entity_id) and simulation.units[entity_id]["kind"] == "collector":
-			cards[0] = {"action": "collector_route", "label": "ROUTE [U]", "visible": true, "disabled": false, "reason": "Assign this Collector to an Energy Field and Processor."}
-			var collector_repair_state := _repair_context_state()
-			if bool(collector_repair_state.get("visible", false)):
-				cards[4] = collector_repair_state
+		elif simulation.units.has(entity_id):
+			var selected_unit: Dictionary = simulation.units[entity_id]
+			if str(selected_unit.get("kind", "")) == "collector":
+				cards[0] = {"action": "collector_route", "label": "ROUTE [U]", "visible": true, "disabled": false, "reason": "Assign this Collector to an Energy Field and Processor."}
+			elif str(selected_unit.get("kind", "")) == "command_carrier":
+				var campaign: Dictionary = simulation.get_campaign_state()
+				if bool(campaign.get("active", false)) and str(campaign.get("objective_type", "")) == "deploy":
+					var deployment_ready: bool = bool(campaign.get("deployment_ready", false))
+					cards[0] = {"action": "deploy", "label": "◈ DEPLOY BASE\nREADY" if deployment_ready else "◈ DEPLOY BASE\nMOVE TO PAD", "visible": true, "disabled": not deployment_ready, "reason": "Deploy the Forward Base at the marked eastern site." if deployment_ready else "Move the Mobile Command Unit inside the marked deployment zone."}
+			var unit_repair_state := _repair_context_state()
+			if bool(unit_repair_state.get("visible", false)):
+				cards[4] = unit_repair_state
 	elif not selected_ids.is_empty():
 		cards[0] = {"action": "", "label": "MULTI-UNIT\nORDERS", "visible": true, "disabled": true, "reason": "Use right-click to issue a group order."}
 		var multi_repair_state := _repair_context_state()
@@ -2951,8 +3269,8 @@ func _selection_icon_key(data: Dictionary, enemy := false) -> String:
 		return "enemy"
 	var kind := str(data.get("kind", "unit"))
 	if data.has("order"):
-		return kind if ["ranger", "warden", "bulwark", "raider", "collector"].has(kind) else "unit"
-	return kind if ["command_hub", "assembly_bay", "refinery", "tech_centre", "storage_silo", "relay", "forward_relay"].has(kind) else "unit"
+		return kind if ["ranger", "warden", "bulwark", "raider", "collector", "command_carrier"].has(kind) else "unit"
+	return kind if ["command_hub", "assembly_bay", "refinery", "tech_centre", "storage_silo", "relay", "forward_relay", "forward_base", "sensor_mast", "field_repair_station", "bastion_turret", "fire_support_battery"].has(kind) else "unit"
 
 
 func _selection_card_text(data: Dictionary) -> String:
@@ -3115,7 +3433,7 @@ func _on_simulation_event(event_type: String, payload: Dictionary) -> void:
 			status_label.modulate = Color("#ffd36a") if event_type == "MatchWon" else Color("#ff7b86")
 		_show_match_result(event_type, payload)
 	if event_type == "MatchWon" and campaign_progress and simulation.get_match_mode() == "campaign":
-		var unlocked_id: String = campaign_progress.mark_complete(simulation.get_level_id())
+		var unlocked_id: String = campaign_progress.mark_complete(simulation.get_level_id(), payload)
 		if not unlocked_id.is_empty():
 			if play_hints_enabled:
 				status_label.text = "LEVEL COMPLETE — Level 2 unlocked. Press F2 to deploy."

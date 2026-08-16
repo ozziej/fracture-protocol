@@ -1320,7 +1320,51 @@
           "capture_rate_multiplier": 1.0
       }
     ]
+    },
+  "mountain_corridor_base": {
+    "display_name": "Mountain Corridor",
+    "map_bounds": {
+      "half_width": 120,
+      "half_depth": 70
+    },
+    "terrain": {
+      "ground_size": {"x": 240, "y": 0.25, "z": 140},
+      "ground_position": {"x": 0, "y": -0.18, "z": 0},
+      "grid_spacing": 4,
+      "ground_color": "#443730",
+      "grid_color": "#8a7769",
+      "grid_alpha": 0.09,
+      "road_color": "#594a3f",
+      "terrain_border": {"enabled": true, "height": 4.6, "inset": 6.0, "cluster_size": 8.5},
+      "roads": [
+        {"position": {"x": -75, "y": 0.01, "z": 0}, "size": {"x": 30, "y": 0.03, "z": 3.0}, "kind": "convoy_route"},
+        {"position": {"x": -45, "y": 0.01, "z": -56}, "size": {"x": 30, "y": 0.03, "z": 3.0}, "kind": "north_pass"},
+        {"position": {"x": 0, "y": 0.01, "z": -56}, "size": {"x": 60, "y": 0.03, "z": 3.0}, "kind": "north_pass"},
+        {"position": {"x": 45, "y": 0.01, "z": -56}, "size": {"x": 30, "y": 0.03, "z": 3.0}, "kind": "north_pass"},
+        {"position": {"x": 75, "y": 0.01, "z": 0}, "size": {"x": 30, "y": 0.03, "z": 3.0}, "kind": "convoy_route"},
+        {"position": {"x": -45, "y": 0.01, "z": 56}, "size": {"x": 30, "y": 0.03, "z": 3.0}, "kind": "south_pass"},
+        {"position": {"x": 0, "y": 0.01, "z": 56}, "size": {"x": 60, "y": 0.03, "z": 3.0}, "kind": "south_pass"},
+        {"position": {"x": 45, "y": 0.01, "z": 56}, "size": {"x": 30, "y": 0.03, "z": 3.0}, "kind": "south_pass"}
+      ],
+      "lane_markers": [],
+      "obstacles": [
+        {"position": {"x": -35, "y": 3, "z": 0}, "size": {"x": 14, "y": 6, "z": 100}, "kind": "mountain_wall"},
+        {"position": {"x": 35, "y": 3, "z": 0}, "size": {"x": 14, "y": 6, "z": 100}, "kind": "mountain_wall"}
+      ],
+      "accents": [
+        {"position": {"x": -85, "y": 0.02, "z": 0}, "size": {"x": 4, "y": 0.04, "z": 14}, "color": "#9d8060", "kind": "deployment_pad"},
+        {"position": {"x": 85, "y": 0.02, "z": 0}, "size": {"x": 4, "y": 0.04, "z": 14}, "color": "#9d8060", "kind": "deployment_pad"}
+      ],
+      "walkable_terrain": [],
+      "vegetation_zones": [],
+      "scenery": [
+        {"asset": "terrain_rock_a", "position": {"x": -24, "y": 0, "z": -66}, "scale": {"x": 5.0, "y": 5.0, "z": 5.0}, "yaw": 18, "blocks_movement": true, "collision_size": {"x": 9.0, "y": 5.0, "z": 9.0}},
+        {"asset": "terrain_rock_b", "position": {"x": 24, "y": 0, "z": -66}, "scale": {"x": 4.6, "y": 4.6, "z": 4.6}, "yaw": 202, "blocks_movement": true, "collision_size": {"x": 8.5, "y": 4.8, "z": 8.5}},
+        {"asset": "terrain_rock_a", "position": {"x": -24, "y": 0, "z": 66}, "scale": {"x": 4.8, "y": 4.8, "z": 4.8}, "yaw": 92, "blocks_movement": true, "collision_size": {"x": 8.8, "y": 4.9, "z": 8.8}},
+        {"asset": "terrain_rock_b", "position": {"x": 24, "y": 0, "z": 66}, "scale": {"x": 4.5, "y": 4.5, "z": 4.5}, "yaw": 270, "blocks_movement": true, "collision_size": {"x": 8.2, "y": 4.6, "z": 8.2}}
+      ]
     }
+  }
   },
   "mission_maps": {
     "relay_divide": {
@@ -1716,6 +1760,188 @@
         "storage_silo",
         "relay"
       ]
+    },
+    "silent_recovery": {
+      "base_map_id": "mountain_corridor_base",
+      "display_name": "Mission 3 — Silent Recovery",
+      "briefing": "A small recovery team must cross the mountain corridor, retrieve the sealed cases, disable two marked relays, and exfiltrate before the alarm peaks.",
+      "routes": [
+        {"id": "north_pass", "display_name": "North Pass", "waypoints": [{"x": -90, "y": 0, "z": 0}, {"x": -60, "y": 0, "z": 0}, {"x": -60, "y": 0, "z": -56}, {"x": 60, "y": 0, "z": -56}, {"x": 60, "y": 0, "z": 0}, {"x": 90, "y": 0, "z": 0}]},
+        {"id": "south_pass", "display_name": "South Pass", "waypoints": [{"x": -90, "y": 0, "z": 0}, {"x": -60, "y": 0, "z": 0}, {"x": -60, "y": 0, "z": 56}, {"x": 60, "y": 0, "z": 56}, {"x": 60, "y": 0, "z": 0}, {"x": 90, "y": 0, "z": 0}]},
+        {"id": "rescue_route", "display_name": "West Extraction Route", "waypoints": [{"x": 90, "y": 0, "z": 0}, {"x": 60, "y": 0, "z": 0}, {"x": 60, "y": 0, "z": -56}, {"x": -60, "y": 0, "z": -56}, {"x": -60, "y": 0, "z": 0}, {"x": -92, "y": 0, "z": 0}]}
+      ],
+      "mission_items": [
+        {"id": "recovery_case_north", "display_name": "North Recovery Case", "position": {"x": 8, "y": 0, "z": -56}, "pickup_radius": 3.0},
+        {"id": "recovery_case_south", "display_name": "South Recovery Case", "position": {"x": 8, "y": 0, "z": 56}, "pickup_radius": 3.0}
+      ],
+      "rules": {
+        "max_queue": 1,
+        "fog_tile_size": 8.0,
+        "max_units_total": 8,
+        "max_buildings_total": 8,
+        "max_buildings_by_kind": {"field_repair_station": 3, "sensor_mast": 4, "relay": 4},
+        "supply_disabled": true,
+        "upgrades_enabled": false,
+        "allowed_upgrades": [],
+        "allowed_technologies": []
+      },
+      "campaign_mission": {
+        "id": "silent_recovery",
+        "display_name": "SILENT RECOVERY",
+        "briefing": "Limited force: 3 Wardens and 1 Bulwark. Recover both sealed cases, disable the marked relays, then extract one Warden back through the west route.",
+        "ignore_hq_victory": true,
+        "scripted_ai": true,
+        "detection": {"enabled": true, "alarm_limit_ticks": 180, "recovery_ticks": 6, "failure_message": "The recovery team stayed exposed too long."},
+        "phases": [
+          {"id": "recover_cases", "display_name": "RECOVER CASES", "type": "collect_items", "item_ids": ["recovery_case_north", "recovery_case_south"], "description": "Recover both sealed cases. Use the mountain passes and the repair stations to keep the limited force moving.", "completion_message": "Both recovery cases are secure."},
+          {"id": "disable_relays", "display_name": "DISABLE RELAYS", "type": "destroy_targets", "target_ids": ["silent_relay_north", "silent_relay_south"], "description": "Destroy the two marked relay nodes before the patrol net closes.", "completion_message": "The marked relays are offline."},
+          {"id": "exfiltrate", "display_name": "EXFILTRATE", "type": "reach", "position": {"x": -92, "y": 0, "z": 0}, "radius": 7.0, "required_count": 1, "required_unit_kind": "warden", "route_id": "rescue_route", "description": "Return at least one Warden to the west extraction zone.", "completion_message": "The recovery team is clear. Silent Recovery complete."}
+        ],
+        "completion_flags": ["silent_recovery_complete"]
+      },
+      "spawns": {
+        "player": {
+          "buildings": [
+            {"id": "silent_repair_north", "kind": "field_repair_station", "position": {"x": -64, "y": 0, "z": -56}, "repair_free": true, "mission_role": "regular_repair"},
+            {"id": "silent_repair_south", "kind": "field_repair_station", "position": {"x": -64, "y": 0, "z": 56}, "repair_free": true, "mission_role": "regular_repair"}
+          ],
+          "units": [
+            {"id": "silent_warden_1", "kind": "warden", "position": {"x": -90, "y": 0, "z": -5}, "mission_role": "limited_force"},
+            {"id": "silent_warden_2", "kind": "warden", "position": {"x": -90, "y": 0, "z": 0}, "mission_role": "limited_force"},
+            {"id": "silent_warden_3", "kind": "warden", "position": {"x": -90, "y": 0, "z": 5}, "mission_role": "limited_force"},
+            {"id": "silent_bulwark", "kind": "bulwark", "position": {"x": -84, "y": 0, "z": 0}, "mission_role": "limited_force"}
+          ]
+        },
+        "enemy": {
+          "buildings": [
+            {"id": "silent_relay_north", "kind": "relay", "position": {"x": 55, "y": 0, "z": -56}, "mission_target_id": "silent_relay_north", "mission_role": "mission_target"},
+            {"id": "silent_relay_south", "kind": "relay", "position": {"x": 55, "y": 0, "z": 56}, "mission_target_id": "silent_relay_south", "mission_role": "mission_target"},
+            {"id": "silent_sensor_north", "kind": "sensor_mast", "position": {"x": 25, "y": 0, "z": -56}, "mission_role": "patrol_sensor"},
+            {"id": "silent_sensor_south", "kind": "sensor_mast", "position": {"x": 25, "y": 0, "z": 56}, "mission_role": "patrol_sensor"}
+          ],
+          "units": [
+            {"id": "silent_patrol_north_west", "kind": "raider", "position": {"x": -24, "y": 0, "z": -56}, "patrol_route_id": "north_pass", "mission_role": "moving_patrol"},
+            {"id": "silent_patrol_north_east", "kind": "raider", "position": {"x": 30, "y": 0, "z": -56}, "patrol_route_id": "north_pass", "mission_role": "moving_patrol"},
+            {"id": "silent_patrol_south_west", "kind": "raider", "position": {"x": -24, "y": 0, "z": 56}, "patrol_route_id": "south_pass", "mission_role": "moving_patrol"},
+            {"id": "silent_patrol_south_east", "kind": "raider", "position": {"x": 30, "y": 0, "z": 56}, "patrol_route_id": "south_pass", "mission_role": "moving_patrol"},
+            {"id": "silent_guard_north", "kind": "raider", "position": {"x": 48, "y": 0, "z": -56}, "mission_role": "relay_guard"},
+            {"id": "silent_guard_south", "kind": "raider", "position": {"x": 48, "y": 0, "z": 56}, "mission_role": "relay_guard"}
+          ]
+        }
+      },
+      "allowed_buildings": ["field_repair_station", "sensor_mast", "relay"],
+      "allowed_player_buildings": ["field_repair_station", "sensor_mast"],
+      "allowed_enemy_buildings": ["relay", "sensor_mast"],
+      "allowed_player_units": ["warden", "bulwark"],
+      "allowed_enemy_units": ["raider"]
+    },
+    "long_road": {
+      "base_map_id": "mountain_corridor_base",
+      "display_name": "Mission 4 — The Long Road",
+      "briefing": "Escort a Mobile Command Unit through the mountain corridor and deploy a Forward Base at the marked eastern pad.",
+      "routes": [
+        {"id": "north_pass", "display_name": "North Pass", "waypoints": [{"x": -90, "y": 0, "z": 0}, {"x": -60, "y": 0, "z": 0}, {"x": -60, "y": 0, "z": -56}, {"x": 60, "y": 0, "z": -56}, {"x": 60, "y": 0, "z": 0}, {"x": 90, "y": 0, "z": 0}]},
+        {"id": "south_pass", "display_name": "South Pass", "waypoints": [{"x": -90, "y": 0, "z": 0}, {"x": -60, "y": 0, "z": 0}, {"x": -60, "y": 0, "z": 56}, {"x": 60, "y": 0, "z": 56}, {"x": 60, "y": 0, "z": 0}, {"x": 90, "y": 0, "z": 0}]}
+      ],
+      "rules": {
+        "max_queue": 2,
+        "fog_tile_size": 8.0,
+        "max_units_total": 8,
+        "max_buildings_total": 6,
+        "max_buildings_by_kind": {"forward_base": 1, "field_repair_station": 2, "sensor_mast": 3, "bastion_turret": 3, "fire_support_battery": 2},
+        "supply_disabled": true,
+        "upgrades_enabled": true,
+        "allowed_upgrades": ["hardened_chassis", "field_optics"],
+        "allowed_technologies": ["hardened_chassis", "field_optics"]
+      },
+      "campaign_mission": {
+        "id": "long_road",
+        "display_name": "THE LONG ROAD",
+        "briefing": "Keep the Mobile Command Unit moving through a defined mountain pass. Once it reaches the eastern deployment zone, deploy the Forward Base and hold the site during construction.",
+        "ignore_hq_victory": true,
+        "scripted_ai": true,
+        "phases": [
+          {"id": "escort_convoy", "display_name": "ESCORT CONVOY", "type": "escort", "position": {"x": 90, "y": 0, "z": 0}, "radius": 8.0, "required_count": 1, "required_unit_kind": "command_carrier", "route_id": "north_pass", "description": "Move the Mobile Command Unit to the deployment pad.", "completion_message": "Deployment pad reached. Select the carrier and press DEPLOY BASE."},
+          {"id": "deploy_base", "display_name": "DEPLOY FORWARD BASE", "type": "deploy", "position": {"x": 90, "y": 0, "z": 0}, "radius": 8.0, "route_id": "north_pass", "description": "Deploy the Forward Base and protect it until the construction cycle completes.", "completion_message": "Forward Base established. Holdfast is ready."}
+        ],
+        "completion_flags": ["forward_base_established"]
+      },
+      "spawns": {
+        "player": {
+          "buildings": [],
+          "units": [
+            {"id": "long_road_command_carrier", "kind": "command_carrier", "position": {"x": -90, "y": 0, "z": 0}, "mission_role": "convoy"},
+            {"id": "long_road_warden", "kind": "warden", "position": {"x": -84, "y": 0, "z": -4}, "mission_role": "convoy_escort"},
+            {"id": "long_road_ranger", "kind": "ranger", "position": {"x": -84, "y": 0, "z": 4}, "mission_role": "convoy_escort"}
+          ]
+        },
+        "enemy": {
+          "buildings": [
+            {"id": "long_road_sensor_north", "kind": "sensor_mast", "position": {"x": 30, "y": 0, "z": -56}, "mission_role": "route_sensor"},
+            {"id": "long_road_sensor_south", "kind": "sensor_mast", "position": {"x": 30, "y": 0, "z": 56}, "mission_role": "route_sensor"}
+          ],
+          "units": [
+            {"id": "long_road_patrol_north", "kind": "raider", "position": {"x": 0, "y": 0, "z": -56}, "patrol_route_id": "north_pass"},
+            {"id": "long_road_patrol_south", "kind": "raider", "position": {"x": 0, "y": 0, "z": 56}, "patrol_route_id": "south_pass"}
+          ]
+        }
+      },
+      "allowed_buildings": ["forward_base", "field_repair_station", "sensor_mast", "bastion_turret", "fire_support_battery"],
+      "allowed_player_buildings": ["forward_base", "field_repair_station", "sensor_mast", "bastion_turret", "fire_support_battery"],
+      "allowed_enemy_buildings": ["sensor_mast"],
+      "allowed_player_units": ["command_carrier", "warden", "ranger"],
+      "allowed_enemy_units": ["raider"]
+    },
+    "holdfast": {
+      "base_map_id": "mountain_corridor_base",
+      "display_name": "Mission 5 — Holdfast",
+      "briefing": "The Forward Base is online. Build a defensive perimeter, then hold the mountain corridor against three assault waves.",
+      "routes": [
+        {"id": "north_pass", "display_name": "North Pass", "waypoints": [{"x": 0, "y": 0, "z": -56}, {"x": 60, "y": 0, "z": -56}, {"x": 60, "y": 0, "z": 0}, {"x": 90, "y": 0, "z": 0}]}
+      ],
+      "rules": {
+        "max_queue": 4,
+        "fog_tile_size": 8.0,
+        "max_units_total": 14,
+        "max_buildings_total": 10,
+        "max_buildings_by_kind": {"forward_base": 1, "field_repair_station": 2, "sensor_mast": 4, "bastion_turret": 4, "fire_support_battery": 2, "tech_centre": 1},
+        "upgrades_enabled": true,
+        "allowed_upgrades": ["hardened_chassis", "field_optics", "breach_package"],
+        "allowed_technologies": ["advanced_targeting", "hardened_chassis", "field_optics", "breach_package"]
+      },
+      "campaign_mission": {
+        "id": "holdfast",
+        "display_name": "HOLDFAST",
+        "briefing": "Use the deployed base as the anchor for a layered defence. Build at least two perimeter structures, then survive the assault waves.",
+        "ignore_hq_victory": true,
+        "scripted_ai": true,
+        "phases": [
+          {"id": "build_perimeter", "display_name": "BUILD PERIMETER", "type": "build_structures", "building_kinds": ["sensor_mast", "bastion_turret", "fire_support_battery"], "required_count": 2, "description": "Build two defensive structures around the Forward Base.", "completion_message": "The perimeter is active. Prepare for contact."},
+          {"id": "hold_base", "display_name": "HOLD THE BASE", "type": "defend", "duration_ticks": 300, "wave_delay_ticks": 30, "wave_interval_ticks": 75, "wave_count": 3, "wave_units": ["raider", "raider"], "wave_spawn_position": {"x": 0, "y": 0, "z": -56}, "description": "Protect the Forward Base through three assault waves.", "completion_message": "The Forward Base held through the assault."}
+        ],
+        "completion_flags": ["holdfast_complete"]
+      },
+      "spawns": {
+        "player": {
+          "buildings": [
+            {"id": "holdfast_forward_base", "kind": "forward_base", "position": {"x": 88, "y": 0, "z": 0}, "mission_deployed": true, "mission_role": "defence_anchor"},
+            {"id": "holdfast_repair", "kind": "field_repair_station", "position": {"x": 80, "y": 0, "z": 8}, "repair_free": true, "mission_role": "regular_repair"},
+            {"id": "holdfast_tech", "kind": "tech_centre", "position": {"x": 80, "y": 0, "z": -9}, "mission_role": "upgrade_support"}
+          ],
+          "units": [
+            {"id": "holdfast_warden_1", "kind": "warden", "position": {"x": 76, "y": 0, "z": -3}, "mission_role": "garrison"},
+            {"id": "holdfast_warden_2", "kind": "warden", "position": {"x": 76, "y": 0, "z": 3}, "mission_role": "garrison"},
+            {"id": "holdfast_ranger_1", "kind": "ranger", "position": {"x": 70, "y": 0, "z": -6}, "mission_role": "garrison"},
+            {"id": "holdfast_ranger_2", "kind": "ranger", "position": {"x": 70, "y": 0, "z": 6}, "mission_role": "garrison"}
+          ]
+        },
+        "enemy": {"buildings": [], "units": []}
+      },
+      "allowed_buildings": ["forward_base", "field_repair_station", "sensor_mast", "bastion_turret", "fire_support_battery", "tech_centre"],
+      "allowed_player_buildings": ["forward_base", "field_repair_station", "sensor_mast", "bastion_turret", "fire_support_battery", "tech_centre"],
+      "allowed_enemy_buildings": [],
+      "allowed_player_units": ["warden", "ranger", "bulwark"],
+      "allowed_enemy_units": ["raider"]
     }
   }
 }

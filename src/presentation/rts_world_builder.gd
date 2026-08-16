@@ -71,20 +71,25 @@ static func build_world_shell(parent: Node3D, simulation) -> void:
 		line.material_override = material(grid_color, 1.0, 0.0)
 		parent.add_child(line)
 
-	for road_data in terrain.get("roads", []):
-		var road: Dictionary = road_data
-		create_road(
-			parent,
-			vector3_from_data(road.get("position", {})),
-			vector3_from_data(road.get("size", {}), Vector3(4.0, 0.03, 4.0)),
-			Color(str(terrain.get("road_color", "#51463e"))),
-			str(road.get("kind", "straight"))
-		)
-		var road_kind := str(road.get("kind", "")).to_lower()
-		if road_kind == "crossing" or road_kind == "crossroads":
-			_create_road_asset(parent, vector3_from_data(road.get("position", {})), Vector3(4.0, 1.0, 4.0), "terrain_road_cross", 0.0)
-		elif not road_kind.contains("corner") and not road_kind.contains("end"):
-			_create_road_endcaps(parent, vector3_from_data(road.get("position", {})), vector3_from_data(road.get("size", {}), Vector3(4.0, 0.03, 4.0)))
+	var authored_routes: Array = simulation.get_level_routes()
+	# Campaign routes own their complete visual path, including diagonal pass
+	# links. Do not stack a second set of terrain tiles underneath them; legacy
+	# terrain roads remain available for non-campaign maps without route data.
+	if authored_routes.is_empty():
+		for road_data in terrain.get("roads", []):
+			var road: Dictionary = road_data
+			create_road(
+				parent,
+				vector3_from_data(road.get("position", {})),
+				vector3_from_data(road.get("size", {}), Vector3(4.0, 0.03, 4.0)),
+				Color(str(terrain.get("road_color", "#51463e"))),
+				str(road.get("kind", "straight"))
+			)
+			var road_kind := str(road.get("kind", "")).to_lower()
+			if road_kind == "crossing" or road_kind == "crossroads":
+				_create_road_asset(parent, vector3_from_data(road.get("position", {})), Vector3(4.0, 1.0, 4.0), "terrain_road_cross", 0.0)
+			elif not road_kind.contains("corner") and not road_kind.contains("end"):
+				_create_road_endcaps(parent, vector3_from_data(road.get("position", {})), vector3_from_data(road.get("size", {}), Vector3(4.0, 0.03, 4.0)))
 	for marker_data in terrain.get("lane_markers", []):
 		var marker: Dictionary = marker_data
 		create_lane_marker(parent, vector3_from_data(marker.get("position", {})))
@@ -109,6 +114,8 @@ static func build_world_shell(parent: Node3D, simulation) -> void:
 			vector3_from_data(scenery.get("collision_size", {}))
 		)
 	TerrainDecoratorScript.decorate(parent, terrain, bounds)
+	if not authored_routes.is_empty():
+		TerrainDecoratorScript.create_route_corridors(parent, authored_routes)
 
 
 static func create_ground_surface(parent: Node3D, size: Vector3, position: Vector3, fallback_color := Color("#342f2c")) -> Node3D:
@@ -141,7 +148,7 @@ static func create_road(parent: Node3D, position: Vector3, size: Vector3, color 
 	elif lower_kind.contains("end"):
 		asset_key = "terrain_road_end"
 	var long_axis_x := size.x >= size.z
-	var yaw := 0.0 if long_axis_x else 90.0
+	var yaw := 90.0 if long_axis_x else 0.0
 	return _create_road_asset(parent, position, Vector3(maxf(1.0, size.x), 1.0, maxf(1.0, size.z)), asset_key, yaw, color)
 
 
@@ -170,7 +177,7 @@ static func _create_road_endcaps(parent: Node3D, position: Vector3, size: Vector
 	var long_axis_x := size.x >= size.z
 	var cap_width := maxf(1.0, minf(size.x, size.z))
 	var offset := maxf(0.0, maxf(size.x, size.z) * 0.5 - cap_width * 0.5)
-	var yaw := 0.0 if long_axis_x else 90.0
+	var yaw := 90.0 if long_axis_x else 0.0
 	var first := position + (Vector3(-offset, 0.0, 0.0) if long_axis_x else Vector3(0.0, 0.0, -offset))
 	var second := position + (Vector3(offset, 0.0, 0.0) if long_axis_x else Vector3(0.0, 0.0, offset))
 	var footprint := Vector3(cap_width, 1.0, cap_width)
@@ -228,6 +235,7 @@ static func _position_in_cells(position: Vector3, cells: PackedVector3Array, til
 
 
 static func _centre_scaled_asset(asset: Node3D) -> void:
+	asset.position = Vector3.ZERO
 	var bounds := _node_bounds(asset, Transform3D.IDENTITY, AABB())
 	if bounds.size == Vector3.ZERO:
 		return

@@ -83,6 +83,12 @@ func update_economy() -> void:
 func update_supply_states() -> void:
 	for entity_id in simulation.units:
 		var unit: Dictionary = simulation.units[entity_id]
+		if bool(simulation.level_rules.get("supply_disabled", false)):
+			unit["supply_state"] = "connected"
+			unit["supply_reason"] = "Mission supply rules are active"
+			unit["supply_speed_multiplier"] = 1.0
+			unit["supply_damage_multiplier"] = 1.0
+			continue
 		var supply_info: Dictionary = _supply_info(str(unit["team"]), unit["position"])
 		var connected: bool = bool(supply_info.get("connected", false))
 		var next_state: String = "connected" if connected else "unsupplied"

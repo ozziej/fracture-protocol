@@ -8,8 +8,11 @@ const WorldBuilderScript = preload("res://src/presentation/rts_world_builder.gd"
 const TerrainDecoratorScript = preload("res://src/presentation/rts_terrain_decorator.gd")
 const SimulationScript = preload("res://src/rts_simulation.gd")
 
-const UNIT_KINDS := ["collector", "ranger", "raider", "warden", "bulwark"]
-const BUILDING_KINDS := ["command_hub", "refinery", "assembly_bay", "tech_centre", "storage_silo", "relay"]
+const UNIT_KINDS := ["collector", "ranger", "raider", "warden", "bulwark", "command_carrier"]
+const BUILDING_KINDS := [
+	"command_hub", "refinery", "assembly_bay", "tech_centre", "storage_silo", "relay",
+	"forward_base", "field_repair_station", "sensor_mast", "bastion_turret", "fire_support_battery",
+]
 const TERRAIN_KINDS := [
 	"terrain_ramp", "terrain_ramp_large", "terrain_ramp_large_detailed",
 	"terrain_road_corner", "terrain_road_cross", "terrain_road_end",
@@ -79,6 +82,7 @@ func _initialize() -> void:
 			failures.append("%s asset should contain a visible mesh" % kind)
 
 	_test_unit_movement_facing(root_node, failures)
+	_test_command_carrier_alignment(root_node, failures)
 	_test_resource_depletion_visual(root_node, failures)
 	_test_asset_variants(root_node, failures)
 	_test_environment_assets(root_node, failures)
@@ -134,6 +138,22 @@ func _test_unit_movement_facing(root_node: Node3D, failures: Array[String]) -> v
 		failures.append("moving units should rotate toward their measured travel direction")
 
 
+func _test_command_carrier_alignment(root_node: Node3D, failures: Array[String]) -> void:
+	var view = UnitViewScript.new()
+	root_node.add_child(view)
+	view.setup({
+		"id": "aligned_carrier", "team": "player", "kind": "command_carrier",
+		"position": Vector3.ZERO, "target_position": Vector3.ZERO, "order": "idle",
+		"health": 500.0, "max_health": 500.0, "display_name": "Mobile Command Unit",
+		"supply_state": "connected",
+	})
+	var bounds: AABB = view._node_bounds(view.asset_visual, Transform3D.IDENTITY, AABB())
+	if absf(bounds.get_center().x) > 0.1 or absf(bounds.get_center().z) > 0.1:
+		failures.append("The monorail consist should be centred on its simulation and interaction origin")
+	if view.selection_disc.scale.z < 3.0:
+		failures.append("The Mobile Command Unit selection marker should cover the rendered train footprint")
+
+
 func _test_resource_depletion_visual(root_node: Node3D, failures: Array[String]) -> void:
 	var view = ResourceViewScript.new()
 	root_node.add_child(view)
@@ -186,7 +206,9 @@ func _test_environment_assets(root_node: Node3D, failures: Array[String]) -> voi
 	for kind in [
 		"resource_cluster_a", "resource_cluster_b", "scenery_rock_a", "scenery_rock_b",
 	"terrain_rock_a", "terrain_rock_b", "industrial_platform", "industrial_train",
-		"industrial_tower", "industrial_support", "terrain_mesa_small_a", "terrain_mesa_small_b",
+		"industrial_tower", "industrial_support", "monorail_train_front", "monorail_train_flat",
+		"monorail_train_passenger", "monorail_train_cargo", "monorail_train_box", "monorail_train_end",
+		"terrain_mesa_small_a", "terrain_mesa_small_b",
 		"terrain_ground",
 	]:
 		var visual := AssetLibraryScript.attach_asset(root_node, kind, "neutral")

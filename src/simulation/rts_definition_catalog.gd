@@ -21,7 +21,39 @@ static func populate(unit_definitions: Dictionary, building_definitions: Diction
 	targeting.description = "Unlocks Bulwark production, extends weapon range by 18%, and vision by 15%."
 	targeting.cost = 300
 	targeting.research_time = 8.0
+	targeting.effect_id = "advanced_targeting"
+	targeting.affected_units = PackedStringArray(["ranger", "warden", "bulwark", "raider"])
 	technology_definitions[targeting.id] = targeting
+
+	var hardened = TechnologyDefinitionScript.new()
+	hardened.id = "hardened_chassis"
+	hardened.display_name = "Hardened Chassis"
+	hardened.description = "Reinforces Wardens and Bulwarks for prolonged route fights."
+	hardened.cost = 260
+	hardened.research_time = 7.0
+	hardened.effect_id = "hardened_chassis"
+	hardened.affected_units = PackedStringArray(["warden", "bulwark"])
+	technology_definitions[hardened.id] = hardened
+
+	var optics = TechnologyDefinitionScript.new()
+	optics.id = "field_optics"
+	optics.display_name = "Field Optics"
+	optics.description = "Extends Ranger and Raider vision for scouting and detection."
+	optics.cost = 220
+	optics.research_time = 6.0
+	optics.effect_id = "field_optics"
+	optics.affected_units = PackedStringArray(["ranger", "raider"])
+	technology_definitions[optics.id] = optics
+
+	var breach = TechnologyDefinitionScript.new()
+	breach.id = "breach_package"
+	breach.display_name = "Breach Package"
+	breach.description = "Improves Bulwark structure and relay damage for offensive operations."
+	breach.cost = 280
+	breach.research_time = 7.5
+	breach.effect_id = "breach_package"
+	breach.affected_units = PackedStringArray(["bulwark"])
+	technology_definitions[breach.id] = breach
 
 	var ranger = UnitDefinitionScript.new()
 	ranger.id = "ranger"
@@ -124,6 +156,23 @@ static func populate(unit_definitions: Dictionary, building_definitions: Diction
 	collector.body_scale = Vector3(1.2, 0.7, 1.0)
 	unit_definitions[collector.id] = collector
 
+	var command_carrier = UnitDefinitionScript.new()
+	command_carrier.id = "command_carrier"
+	command_carrier.display_name = "Mobile Command Unit"
+	command_carrier.role = "deployable base carrier"
+	command_carrier.role_summary = "Slow convoy core / forward-base deployer"
+	command_carrier.role_tags = PackedStringArray(["CONVOY", "DEPLOY", "NO WEAPON"])
+	command_carrier.cost = 0
+	command_carrier.force_slots = 3
+	command_carrier.build_time = 0.0
+	command_carrier.max_health = 520.0
+	command_carrier.speed = 2.4
+	command_carrier.attack_range = 0.0
+	command_carrier.attack_damage = 0.0
+	command_carrier.vision_range = 12.0
+	command_carrier.body_scale = Vector3(1.55, 0.85, 1.2)
+	unit_definitions[command_carrier.id] = command_carrier
+
 	var command_hub = BuildingDefinitionScript.new()
 	command_hub.id = "command_hub"
 	command_hub.display_name = "Command Hub"
@@ -182,7 +231,7 @@ static func populate(unit_definitions: Dictionary, building_definitions: Diction
 	tech_centre.vision_range = 16.0
 	tech_centre.footprint = Vector2(3.2, 3.2)
 	tech_centre.prerequisite_building = "assembly_bay"
-	tech_centre.can_research = "advanced_targeting"
+	tech_centre.can_research = "advanced_targeting,hardened_chassis,field_optics,breach_package"
 	tech_centre.body_height = 2.4
 	building_definitions[tech_centre.id] = tech_centre
 
@@ -211,3 +260,82 @@ static func populate(unit_definitions: Dictionary, building_definitions: Diction
 	relay.footprint = Vector2(2.6, 2.6)
 	relay.body_height = 2.5
 	building_definitions[relay.id] = relay
+
+	var forward_base = BuildingDefinitionScript.new()
+	forward_base.id = "forward_base"
+	forward_base.display_name = "Forward Base"
+	forward_base.role = "deployable logistics"
+	forward_base.cost = 0
+	forward_base.build_time = 8.0
+	forward_base.max_health = 1500.0
+	forward_base.vision_range = 20.0
+	forward_base.footprint = Vector2(4.8, 4.8)
+	forward_base.repair_radius = 7.5
+	forward_base.body_height = 2.6
+	building_definitions[forward_base.id] = forward_base
+
+	var sensor_mast = BuildingDefinitionScript.new()
+	sensor_mast.id = "sensor_mast"
+	sensor_mast.display_name = "Sensor Mast"
+	sensor_mast.role = "recon / detection"
+	sensor_mast.cost = 190
+	sensor_mast.build_time = 4.0
+	sensor_mast.max_health = 520.0
+	sensor_mast.vision_range = 30.0
+	sensor_mast.footprint = Vector2(2.0, 2.0)
+	sensor_mast.build_source_kind = "assembly_bay"
+	sensor_mast.body_height = 3.4
+	building_definitions[sensor_mast.id] = sensor_mast
+
+	var field_repair = BuildingDefinitionScript.new()
+	field_repair.id = "field_repair_station"
+	field_repair.display_name = "Field Repair Station"
+	field_repair.role = "forward repair"
+	field_repair.cost = 210
+	field_repair.build_time = 4.5
+	field_repair.max_health = 650.0
+	field_repair.vision_range = 12.0
+	field_repair.footprint = Vector2(2.8, 2.8)
+	field_repair.prerequisite_building = "forward_base"
+	field_repair.build_source_kind = "forward_base"
+	field_repair.repair_radius = 7.5
+	field_repair.body_height = 1.7
+	building_definitions[field_repair.id] = field_repair
+
+	var bastion = BuildingDefinitionScript.new()
+	bastion.id = "bastion_turret"
+	bastion.display_name = "Bastion Turret"
+	bastion.role = "defensive anti-unit"
+	bastion.cost = 260
+	bastion.build_time = 4.5
+	bastion.max_health = 820.0
+	bastion.vision_range = 20.0
+	bastion.footprint = Vector2(2.8, 2.8)
+	bastion.build_source_kind = "assembly_bay"
+	bastion.attack_range = 15.0
+	bastion.attack_damage = 26.0
+	bastion.attack_cooldown = 1.0
+	bastion.structure_damage_multiplier = 0.55
+	bastion.body_height = 2.0
+	building_definitions[bastion.id] = bastion
+
+	var battery = BuildingDefinitionScript.new()
+	battery.id = "fire_support_battery"
+	battery.display_name = "Fire Support Battery"
+	battery.role = "offensive artillery"
+	battery.cost = 420
+	battery.build_time = 6.5
+	battery.max_health = 720.0
+	battery.vision_range = 16.0
+	battery.footprint = Vector2(3.4, 3.4)
+	battery.build_source_kind = "tech_centre"
+	battery.attack_range = 28.0
+	battery.minimum_attack_range = 7.0
+	battery.attack_damage = 72.0
+	battery.attack_cooldown = 4.2
+	battery.projectile_mode = "arc_missile"
+	battery.structure_damage_multiplier = 1.65
+	battery.splash_radius = 2.1
+	battery.splash_damage_multiplier = 0.35
+	battery.body_height = 2.1
+	building_definitions[battery.id] = battery

@@ -6,6 +6,9 @@
   },
   "missions": [
     {"id": "relay_divide", "display_name": "Level 1 — Relay Divide", "initially_unlocked": true, "unlock_on_complete": "relay_crossroads"},
-    {"id": "relay_crossroads", "display_name": "Level 2 — Relay Crossroads", "initially_unlocked": false}
+    {"id": "relay_crossroads", "display_name": "Level 2 — Relay Crossroads", "initially_unlocked": false, "unlock_on_complete": "silent_recovery"},
+    {"id": "silent_recovery", "display_name": "Level 3 — Silent Recovery", "initially_unlocked": false, "unlock_on_complete": "long_road"},
+    {"id": "long_road", "display_name": "Level 4 — The Long Road", "initially_unlocked": false, "unlock_on_complete": "holdfast"},
+    {"id": "holdfast", "display_name": "Level 5 — Holdfast", "initially_unlocked": false}
   ]
 }

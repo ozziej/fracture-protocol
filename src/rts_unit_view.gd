@@ -143,6 +143,8 @@ func _build_visuals() -> void:
 	var definition_height := 1.0
 	if kind == "warden" or kind == "bulwark":
 		definition_height = 0.8
+	elif kind == "command_carrier":
+		definition_height = 1.15
 	var body := CylinderMesh.new()
 	body.top_radius = 0.58 if kind == "ranger" else 0.78
 	body.bottom_radius = body.top_radius * 1.08
@@ -209,10 +211,30 @@ func _build_visuals() -> void:
 		cargo_instance.material_override = _material(Color("#d7a44a"))
 		cargo_instance.position = Vector3(0.0, definition_height * 0.78, 0.0)
 		add_child(cargo_instance)
+	elif kind == "command_carrier":
+		var carrier_body := BoxMesh.new()
+		carrier_body.size = Vector3(1.55, 0.46, 2.15)
+		var carrier_instance := MeshInstance3D.new()
+		carrier_instance.mesh = carrier_body
+		carrier_instance.material_override = _material(palette.lightened(0.12))
+		carrier_instance.position = Vector3(0.0, definition_height * 0.78, 0.0)
+		add_child(carrier_instance)
+		var carrier_beacon := CylinderMesh.new()
+		carrier_beacon.top_radius = 0.12
+		carrier_beacon.bottom_radius = 0.16
+		carrier_beacon.height = 0.48
+		carrier_beacon.radial_segments = 10
+		var beacon_instance := MeshInstance3D.new()
+		beacon_instance.mesh = carrier_beacon
+		beacon_instance.material_override = _material(Color("#ffd36a"))
+		beacon_instance.position = Vector3(0.0, definition_height + 0.35, 0.0)
+		add_child(beacon_instance)
 
 	_attach_asset_visual()
 	var marker_mesh := BoxMesh.new()
 	var marker_width := 0.48 if kind == "warden" or kind == "bulwark" else 0.34
+	if kind == "command_carrier":
+		marker_width = 0.58
 	marker_mesh.size = Vector3(marker_width, 0.075, marker_width * 0.62)
 	team_marker = MeshInstance3D.new()
 	team_marker.name = "TeamMarker"
@@ -223,6 +245,8 @@ func _build_visuals() -> void:
 		marker_height = 1.18
 	elif kind == "bulwark":
 		marker_height = 1.31
+	elif kind == "command_carrier":
+		marker_height = 1.66
 	team_marker.position = Vector3(0.0, marker_height, 0.12)
 	add_child(team_marker)
 
@@ -235,6 +259,10 @@ func _build_visuals() -> void:
 	selection_disc.mesh = disc
 	selection_disc.material_override = _material(Color(0.22, 0.68, 0.78, 0.62))
 	selection_disc.position.y = 0.06
+	if kind == "command_carrier":
+		# Match the selectable marker to the composed train footprint instead of
+		# leaving a tiny unit-sized ring at one point beneath a long vehicle.
+		selection_disc.scale = Vector3(1.35, 1.0, 3.4)
 	selection_disc.visible = false
 	add_child(selection_disc)
 
@@ -357,7 +385,10 @@ func _sync_status_billboard() -> void:
 
 
 func _attach_asset_visual() -> void:
-	asset_visual = AssetLibraryScript.attach_asset(self, kind, team)
+	if kind == "command_carrier":
+		asset_visual = _build_command_carrier_consist()
+	else:
+		asset_visual = AssetLibraryScript.attach_asset(self, kind, team)
 	if asset_visual == null:
 		return
 	# Keep the procedural meshes in the node as a deterministic fallback and
@@ -366,6 +397,46 @@ func _attach_asset_visual() -> void:
 	for child in get_children():
 		if child is MeshInstance3D:
 			child.visible = false
+
+
+func _build_command_carrier_consist() -> Node3D:
+	var consist := Node3D.new()
+	consist.name = "KenneyAsset_command_carrier"
+	add_child(consist)
+	var pieces := [
+		"monorail_train_front",
+		"monorail_train_box",
+		"monorail_train_passenger",
+		"monorail_train_end",
+	]
+	var piece_scale := 1.5
+	var piece_spacing := 1.46
+	var centre_offset := float(pieces.size() - 1) * 0.5
+	for piece_index in pieces.size():
+		var piece := AssetLibraryScript.attach_asset(consist, str(pieces[piece_index]), team)
+		if piece == null:
+			continue
+		piece.scale = Vector3.ONE * piece_scale
+		piece.position = Vector3(0.0, 0.04, (float(piece_index) - centre_offset) * piece_spacing)
+	var bounds := _node_bounds(consist, Transform3D.IDENTITY, AABB())
+	if bounds.size != Vector3.ZERO:
+		# Kenney train cars use an end-biased authored origin. Centre the complete
+		# consist on the simulation entity so the model, health label, ring and
+		# pointer hit target all refer to the same world position.
+		consist.position = Vector3(-bounds.get_center().x, -bounds.position.y, -bounds.get_center().z)
+	return consist if consist.get_child_count() > 0 else null
+
+
+func _node_bounds(node: Node, parent_transform: Transform3D, current: AABB) -> AABB:
+	var transform := parent_transform
+	if node is Node3D:
+		transform = parent_transform * (node as Node3D).transform
+	if node is MeshInstance3D and (node as MeshInstance3D).mesh:
+		var next_bounds := transform * (node as MeshInstance3D).mesh.get_aabb()
+		current = next_bounds if current.size == Vector3.ZERO else current.merge(next_bounds)
+	for child in node.get_children():
+		current = _node_bounds(child, transform, current)
+	return current
 
 
 func _update_facing(direction: Vector3, frame_delta: float) -> void:

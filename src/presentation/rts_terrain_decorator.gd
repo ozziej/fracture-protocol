@@ -115,7 +115,10 @@ static func create_accent_pad(parent: Node3D, position: Vector3, size: Vector3, 
 
 static func create_obstacle(parent: Node3D, position: Vector3, size: Vector3, kind := "mesa") -> Node3D:
 	var root := Node3D.new()
-	root.name = "TerrainObstacle_%s" % kind
+	var base_name := "TerrainObstacle_%s" % kind
+	root.name = base_name
+	if parent.find_child(base_name, false, false) != null:
+		root.name = "%s_%02d" % [base_name, parent.get_child_count()]
 	root.position = Vector3(position.x, 0.0, position.z)
 	root.set_meta("fog_sensitive_scenery", true)
 	parent.add_child(root)
@@ -125,10 +128,242 @@ static func create_obstacle(parent: Node3D, position: Vector3, size: Vector3, ki
 		_build_station_outpost(root, size, kind.contains("south"))
 	elif kind == "debris":
 		_build_debris(root, size)
+	elif kind.contains("mountain_wall"):
+		_build_mountain_wall(root, size, kind.contains("lower"))
 	else:
 		_build_rock_barrier(root, size, kind.contains("lower"))
 	_add_collision(root, size)
 	return root
+
+
+static func create_route_corridors(parent: Node3D, routes: Array) -> void:
+	var route_connections: Dictionary = {}
+	for route_value in routes:
+		_register_route_connections(route_connections, route_value)
+	parent.set_meta("route_connection_map", route_connections)
+	parent.set_meta("route_tile_occupancy", {})
+	for route_value in routes:
+		_create_route_corridor(parent, route_value, route_connections)
+
+
+static func create_route_corridor(parent: Node3D, route_data: Dictionary) -> Node3D:
+	# Keep the single-route entry point for callers outside the campaign world
+	# builder. Campaign maps use create_route_corridors so shared junctions are
+	# resolved from every route before any tile is instantiated.
+	var route_connections: Dictionary = parent.get_meta("route_connection_map", {})
+	if route_connections.is_empty():
+		_register_route_connections(route_connections, route_data)
+		parent.set_meta("route_connection_map", route_connections)
+	return _create_route_corridor(parent, route_data, route_connections)
+
+
+static func _create_route_corridor(parent: Node3D, route_data: Dictionary, route_connections: Dictionary) -> Node3D:
+	var route_id := str(route_data.get("id", "route"))
+	var waypoints: Array = route_data.get("waypoints", [])
+	if waypoints.size() < 2:
+		return Node3D.new()
+	var root := Node3D.new()
+	root.name = "AuthoredRoute_%s" % route_id
+	root.set_meta("terrain_route", route_id)
+	parent.add_child(root)
+	var authored_points: Array = []
+	for waypoint_value in waypoints:
+		_append_route_point(authored_points, _vector3(waypoint_value))
+	var tile_index := 0
+	for waypoint_index in range(authored_points.size() - 1):
+		var start: Vector3 = authored_points[waypoint_index]
+		var finish: Vector3 = authored_points[waypoint_index + 1]
+		var direction := _route_cardinal_direction(start, finish)
+		if direction == Vector2i.ZERO:
+			continue
+		var distance := absf(finish.x - start.x) + absf(finish.z - start.z)
+		# Distribute a whole number of tiles over the authored segment. Fixed
+		# four-unit stepping leaves a visible gap whenever a segment (such as the
+		# 30-unit deployment spur) is not exactly divisible by the GLB footprint.
+		var tile_count := maxi(1, int(ceil(distance / ROUTE_TILE_SIZE)))
+		var tile_spacing := distance / float(tile_count)
+		for interior_index in range(1, tile_count):
+			var tile_position := start + Vector3(float(direction.x), 0.0, float(direction.y)) * tile_spacing * float(interior_index)
+			_attach_route_tile_for_connections(root, tile_position, tile_index, route_connections)
+			tile_index += 1
+
+	# Every authored point is resolved against the combined route topology. This
+	# means a shared North/South pass branch becomes a real roadSplit tile rather
+	# than a corner or straight tile chosen by whichever route rendered first.
+	_attach_route_tile_for_connections(root, authored_points[0], tile_index, route_connections)
+	tile_index += 1
+	for waypoint_index in range(1, authored_points.size() - 1):
+		_attach_route_tile_for_connections(root, authored_points[waypoint_index], tile_index, route_connections)
+		tile_index += 1
+	_attach_route_tile_for_connections(root, authored_points[authored_points.size() - 1], tile_index, route_connections)
+	return root
+
+
+const ROUTE_TILE_SIZE := 4.0
+
+
+static func _append_route_point(points: Array, point: Vector3) -> void:
+	if points.is_empty() or points.back().distance_to(point) > 0.1:
+		points.append(point)
+
+
+static func _route_cardinal_direction(start: Vector3, finish: Vector3) -> Vector2i:
+	var delta := finish - start
+	if absf(delta.x) >= absf(delta.z) and absf(delta.x) > 0.1:
+		return Vector2i(1 if delta.x > 0.0 else -1, 0)
+	if absf(delta.z) > 0.1:
+		return Vector2i(0, 1 if delta.z > 0.0 else -1)
+	return Vector2i.ZERO
+
+
+static func _route_straight_yaw(direction: Vector2i) -> float:
+	# terrain_roadStraight.glb is authored along local Z. Horizontal map roads
+	# therefore need the 90 degree turn; vertical roads stay at the source yaw.
+	return 90.0 if direction.x != 0 else 0.0
+
+
+static func _route_end_yaw(direction: Vector2i) -> float:
+	# terrain_roadEnd.glb opens toward local -Z. Unlike a straight, its yaw must
+	# preserve which end is open; the western route start therefore needs 270°
+	# so that the road continues east into the map.
+	if direction == Vector2i(0, -1):
+		return 0.0
+	if direction == Vector2i(-1, 0):
+		return 90.0
+	if direction == Vector2i(0, 1):
+		return 180.0
+	return 270.0
+
+
+static func _route_corner_yaw(incoming: Vector2i, outgoing: Vector2i) -> float:
+	var connection_a := -incoming
+	var connection_b := outgoing
+	if _same_connections(connection_a, connection_b, Vector2i(-1, 0), Vector2i(0, -1)):
+		return 0.0
+	if _same_connections(connection_a, connection_b, Vector2i(0, 1), Vector2i(-1, 0)):
+		return 90.0
+	if _same_connections(connection_a, connection_b, Vector2i(1, 0), Vector2i(0, 1)):
+		return 180.0
+	return 270.0
+
+
+static func _same_connections(first: Vector2i, second: Vector2i, expected_first: Vector2i, expected_second: Vector2i) -> bool:
+	return (first == expected_first and second == expected_second) or (first == expected_second and second == expected_first)
+
+
+static func _register_route_connections(connection_map: Dictionary, route_data: Dictionary) -> void:
+	var authored_points: Array = []
+	for waypoint_value in route_data.get("waypoints", []):
+		_append_route_point(authored_points, _vector3(waypoint_value))
+	for waypoint_index in range(authored_points.size() - 1):
+		var start: Vector3 = authored_points[waypoint_index]
+		var finish: Vector3 = authored_points[waypoint_index + 1]
+		var direction := _route_cardinal_direction(start, finish)
+		if direction == Vector2i.ZERO:
+			continue
+		var distance := absf(finish.x - start.x) + absf(finish.z - start.z)
+		var tile_count := maxi(1, int(ceil(distance / ROUTE_TILE_SIZE)))
+		var tile_spacing := distance / float(tile_count)
+		_register_route_connection(connection_map, start, direction)
+		_register_route_connection(connection_map, finish, -direction)
+		for interior_index in range(1, tile_count):
+			var tile_position := start + Vector3(float(direction.x), 0.0, float(direction.y)) * tile_spacing * float(interior_index)
+			_register_route_connection(connection_map, tile_position, direction)
+			_register_route_connection(connection_map, tile_position, -direction)
+
+
+static func _register_route_connection(connection_map: Dictionary, position: Vector3, direction: Vector2i) -> void:
+	var tile_key := _route_tile_key(position)
+	var connections: Array = connection_map.get(tile_key, [])
+	var connection_token := _route_direction_token(direction)
+	if not connections.has(connection_token):
+		connections.append(connection_token)
+	connection_map[tile_key] = connections
+
+
+static func _route_tile_key(position: Vector3) -> String:
+	# Preserve the evenly distributed sub-four-unit positions while still
+	# coalescing exact shared route endpoints into one junction tile.
+	return "%d:%d" % [int(round(position.x * 100.0)), int(round(position.z * 100.0))]
+
+
+static func _route_direction_token(direction: Vector2i) -> String:
+	return "%d:%d" % [direction.x, direction.y]
+
+
+static func _route_direction_from_token(token: String) -> Vector2i:
+	var values := token.split(":")
+	if values.size() != 2:
+		return Vector2i.ZERO
+	return Vector2i(int(values[0]), int(values[1]))
+
+
+static func _route_tile_descriptor(position: Vector3, connection_map: Dictionary) -> Dictionary:
+	var directions: Array[Vector2i] = []
+	for token_value in connection_map.get(_route_tile_key(position), []):
+		var direction := _route_direction_from_token(str(token_value))
+		if direction != Vector2i.ZERO:
+			directions.append(direction)
+	if directions.size() >= 4:
+		return {"asset": "terrain_road_cross", "yaw": 0.0}
+	if directions.size() == 3:
+		return {"asset": "terrain_road_split", "yaw": _route_split_yaw(directions)}
+	if directions.size() == 2:
+		if directions[0] == -directions[1]:
+			return {"asset": "terrain_road_straight", "yaw": _route_straight_yaw(directions[0])}
+		return {"asset": "terrain_road_corner", "yaw": _route_corner_yaw(-directions[0], directions[1])}
+	if directions.size() == 1:
+		return {"asset": "terrain_road_end", "yaw": _route_end_yaw(directions[0])}
+	return {"asset": "terrain_road_straight", "yaw": 0.0}
+
+
+static func _route_split_yaw(directions: Array[Vector2i]) -> float:
+	# terrain_roadSplit.glb is a west/east/south T at its source yaw.
+	if _contains_directions(directions, [Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, 1)]):
+		return 0.0
+	if _contains_directions(directions, [Vector2i(0, -1), Vector2i(0, 1), Vector2i(1, 0)]):
+		return 90.0
+	if _contains_directions(directions, [Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, -1)]):
+		return 180.0
+	return 270.0
+
+
+static func _contains_directions(actual: Array[Vector2i], expected: Array[Vector2i]) -> bool:
+	for direction in expected:
+		if not actual.has(direction):
+			return false
+	return true
+
+
+static func _attach_route_tile_for_connections(parent: Node3D, position: Vector3, tile_index: int, connection_map: Dictionary) -> void:
+	var descriptor := _route_tile_descriptor(position, connection_map)
+	_attach_route_tile(parent, str(descriptor.get("asset", "terrain_road_straight")), position, float(descriptor.get("yaw", 0.0)), tile_index)
+
+
+static func _attach_route_tile(parent: Node3D, asset_key: String, position: Vector3, yaw_degrees: float, tile_index: int) -> void:
+	var route_owner := parent.get_parent()
+	var tile_key := _route_tile_key(position)
+	var occupied: Dictionary = route_owner.get_meta("route_tile_occupancy", {}) if route_owner else {}
+	if occupied.has(tile_key):
+		return
+	var pivot := Node3D.new()
+	pivot.name = "RouteTile_%03d_%s" % [tile_index, asset_key]
+	pivot.position = position + Vector3.UP * 0.035
+	pivot.set_meta("terrain_asset", asset_key)
+	parent.add_child(pivot)
+	var visual := AssetLibraryScript.attach_asset(pivot, asset_key, "neutral")
+	if visual == null:
+		pivot.queue_free()
+		return
+	occupied[tile_key] = true
+	if route_owner:
+		route_owner.set_meta("route_tile_occupancy", occupied)
+	visual.position = Vector3.ZERO
+	visual.rotation_degrees.y = yaw_degrees
+	visual.scale = Vector3.ONE * ROUTE_TILE_SIZE
+	var bounds := _node_bounds(visual, Transform3D.IDENTITY, AABB())
+	if bounds.size != Vector3.ZERO:
+		visual.position = Vector3(-bounds.get_center().x, -bounds.position.y, -bounds.get_center().z)
 
 
 static func _build_sparse_boundary(parent: Node3D, bounds: Vector2, settings: Dictionary) -> void:
@@ -221,6 +456,40 @@ static func _build_rock_barrier(root: Node3D, size: Vector3, flipped: bool) -> v
 		_attach_piece(root, rock_key, offset + Vector3(0.0, y_offset, 0.0), Vector3.ONE * rock_scale * variation, float((index * 71 + (180 if flipped else 0)) % 360))
 
 
+static func _build_mountain_wall(root: Node3D, size: Vector3, flipped: bool) -> void:
+	# Mountain walls reuse the large established scenery-rock GLBs. The smaller
+	# Kenney terrain rocks remain useful for loose dressing, but they do not read
+	# as a valley wall at this map scale. The simulation owns the full collision.
+	var long_axis_x := size.x >= size.z
+	var extent := maxf(size.x, size.z)
+	var cross_extent := maxf(2.0, minf(size.x, size.z))
+	var count := clampi(int(ceil(extent / 7.2)), 10, 16)
+	var rock_scale := clampf(cross_extent / 11.0, 1.0, 1.35)
+	var row_offsets := [-0.24, 0.24]
+	var row_scales := [1.0, 0.9]
+	for index in range(count):
+		var base_along := (float(index) / float(maxi(1, count - 1)) - 0.5) * extent * 0.98
+		for row in range(row_offsets.size()):
+			var along := base_along
+			var side := float(row_offsets[row]) * cross_extent
+			var jitter := float((index % 3) - 1) * cross_extent * 0.055
+			if long_axis_x:
+				side += jitter
+			else:
+				along += jitter
+			var offset := Vector3(along, 0.08 + float((index + row) % 2) * 0.22, side) if long_axis_x else Vector3(side, 0.08 + float((index + row) % 2) * 0.22, along)
+			var rock_key := "scenery_rock_a" if (index + row) % 2 == 0 else "scenery_rock_b"
+			var variation := 0.92 + float((index + row) % 3) * 0.08
+			var piece_scale := rock_scale * float(row_scales[row]) * variation
+			_attach_piece(
+				root,
+				rock_key,
+				offset,
+				Vector3(piece_scale, piece_scale * 1.28, piece_scale),
+				float((index * 71 + row * 43 + (180 if flipped else 0)) % 360)
+			)
+
+
 static func _build_debris(root: Node3D, size: Vector3) -> void:
 	var crater_scale := maxf(2.2, minf(size.x, size.z) * 0.9)
 	_attach_piece(root, "terrain_crater", Vector3.ZERO, Vector3.ONE * crater_scale, 0.0)
@@ -276,13 +545,14 @@ static func _attach_piece(root: Node3D, asset_key: String, offset: Vector3, disp
 	if visual == null:
 		pivot.queue_free()
 		return
+	# Kenney GLBs carry an authored root offset. Center the scaled mesh itself
+	# around the authored pivot so the visible rock occupies the same footprint
+	# as the simulation collision placed on the obstacle root.
+	visual.position = Vector3.ZERO
+	visual.scale = AssetLibraryScript.scale_for(asset_key) * display_scale
 	var bounds := _node_bounds(visual, Transform3D.IDENTITY, AABB())
-	visual.scale *= display_scale
-	visual.position = Vector3(
-		-(bounds.position.x + bounds.size.x * 0.5) * display_scale.x,
-		-bounds.position.y * display_scale.y,
-		-(bounds.position.z + bounds.size.z * 0.5) * display_scale.z
-	)
+	if bounds.size != Vector3.ZERO:
+		visual.position = -bounds.get_center()
 
 
 static func _add_collision(root: Node3D, size: Vector3) -> void:

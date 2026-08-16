@@ -17,6 +17,14 @@ const ASSET_PATHS := {
 	"tech_centre": "res://art/fracture_protocol_assets/building_tech_centre.glb",
 	"storage_silo": "res://art/fracture_protocol_assets/building_storage_silo.glb",
 	"relay": "res://art/fracture_protocol_assets/building_forward_relay.glb",
+	# Campaign-only structures reuse the established building exports. This
+	# keeps the later missions on the same readable scale as the original maps
+	# instead of falling back to tiny procedural cubes.
+	"forward_base": "res://art/fracture_protocol_assets/building_command_hub.glb",
+	"field_repair_station": "res://art/fracture_protocol_assets/building_assembly_bay.glb",
+	"sensor_mast": "res://art/fracture_protocol_assets/building_forward_relay.glb",
+	"bastion_turret": "res://art/fracture_protocol_assets/building_forward_relay.glb",
+	"fire_support_battery": "res://art/fracture_protocol_assets/building_tech_centre.glb",
 	"resource_cluster_a": "res://art/fracture_protocol_assets/resource_cluster_a.glb",
 	"resource_cluster_b": "res://art/fracture_protocol_assets/resource_cluster_b.glb",
 	"scenery_rock_a": "res://art/fracture_protocol_assets/scenery_rock_a.glb",
@@ -44,6 +52,12 @@ const ASSET_PATHS := {
 	"industrial_train": "res://kenney_space-kit/Models/monorail_trainPassenger.glb",
 	"industrial_tower": "res://kenney_space-kit/Models/structure_detailed.glb",
 	"industrial_support": "res://kenney_space-kit/Models/monorail_trackSupport.glb",
+	"monorail_train_front": "res://kenney_space-kit/Models/monorail_trainFront.glb",
+	"monorail_train_flat": "res://kenney_space-kit/Models/monorail_trainFlat.glb",
+	"monorail_train_passenger": "res://kenney_space-kit/Models/monorail_trainPassenger.glb",
+	"monorail_train_cargo": "res://kenney_space-kit/Models/monorail_trainCargo.glb",
+	"monorail_train_box": "res://kenney_space-kit/Models/monorail_trainBox.glb",
+	"monorail_train_end": "res://kenney_space-kit/Models/monorail_trainEnd.glb",
 	"vegetation_cactus_short": "res://art/fracture_protocol_assets/cactus_short.glb",
 	"vegetation_cactus_tall": "res://art/fracture_protocol_assets/cactus_tall.glb",
 	"vegetation_bush": "res://art/fracture_protocol_assets/plant_bushDetailed.glb",
@@ -78,6 +92,11 @@ const DISPLAY_SCALES := {
 	"tech_centre": Vector3(1.0, 1.0, 1.0),
 	"storage_silo": Vector3(1.0, 1.0, 1.0),
 	"relay": Vector3(1.0, 1.0, 1.0),
+	"forward_base": Vector3(1.0, 1.0, 1.0),
+	"field_repair_station": Vector3(1.05, 1.05, 1.05),
+	"sensor_mast": Vector3(1.25, 1.25, 1.25),
+	"bastion_turret": Vector3(1.15, 1.15, 1.15),
+	"fire_support_battery": Vector3(1.1, 1.1, 1.1),
 }
 
 const PLAYER_ACCENT := Color("#2a879a")
@@ -88,6 +107,8 @@ const DARK_MATERIAL := Color("#1c2d36")
 const ROCK_MATERIAL := Color("#4b5152")
 const SKIN_MATERIAL := Color("#8a6655")
 const ENERGY_MATERIAL := Color("#f3bd52")
+const ROAD_BASE_MATERIAL := Color("#5d5a56")
+const ROAD_TRACK_MATERIAL := Color("#c4a15f")
 
 static var _packed_assets: Dictionary = {}
 static var _replacement_materials: Dictionary = {}
@@ -107,6 +128,10 @@ static func attach_asset(parent: Node3D, kind: String, team: String, variant: St
 	visual.scale = DISPLAY_SCALES.get(kind, Vector3.ONE)
 	parent.add_child(visual)
 	_apply_team_materials(visual, team)
+	if kind.begins_with("monorail_train"):
+		_apply_monorail_materials(visual, team)
+	if kind.begins_with("terrain_road"):
+		_apply_road_materials(visual)
 	if kind.begins_with("terrain_"):
 		_disable_backface_culling(visual)
 	return visual
@@ -167,6 +192,55 @@ static func _apply_team_materials(root: Node, team: String) -> void:
 			continue
 		var replacement := _replacement_material(source_material, material_name, replacement_color)
 		mesh_instance.set_surface_override_material(surface_index, replacement)
+
+
+static func _apply_road_materials(root: Node) -> void:
+	for child in root.get_children():
+		_apply_road_materials(child)
+	if not root is MeshInstance3D:
+		return
+	var mesh_instance := root as MeshInstance3D
+	if mesh_instance.mesh == null:
+		return
+	for surface_index in mesh_instance.mesh.get_surface_count():
+		var source_material := mesh_instance.get_surface_override_material(surface_index)
+		if source_material == null:
+			source_material = mesh_instance.mesh.surface_get_material(surface_index)
+		if source_material == null:
+			continue
+		var material_name := str(source_material.resource_name).to_lower()
+		var replacement_color := Color.TRANSPARENT
+		if material_name.contains("rocktrack"):
+			replacement_color = ROAD_TRACK_MATERIAL
+		elif material_name.contains("rock"):
+			replacement_color = ROAD_BASE_MATERIAL
+		if replacement_color != Color.TRANSPARENT:
+			mesh_instance.set_surface_override_material(surface_index, _replacement_material(source_material, "road_%s" % material_name, replacement_color))
+
+
+static func _apply_monorail_materials(root: Node, team: String) -> void:
+	var accent := _team_accent(team)
+	for child in root.get_children():
+		_apply_monorail_materials(child, team)
+	if not root is MeshInstance3D:
+		return
+	var mesh_instance := root as MeshInstance3D
+	if mesh_instance.mesh == null:
+		return
+	for surface_index in mesh_instance.mesh.get_surface_count():
+		var source_material := mesh_instance.mesh.surface_get_material(surface_index)
+		if source_material == null:
+			continue
+		var material_name := str(source_material.resource_name).to_lower()
+		var replacement_color := Color.TRANSPARENT
+		if material_name.contains("metalred"):
+			replacement_color = accent
+		elif material_name.contains("metaldark") or material_name == "dark" or material_name.contains("dark"):
+			replacement_color = DARK_MATERIAL
+		elif material_name.contains("metal"):
+			replacement_color = BASE_MATERIAL.lightened(0.18)
+		if replacement_color != Color.TRANSPARENT:
+			mesh_instance.set_surface_override_material(surface_index, _replacement_material(source_material, "monorail_%s" % material_name, replacement_color))
 
 
 static func _disable_backface_culling(root: Node) -> void:
