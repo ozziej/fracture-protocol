@@ -41,6 +41,13 @@ The simulation delegates isolated responsibilities to collaborators:
   in `data/level_data.json`. The simulation owns depletion and adaptive posture
   transitions; the presentation layer only renders field inspection, player
   intel, and the start-menu deployment flow.
+- Storage is a shared simulation invariant: `BuildingDefinition.storage_capacity`
+  is 2,000 for Resource Processors and Storage Silos, completed structures
+  contribute to a team capacity, and Collector cargo is reserved while in
+  transit. `_set_credits` clamps purchases and passive income, while a
+  storage-blocked Collector emits a readable event and resumes after spending
+  or capacity expansion. The enemy AI uses the same build command to add Silos
+  when its network fills.
 - `simulation/rts_scenario_system.gd` owns optional data-driven skirmish
   objectives. Scenario definitions live in `data/skirmish_data.json`; the
   service reads simulation-owned control-point staging state, advances fixed
@@ -54,8 +61,13 @@ The simulation delegates isolated responsibilities to collaborators:
   MatchWon/MatchLost event path.
 - `campaign_progress.gd` owns the separate campaign save contract. It records
   completed missions, unlocked mission IDs, first-completion rewards, flags,
-  and the latest result payload without allowing local skirmish results to
-  change campaign progression.
+  the one-time persistent doctrine choice, and the latest result payload
+  without allowing local skirmish results to change campaign progression.
+- Persistent doctrine packages are passed from the deployment flow into
+  `RtsSimulation.start_match()` as campaign settings. `RtsSimulation` applies
+  authored starting assets and credits before spawning the mission phases;
+  `rts_campaign_mission_system.gd` applies the selected phase overrides. The
+  package is therefore a simulation input, not a presentation-only modifier.
 
 `main.gd` remains the Godot scene entry point and input composition root. It
 contains only player input, selection, camera state, campaign flow, and the

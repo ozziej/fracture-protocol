@@ -1,5 +1,5 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "initial_content": {
     "units": ["ranger", "collector"],
     "buildings": ["refinery", "assembly_bay", "storage_silo"],
@@ -27,6 +27,29 @@
       "unique_building": "relay"
     }
   },
+  "doctrines": [
+    {
+      "id": "logistics",
+      "display_name": "LOGISTICS CORPS",
+      "summary": "Keep the line supplied and turn a safe opening into sustained momentum.",
+      "reward_text": "FIELD RESERVE  //  +250 opening credits  ·  Storage Silo  ·  Collector",
+      "effect_summary": "Start Missions 7–8 with an additional Storage Silo, a Collector route, and 250 credits."
+    },
+    {
+      "id": "armoured",
+      "display_name": "ARMOURED SPEARHEAD",
+      "summary": "Put another hard target at the point of decision and force the Frontier to answer it.",
+      "reward_text": "SPEARHEAD PACKAGE  //  Warden line vehicle  ·  +100 opening credits",
+      "effect_summary": "Start Missions 7–8 with an additional Warden and 100 credits."
+    },
+    {
+      "id": "recon",
+      "display_name": "RECON NETWORK",
+      "summary": "See the counter-offensive forming before it reaches the relay chain.",
+      "reward_text": "SIGNAL PACKAGE  //  Sensor Mast  ·  +45 seconds between assault waves",
+      "effect_summary": "Start Missions 7–8 with a Sensor Mast; scripted assault waves arrive later."
+    }
+  ],
   "missions": [
     {
       "id": "relay_divide",
@@ -84,8 +107,29 @@
       "tier": 6,
       "tier_label": "COUNTER-OFFENSIVE",
       "initially_unlocked": false,
+      "unlock_on_complete": "counterstroke",
+      "rewards": {"units": [], "buildings": [], "technologies": [], "doctrine_choice": true},
+      "reward_text": "UNLOCKS  //  Persistent campaign doctrine selection  ·  Counterstroke operation"
+    },
+    {
+      "id": "counterstroke",
+      "display_name": "Level 7 — Counterstroke",
+      "tier": 7,
+      "tier_label": "BREAKTHROUGH",
+      "initially_unlocked": false,
+      "unlock_on_complete": "iron_front",
+      "requires_doctrine": true,
       "rewards": {"units": [], "buildings": [], "technologies": []},
-      "reward_text": "CAMPAIGN MASTERY  //  Hold the Central Relay while the Frontier counter-attacks"
+      "reward_text": "DOCTRINE PROVEN  //  Your selected package carries forward into Iron Front"
+    },
+    {
+      "id": "iron_front",
+      "display_name": "Level 8 — Iron Front",
+      "tier": 8,
+      "tier_label": "NETWORK DEFENCE",
+      "initially_unlocked": false,
+      "rewards": {"units": [], "buildings": [], "technologies": []},
+      "reward_text": "CAMPAIGN MASTERY  //  The Coalition doctrine holds the Central Relay under full counter-offensive pressure"
     }
   ]
 }

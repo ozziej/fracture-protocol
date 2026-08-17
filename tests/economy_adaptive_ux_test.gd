@@ -105,6 +105,11 @@ func _test_player_hud_and_placement(failures: Array[String]) -> void:
 	main._update_hud()
 	if main.selected_resource_id != "north_field" or main.selected_label.text.find("ENERGY") < 0 or main.selected_label.text.find("/") < 0:
 		failures.append("clicking an Energy Field should show its current finite reserve")
+	if main.credits_label.text.find("/") < 0 or main.credits_label.tooltip_text.find("Storage Silo") < 0:
+		failures.append("the player HUD should show current credits against the storage capacity")
+	var credits_chip := main.find_child("CreditsChip", true, false)
+	if credits_chip == null or credits_chip.custom_minimum_size.x < 200.0:
+		failures.append("the Credits status chip should leave room for five-digit storage values")
 
 	var hub_id := _find_entity(main.simulation.buildings, "command_hub", "player")
 	main.simulation.player_credits = 5000.0

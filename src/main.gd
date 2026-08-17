@@ -77,7 +77,7 @@ var pause_menu_panel: PanelContainer
 var pause_menu_visible := false
 var game_log_toggle: CheckButton
 var play_hints_toggle: CheckButton
-var game_log_enabled := true
+var game_log_enabled := false
 var play_hints_enabled := true
 var master_volume_slider: HSlider
 var sfx_volume_slider: HSlider
@@ -103,6 +103,7 @@ var campaign_mission_buttons: Dictionary = {}
 var campaign_mission_scroll: ScrollContainer
 var campaign_mission_list: VBoxContainer
 var campaign_mission_detail_label: Label
+var campaign_doctrine_option: OptionButton
 var campaign_start_button: Button
 var selected_campaign_level_id := "relay_divide"
 var start_menu_overlay: ColorRect
@@ -123,8 +124,10 @@ var start_menu_visible := true
 var result_overlay: ColorRect
 var result_panel: PanelContainer
 var result_title_label: Label
+var result_mission_label: Label
 var result_detail_label: Label
 var result_summary_label: Label
+var result_receipt_label: Label
 var rematch_button: Button
 var return_deployment_button: Button
 var result_visible := false
@@ -336,6 +339,10 @@ func _build_ui() -> void:
 	var root := Control.new()
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var ui_theme := Theme.new()
+	ui_theme.default_font = ThemeDB.fallback_font
+	ui_theme.default_font_size = 14
+	root.theme = ui_theme
 	canvas.add_child(root)
 
 	var top_panel := PanelContainer.new()
@@ -361,15 +368,15 @@ func _build_ui() -> void:
 	top_row.name = "TopTitleRow"
 	top_row.add_theme_constant_override("separation", 10)
 	top_column.add_child(top_row)
-	var title := _label("FRACTURE PROTOCOL", 21, Color("#d6fbff"))
+	var title := _label("FRACTURE PROTOCOL", 23, Color("#d6fbff"))
 	title.custom_minimum_size.x = 235.0
 	top_row.add_child(title)
-	match_context_label = _label("DEPLOYMENT  //  CAMPAIGN", 10, Color(0.58, 0.78, 0.82, 0.78))
+	match_context_label = _label("DEPLOYMENT  //  CAMPAIGN", 12, Color(0.58, 0.78, 0.82, 0.78))
 	match_context_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	match_context_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	match_context_label.clip_text = true
 	top_row.add_child(match_context_label)
-	match_time_label = _label("TIME 00:00", 11, Color("#ffd36a"))
+	match_time_label = _label("TIME 00:00", 13, Color("#ffd36a"))
 	match_time_label.custom_minimum_size.x = 82.0
 	match_time_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	top_row.add_child(match_time_label)
@@ -386,57 +393,75 @@ func _build_ui() -> void:
 	top_stats_row.name = "TopStatsRow"
 	top_stats_row.add_theme_constant_override("separation", 7)
 	top_stats_scroll.add_child(top_stats_row)
-	credits_label = _label("CREDITS 850", 13, Color("#ffd36a"))
-	top_stats_row.add_child(_create_status_chip("CreditsChip", credits_label, 128.0, Color("#ffd36a"), "resource"))
-	territory_label = _label("TERRITORY 0/3", 13, Color("#8cebf3"))
+	credits_label = _label("CREDITS 850", 14, Color("#ffd36a"))
+	# The storage counter can grow to five digits on both sides of the slash.
+	# Give it its own breathing room so it never clips into the next status chip.
+	top_stats_row.add_child(_create_status_chip("CreditsChip", credits_label, 220.0, Color("#ffd36a"), "resource"))
+	territory_label = _label("TERRITORY 0/3", 14, Color("#8cebf3"))
 	territory_label.custom_minimum_size.x = 168.0
 	var territory_chip := _create_status_chip("TerritoryChip", territory_label, 222.0, Color("#8cebf3"), "forward_relay")
 	territory_label.clip_text = false
 	top_stats_row.add_child(territory_chip)
-	supply_label = _label("SUPPLY CONNECTED", 13, Color("#7cf1ad"))
-	force_label = _label("FORCE 4/24", 13, Color("#c3d8df"))
+	supply_label = _label("SUPPLY CONNECTED", 14, Color("#7cf1ad"))
+	force_label = _label("FORCE 4/24", 14, Color("#c3d8df"))
 	top_stats_row.add_child(_create_status_chip("ForceChip", force_label, 128.0, Color("#c3d8df"), "mixed"))
 	# Keep the operational supply warning at the end of the row, where it can
 	# use the remaining HUD width without pushing the core economy stats away.
 	top_stats_row.add_child(_create_status_chip("SupplyChip", supply_label, 184.0, Color("#7cf1ad"), "route"))
 
-	objective_label = _label("OBJECTIVE", 15, Color("#ffd36a"))
-	objective_label.set_anchors_preset(Control.PRESET_TOP_WIDE)
-	objective_label.offset_left = 22.0
-	objective_label.offset_right = -22.0
-	objective_label.offset_top = 126.0
-	objective_label.offset_bottom = 151.0
+	# Keep objective, progress, and transient tactical feedback in one quiet
+	# information band. The previous three floating text rows competed with
+	# the battlefield and made every update look like another HUD alert.
+	var objective_panel := PanelContainer.new()
+	objective_panel.name = "ObjectiveStatusPanel"
+	objective_panel.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	objective_panel.offset_left = 18.0
+	objective_panel.offset_right = -18.0
+	objective_panel.offset_top = 126.0
+	objective_panel.offset_bottom = 211.0
+	objective_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	objective_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.018, 0.055, 0.07, 0.78), Color(0.18, 0.7, 0.78, 0.38)))
+	root.add_child(objective_panel)
+	var objective_margin := MarginContainer.new()
+	objective_margin.add_theme_constant_override("margin_left", 12)
+	objective_margin.add_theme_constant_override("margin_right", 12)
+	objective_margin.add_theme_constant_override("margin_top", 6)
+	objective_margin.add_theme_constant_override("margin_bottom", 6)
+	objective_panel.add_child(objective_margin)
+	var objective_column := VBoxContainer.new()
+	objective_column.name = "ObjectiveStatusColumn"
+	objective_column.add_theme_constant_override("separation", 1)
+	objective_column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	objective_margin.add_child(objective_column)
+	objective_label = _label("OBJECTIVE", 17, Color("#ffd36a"))
+	objective_label.custom_minimum_size = Vector2(0.0, 25.0)
 	objective_label.clip_text = true
 	objective_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	root.add_child(objective_label)
+	objective_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	objective_column.add_child(objective_label)
 
 	scenario_progress_label = _label("", 13, Color("#8cebf3"))
-	scenario_progress_label.set_anchors_preset(Control.PRESET_TOP_WIDE)
-	scenario_progress_label.offset_left = 22.0
-	scenario_progress_label.offset_right = -22.0
-	scenario_progress_label.offset_top = 149.0
-	scenario_progress_label.offset_bottom = 173.0
+	scenario_progress_label.custom_minimum_size = Vector2(0.0, 21.0)
 	scenario_progress_label.clip_text = true
 	scenario_progress_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	root.add_child(scenario_progress_label)
+	scenario_progress_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	objective_column.add_child(scenario_progress_label)
 
-	status_label = _label("Awaiting orders.", 16, Color("#c3d8df"))
-	status_label.set_anchors_preset(Control.PRESET_TOP_WIDE)
-	status_label.offset_left = 22.0
-	status_label.offset_right = -22.0
-	status_label.offset_top = 175.0
-	status_label.offset_bottom = 202.0
+	status_label = _label("Awaiting orders.", 13, Color("#b4c9ce"))
+	status_label.custom_minimum_size = Vector2(0.0, 21.0)
 	status_label.clip_text = true
 	status_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	root.add_child(status_label)
+	status_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	objective_column.add_child(status_label)
 
-	event_log_label = _label("EVENT LOG\nAwaiting orders...", 14, Color("#abc5cb"))
+	event_log_label = _label("EVENT LOG\nAwaiting orders...", 12, Color("#9db6bc"))
 	event_log_label.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-	event_log_label.offset_left = 18.0
-	event_log_label.offset_right = 408.0
-	event_log_label.offset_top = -220.0
-	event_log_label.offset_bottom = -116.0
+	event_log_label.offset_left = 24.0
+	event_log_label.offset_right = 390.0
+	event_log_label.offset_top = -214.0
+	event_log_label.offset_bottom = -122.0
 	event_log_label.clip_text = true
+	event_log_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	event_log_label.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.8))
 	event_log_label.add_theme_constant_override("shadow_offset_x", 2)
 	event_log_label.add_theme_constant_override("shadow_offset_y", 2)
@@ -480,8 +505,8 @@ func _build_ui() -> void:
 	selected_icon.custom_minimum_size = Vector2(54.0, 54.0)
 	selected_icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	selected_row.add_child(selected_icon)
-	selected_label = _label("NO SELECTION\nSelect units or a structure", 12, Color("#d2e7ec"))
-	selected_label.custom_minimum_size = Vector2(154.0, 54.0)
+	selected_label = _label("NO SELECTION\nSelect units or a structure", 14, Color("#d2e7ec"))
+	selected_label.custom_minimum_size = Vector2(170.0, 54.0)
 	selected_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	selected_label.clip_text = true
 	selected_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -529,7 +554,7 @@ func _build_ui() -> void:
 	var queue_column := VBoxContainer.new()
 	queue_column.add_theme_constant_override("separation", 4)
 	queue_margin.add_child(queue_column)
-	queue_title_label = _label("QUEUE  //  CLICK CARD TO CANCEL + REFUND", 11, Color("#ffd36a"))
+	queue_title_label = _label("QUEUE  //  CLICK A CARD TO CANCEL", 12, Color("#ffd36a"))
 	queue_title_label.name = "ProductionQueueTitle"
 	queue_title_label.clip_text = true
 	queue_title_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
@@ -777,7 +802,7 @@ func _build_campaign_start_menu(root: Control) -> void:
 	start_menu_panel = PanelContainer.new()
 	start_menu_panel.name = "DeploymentMenu"
 	start_menu_panel.position = Vector2(160.0, 68.0)
-	start_menu_panel.size = Vector2(960.0, 570.0)
+	start_menu_panel.size = Vector2(960.0, 650.0)
 	start_menu_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.025, 0.075, 0.1, 0.98), Color(0.18, 0.7, 0.78, 0.8)))
 	start_menu_overlay.add_child(start_menu_panel)
 	var margin := MarginContainer.new()
@@ -860,6 +885,18 @@ func _build_campaign_start_menu(root: Control) -> void:
 	campaign_mission_detail_label.custom_minimum_size = Vector2(0.0, 118.0)
 	campaign_mission_detail_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	campaign_menu_container.add_child(campaign_mission_detail_label)
+	campaign_doctrine_option = OptionButton.new()
+	campaign_doctrine_option.name = "CampaignDoctrineOption"
+	campaign_doctrine_option.custom_minimum_size = Vector2(0.0, 38.0)
+	campaign_doctrine_option.add_item("SELECT DOCTRINE PACKAGE")
+	campaign_doctrine_option.set_item_metadata(0, "")
+	if campaign_progress:
+		for doctrine_value in campaign_progress.get_doctrines():
+			var doctrine: Dictionary = doctrine_value
+			campaign_doctrine_option.add_item(str(doctrine.get("display_name", doctrine.get("id", "DOCTRINE"))))
+			campaign_doctrine_option.set_item_metadata(campaign_doctrine_option.item_count - 1, str(doctrine.get("id", "")))
+	campaign_doctrine_option.item_selected.connect(_on_campaign_doctrine_selected)
+	campaign_menu_container.add_child(_deployment_option_row("DOCTRINE REWARD", campaign_doctrine_option))
 	campaign_start_button = Button.new()
 	campaign_start_button.name = "StartCampaignButton"
 	campaign_start_button.text = "START CAMPAIGN"
@@ -964,13 +1001,55 @@ func _update_campaign_mission_detail() -> void:
 	if allowed_units.is_empty() and campaign_progress:
 		allowed_units = campaign_progress.get_unlocked_content("units")
 	var detail_lines := PackedStringArray([display_name, brief, "UNITS AVAILABLE  ·  %s" % _format_campaign_content(allowed_units)])
+	var doctrine_id: String = campaign_progress.get_doctrine_id() if campaign_progress else ""
+	var doctrine: Dictionary = campaign_progress.get_doctrine(doctrine_id) if campaign_progress and not doctrine_id.is_empty() else {}
+	if not doctrine_id.is_empty():
+		detail_lines.append("DOCTRINE  ·  %s  ·  %s" % [str(doctrine.get("display_name", doctrine_id)), str(doctrine.get("effect_summary", "Package active."))])
+	elif campaign_progress and campaign_progress.is_doctrine_choice_unlocked():
+		detail_lines.append("DOCTRINE REWARD READY  ·  Select one package; it persists into Missions 7–8.")
+	else:
+		detail_lines.append("DOCTRINE REWARD  ·  Complete Network Sever to unlock one persistent package.")
 	var unlocked: bool = campaign_progress == null or campaign_progress.is_unlocked(selected_campaign_level_id)
 	if not unlocked:
 		detail_lines.append("LOCKED  ·  %s" % _campaign_unlock_reason(selected_campaign_level_id))
+	elif campaign_progress and campaign_progress.mission_requires_doctrine(selected_campaign_level_id) and doctrine_id.is_empty():
+		detail_lines.append("SELECT A DOCTRINE PACKAGE BEFORE STARTING THIS OPERATION.")
 	campaign_mission_detail_label.text = "\n".join(detail_lines)
+	if campaign_doctrine_option:
+		var selected_index := 0
+		for index in campaign_doctrine_option.item_count:
+			if str(campaign_doctrine_option.get_item_metadata(index)) == doctrine_id and not doctrine_id.is_empty():
+				selected_index = index
+				break
+		campaign_doctrine_option.select(selected_index)
+		campaign_doctrine_option.disabled = not campaign_progress or not campaign_progress.is_doctrine_choice_unlocked() or not doctrine_id.is_empty()
 	if campaign_start_button:
-		campaign_start_button.disabled = not unlocked
-		campaign_start_button.tooltip_text = "Complete the prerequisite mission first." if not unlocked else "Start %s." % display_name
+		var doctrine_required: bool = campaign_progress != null and campaign_progress.mission_requires_doctrine(selected_campaign_level_id)
+		campaign_start_button.disabled = not unlocked or (doctrine_required and doctrine_id.is_empty())
+		if not unlocked:
+			campaign_start_button.tooltip_text = "Complete the prerequisite mission first."
+		elif doctrine_required and doctrine_id.is_empty():
+			campaign_start_button.tooltip_text = "Select a persistent doctrine package first."
+		else:
+			campaign_start_button.tooltip_text = "Start %s." % display_name
+
+
+func _on_campaign_doctrine_selected(index: int) -> void:
+	if not campaign_progress or not campaign_doctrine_option or index < 0 or index >= campaign_doctrine_option.item_count:
+		return
+	var doctrine_id := str(campaign_doctrine_option.get_item_metadata(index))
+	if doctrine_id.is_empty():
+		_update_campaign_mission_detail()
+		return
+	var selection: Dictionary = campaign_progress.choose_doctrine(doctrine_id, selected_campaign_level_id)
+	if not bool(selection.get("valid", false)):
+		if status_label:
+			status_label.text = str(selection.get("reason", "Doctrine package unavailable."))
+		_update_campaign_mission_detail()
+		return
+	if status_label:
+		status_label.text = "%s selected — this package persists into Missions 7–8." % str(selection.get("display_name", doctrine_id))
+	_update_campaign_mission_detail()
 
 
 func _format_campaign_content(content_ids: Array) -> String:
@@ -1125,10 +1204,10 @@ func _build_match_result_overlay(root: Control) -> void:
 	result_panel = PanelContainer.new()
 	result_panel.name = "MatchResultPanel"
 	result_panel.set_anchors_preset(Control.PRESET_CENTER)
-	result_panel.offset_left = -330.0
-	result_panel.offset_right = 330.0
-	result_panel.offset_top = -235.0
-	result_panel.offset_bottom = 235.0
+	result_panel.offset_left = -380.0
+	result_panel.offset_right = 380.0
+	result_panel.offset_top = -300.0
+	result_panel.offset_bottom = 300.0
 	result_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.025, 0.075, 0.1, 0.99), Color(0.96, 0.68, 0.28, 0.85)))
 	result_overlay.add_child(result_panel)
 	var margin := MarginContainer.new()
@@ -1138,34 +1217,55 @@ func _build_match_result_overlay(root: Control) -> void:
 	margin.add_theme_constant_override("margin_bottom", 24)
 	result_panel.add_child(margin)
 	var column := VBoxContainer.new()
-	column.add_theme_constant_override("separation", 12)
+	column.add_theme_constant_override("separation", 8)
 	margin.add_child(column)
-	result_title_label = _label("MATCH COMPLETE", 26, Color("#ffd36a"))
+	result_title_label = _label("VICTORY", 32, Color("#ffd36a"))
 	result_title_label.name = "ResultTitle"
 	column.add_child(result_title_label)
-	result_detail_label = _label("", 14, Color("#c3d8df"))
+	result_mission_label = _label("", 15, Color("#8cebf3"))
+	result_mission_label.name = "ResultMission"
+	result_mission_label.clip_text = true
+	result_mission_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	column.add_child(result_mission_label)
+	var outcome_heading := _label("OUTCOME", 11, Color("#ffd36a"))
+	outcome_heading.name = "ResultOutcomeHeading"
+	column.add_child(outcome_heading)
+	result_detail_label = _label("", 16, Color("#d6e7eb"))
 	result_detail_label.name = "ResultDetail"
 	result_detail_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	result_detail_label.custom_minimum_size = Vector2(0.0, 74.0)
+	result_detail_label.custom_minimum_size = Vector2(0.0, 62.0)
 	column.add_child(result_detail_label)
-	result_summary_label = _label("", 13, Color("#d6fbff"))
+	var report_separator := HSeparator.new()
+	report_separator.name = "ResultReportSeparator"
+	column.add_child(report_separator)
+	var report_heading := _label("BATTLE REPORT", 11, Color("#ffd36a"))
+	report_heading.name = "ResultReportHeading"
+	column.add_child(report_heading)
+	result_summary_label = _label("", 14, Color("#c5dadd"))
 	result_summary_label.name = "ResultSummary"
 	result_summary_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	result_summary_label.custom_minimum_size = Vector2(0.0, 148.0)
+	result_summary_label.custom_minimum_size = Vector2(0.0, 100.0)
 	column.add_child(result_summary_label)
+	result_receipt_label = _label("", 14, Color("#7cf1ad"))
+	result_receipt_label.name = "ResultCampaignReceipt"
+	result_receipt_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	result_receipt_label.custom_minimum_size = Vector2(0.0, 44.0)
+	result_receipt_label.visible = false
+	column.add_child(result_receipt_label)
 	var buttons := HBoxContainer.new()
 	buttons.add_theme_constant_override("separation", 10)
+	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
 	column.add_child(buttons)
 	rematch_button = Button.new()
 	rematch_button.name = "RematchButton"
 	rematch_button.text = "REMATCH"
-	rematch_button.custom_minimum_size = Vector2(180.0, 48.0)
+	rematch_button.custom_minimum_size = Vector2(190.0, 50.0)
 	rematch_button.pressed.connect(_restart_match)
 	buttons.add_child(rematch_button)
 	return_deployment_button = Button.new()
 	return_deployment_button.name = "ReturnToDeploymentButton"
 	return_deployment_button.text = "RETURN TO DEPLOYMENT"
-	return_deployment_button.custom_minimum_size = Vector2(230.0, 48.0)
+	return_deployment_button.custom_minimum_size = Vector2(250.0, 50.0)
 	return_deployment_button.pressed.connect(_return_to_deployment)
 	buttons.add_child(return_deployment_button)
 
@@ -1291,33 +1391,46 @@ func _show_match_result(event_type: String, payload: Dictionary) -> void:
 	result_visible = true
 	result_overlay.visible = true
 	var won := event_type == "MatchWon"
-	result_title_label.text = "[ VICTORY ]" if won else "[ DEFEAT ]"
+	result_title_label.text = "VICTORY" if won else "DEFEAT"
 	result_title_label.modulate = Color("#ffd36a") if won else Color("#ff7b86")
+	result_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.025, 0.075, 0.1, 0.99), Color("#ffd36a") if won else Color("#ff7b86")))
 	var mode_text := "SKIRMISH" if simulation.get_match_mode() == "skirmish" else "CAMPAIGN"
-	var detail_lines: PackedStringArray = []
-	detail_lines.append("%s  //  %s" % [mode_text, simulation.get_level_display_name()])
+	result_mission_label.text = "%s  ·  %s" % [mode_text, simulation.get_level_display_name()]
+	result_detail_label.text = _format_result_detail(payload)
+	if result_summary_label:
+		result_summary_label.text = _format_match_summary(simulation.get_match_summary())
+	if result_receipt_label:
+		result_receipt_label.text = ""
+		result_receipt_label.visible = false
+		var doctrine_state: Dictionary = simulation.get_campaign_doctrine_state()
+		var doctrine_id := str(doctrine_state.get("id", ""))
+		if not doctrine_id.is_empty() and simulation.get_match_mode() == "campaign":
+			result_receipt_label.text = "DOCTRINE ACTIVE\n%s" % str(doctrine_state.get("display_name", doctrine_id))
+			result_receipt_label.visible = true
+
+
+func _format_result_detail(payload: Dictionary) -> String:
+	var lines: PackedStringArray = []
 	if simulation.get_match_mode() == "skirmish":
 		var scenario: Dictionary = simulation.get_scenario_state("player")
 		var progress_seconds := float(scenario.get("progress_seconds", 0.0))
 		var target_seconds := float(scenario.get("target_seconds", scenario.get("hold_ticks", 1) * simulation.TICK_SECONDS))
 		if str(scenario.get("objective_type", "")) == "defend_network":
-			detail_lines.append("NETWORK DEFENCE — %s / %s" % [_format_duration(progress_seconds), _format_duration(target_seconds)])
+			lines.append("NETWORK DEFENCE  %s / %s" % [_format_duration(progress_seconds), _format_duration(target_seconds)])
 			if bool(scenario.get("network_online", false)):
-				detail_lines.append("NETWORK STATUS — ONLINE")
+				lines.append("NETWORK STATUS  ONLINE")
 			else:
-				detail_lines.append("NETWORK STATUS — SEVERED   SEVER TIMER %s / %s" % [
+				lines.append("NETWORK STATUS  SEVERED  ·  SEVER TIMER %s / %s" % [
 					_format_duration(float(scenario.get("disruption_seconds", 0.0))),
 					_format_duration(float(scenario.get("sever_seconds", 0.0))),
 				])
 		else:
-			detail_lines.append("%s — %ds / %ds" % [str(scenario.get("display_name", "SKIRMISH")), int(progress_seconds), int(target_seconds)])
-		detail_lines.append(str(scenario.get("objective_text", "")))
-		detail_lines.append(str(payload.get("message", "Match complete.")))
-	else:
-		detail_lines.append(str(payload.get("message", "Match complete.")))
-	result_detail_label.text = "\n".join(detail_lines)
-	if result_summary_label:
-		result_summary_label.text = _format_match_summary(simulation.get_match_summary())
+			lines.append("OBJECTIVE HOLD  %s / %s" % [_format_duration(progress_seconds), _format_duration(target_seconds)])
+		var objective_text := str(scenario.get("objective_text", ""))
+		if not objective_text.is_empty():
+			lines.append(objective_text)
+	lines.append(str(payload.get("message", "Match complete.")))
+	return "\n".join(lines)
 
 
 func _hide_match_result() -> void:
@@ -2370,6 +2483,10 @@ func _start_selected_campaign() -> void:
 		status_label.text = _campaign_unlock_reason(selected_campaign_level_id)
 		_update_campaign_mission_detail()
 		return
+	if campaign_progress and campaign_progress.mission_requires_doctrine(selected_campaign_level_id) and campaign_progress.get_doctrine_id().is_empty():
+		status_label.text = "Select a persistent doctrine package before starting this operation."
+		_update_campaign_mission_detail()
+		return
 	_load_campaign_level(selected_campaign_level_id)
 
 
@@ -2390,7 +2507,8 @@ func _load_campaign_level(level_id: String) -> void:
 	control_groups.clear()
 	_clear_combat_feedback()
 	_clear_match_views()
-	simulation.start_match(level_id, "", {"mode": "campaign"})
+	var doctrine_state: Dictionary = campaign_progress.get_doctrine_state() if campaign_progress else {}
+	simulation.start_match(level_id, "", {"mode": "campaign", "campaign_doctrine": doctrine_state})
 	_set_deployment_mode("campaign")
 	_set_start_menu_visible(false)
 	camera_target = _starting_camera_target()
@@ -2608,7 +2726,7 @@ func _update_skirmish_objective() -> void:
 	objective_target_point_ids = required_points.duplicate()
 	objective_target_point_id = str(required_points[0]) if not required_points.is_empty() else ""
 	var objective_text := str(scenario.get("objective_text", "Hold the required network points."))
-	objective_label.text = "OBJECTIVE: %s — %s" % [str(scenario.get("display_name", "SKIRMISH")).to_upper(), objective_text.to_upper()]
+	objective_label.text = "OBJECTIVE  ·  %s  —  %s" % [str(scenario.get("display_name", "SKIRMISH")).to_upper(), objective_text]
 
 
 func _update_campaign_objective(campaign: Dictionary) -> void:
@@ -2616,15 +2734,10 @@ func _update_campaign_objective(campaign: Dictionary) -> void:
 	objective_target_point_ids = []
 	var phase_name := str(campaign.get("phase_display_name", "OBJECTIVE")).to_upper()
 	var objective_text := str(campaign.get("objective_text", "Complete the current campaign phase."))
-	var route_id := str(campaign.get("route_id", ""))
-	if not route_id.is_empty():
-		objective_text += "  ·  ROUTE %s" % route_id.replace("_", " ").to_upper()
 	if bool(campaign.get("detected", false)):
 		var detection_label := "SENSOR GRID BREACHED" if str(campaign.get("detection_source_kind", "")) == "sensor_mast" else "CONTACT"
 		objective_text += "  ·  %s — BREAK CONTACT" % detection_label
-	if str(campaign.get("objective_type", "")) == "network_hold":
-		objective_text += "  ·  %s" % ("NETWORK ONLINE" if bool(campaign.get("network_online", false)) else "NETWORK CONTESTED")
-	objective_label.text = "OBJECTIVE: %s — %s" % [phase_name, objective_text.to_upper()]
+	objective_label.text = "OBJECTIVE  ·  %s  —  %s" % [phase_name, objective_text]
 	objective_label.modulate = Color("#ff7b86") if bool(campaign.get("detected", false)) else Color("#ffd36a")
 
 
@@ -2638,21 +2751,21 @@ func _update_scenario_progress_hud() -> void:
 		if not bool(campaign.get("active", false)):
 			scenario_progress_label.text = ""
 			return
-		var campaign_progress_value := int(float(campaign.get("progress", 0.0)))
-		var campaign_target_value := int(float(campaign.get("target", 0.0)))
-		var campaign_text := "%s  ·  %d/%d" % [str(campaign.get("phase_display_name", "OBJECTIVE")).to_upper(), campaign_progress_value, campaign_target_value]
-		if str(campaign.get("objective_type", "")) == "network_hold":
-			campaign_text += "  ·  %s" % ("NETWORK ONLINE" if bool(campaign.get("network_online", false)) else "NETWORK CONTESTED")
-		var campaign_route := str(campaign.get("route_id", ""))
-		if not campaign_route.is_empty():
-			campaign_text += "  ·  ROUTE %s" % campaign_route.replace("_", " ").to_upper()
-			var route_checkpoint_count := int(campaign.get("route_checkpoint_count", 0))
-			if route_checkpoint_count > 0:
-				campaign_text += " %d/%d" % [int(campaign.get("route_checkpoint", 0)), route_checkpoint_count]
-		var alarm_limit_seconds := float(campaign.get("alarm_limit_seconds", 0.0))
-		if alarm_limit_seconds > 0.0:
-			campaign_text += "  ·  ALARM %s/%s" % [_format_duration(float(campaign.get("alarm_seconds", 0.0))), _format_duration(alarm_limit_seconds)]
-		scenario_progress_label.text = campaign_text
+			var campaign_progress_value := int(float(campaign.get("progress", 0.0)))
+			var campaign_target_value := int(float(campaign.get("target", 0.0)))
+			var campaign_text := "PROGRESS %d/%d" % [campaign_progress_value, campaign_target_value]
+			if str(campaign.get("objective_type", "")) == "network_hold":
+				campaign_text += "  ·  %s" % ("NETWORK ONLINE" if bool(campaign.get("network_online", false)) else "NETWORK CONTESTED")
+			var campaign_route := str(campaign.get("route_id", ""))
+			if not campaign_route.is_empty():
+				campaign_text += "  ·  ROUTE %s" % campaign_route.replace("_", " ").to_upper()
+				var route_checkpoint_count := int(campaign.get("route_checkpoint_count", 0))
+				if route_checkpoint_count > 0:
+					campaign_text += " %d/%d" % [int(campaign.get("route_checkpoint", 0)), route_checkpoint_count]
+			var alarm_limit_seconds := float(campaign.get("alarm_limit_seconds", 0.0))
+			if alarm_limit_seconds > 0.0:
+				campaign_text += "  ·  ALARM %s/%s" % [_format_duration(float(campaign.get("alarm_seconds", 0.0))), _format_duration(alarm_limit_seconds)]
+			scenario_progress_label.text = campaign_text
 		scenario_progress_label.modulate = Color("#ffbf6a") if bool(campaign.get("detected", false)) else Color("#8cebf3")
 		if bool(campaign.get("deployment_ready", false)):
 			scenario_progress_label.text += "  ·  DEPLOY READY"
@@ -2687,7 +2800,7 @@ func _update_scenario_progress_hud() -> void:
 	var hold_minutes := int(hold_seconds / 60)
 	var hold_remainder := hold_seconds % 60
 	var state_text := "HOLDING" if bool(scenario.get("holding", false)) else "INTERRUPTED"
-	scenario_progress_label.text = "%s  %02d:%02d / %02d:%02d  ·  %s" % [str(scenario.get("display_name", "SKIRMISH")).to_upper(), minutes, seconds, hold_minutes, hold_remainder, state_text]
+	scenario_progress_label.text = "HOLD %02d:%02d / %02d:%02d  ·  %s" % [minutes, seconds, hold_minutes, hold_remainder, state_text]
 	scenario_progress_label.modulate = Color("#7cf1ad") if bool(scenario.get("holding", false)) else Color("#ffbf6a")
 
 
@@ -2715,8 +2828,18 @@ func _update_hud() -> void:
 		match_context_label.tooltip_text = "Current deployment: %s" % context_text
 	if match_time_label:
 		match_time_label.text = "TIME %s" % _format_duration(float(simulation.current_tick) * simulation.TICK_SECONDS)
-	credits_label.text = "CREDITS %03d" % int(simulation.player_credits)
-	credits_label.tooltip_text = "Available credits. Collector deliveries and connected territory add to this total."
+	var storage: Dictionary = simulation.get_storage_summary("player")
+	var storage_capacity: int = int(storage.get("capacity", 0.0))
+	if storage_capacity > 0:
+		credits_label.add_theme_font_size_override("font_size", 13)
+		credits_label.text = "CREDITS %d/%d" % [int(storage.get("credits", simulation.player_credits)), storage_capacity]
+		credits_label.tooltip_text = "Stored resources: %d/%d. Build a Storage Silo when the Processor is full." % [int(storage.get("credits", simulation.player_credits)), storage_capacity]
+		credits_label.modulate = Color("#ff8b8b") if bool(storage.get("full", false)) else Color("#ffd36a")
+	else:
+		credits_label.add_theme_font_size_override("font_size", 14)
+		credits_label.text = "CREDITS %03d" % int(simulation.player_credits)
+		credits_label.tooltip_text = "Available credits. Collector deliveries and connected territory add to this total."
+		credits_label.modulate = Color("#ffd36a")
 	var territory: Dictionary = simulation.get_territory_summary()
 	territory_label.text = "TERRITORY %d/%d  ·  +%d C/S" % [territory["player"], territory["total"], int(territory.get("player_income_per_second", 0.0))]
 	territory_label.tooltip_text = _territory_tooltip(territory)
@@ -2818,29 +2941,29 @@ func _format_match_summary(summary: Dictionary) -> String:
 	var territory_income := int(round(float(summary.get("player_credits_from_territory", 0.0))))
 	var total_income := collector_income + territory_income
 	var lines: PackedStringArray = []
-	lines.append("MATCH TIME %s    TERRITORY %d/%d" % [
+	lines.append("TIME %s    TERRITORY %d / %d" % [
 		_format_duration(float(summary.get("duration_seconds", 0.0))),
 		int(summary.get("player_territory", 0)),
 		int(summary.get("territory_total", 0)),
 	])
-	lines.append("INCOME +%d C    FIELD DELIVERED %d C    TERRITORY +%d C/S" % [
+	lines.append("INCOME +%d C    FIELD %d C    TERRITORY +%d C/S" % [
 		total_income,
 		collector_income,
 		int(round(float(summary.get("player_income_per_second", 0.0)))),
 	])
-	lines.append("FORCE LOST %d    ENEMY LOST %d    FORCE NOW %d/%d" % [
+	lines.append("LOSSES  YOU %d    ENEMY %d    FORCE %d / %d" % [
 		int(summary.get("player_units_lost", 0)),
 		int(summary.get("enemy_units_lost", 0)),
 		int(summary.get("player_current_force", 0)),
 		int(summary.get("player_max_force", 0)),
 	])
-	lines.append("PRODUCTION %d FRIENDLY / %d ENEMY    DAMAGE DEALT %d" % [
+	lines.append("OUTPUT  YOU %d    ENEMY %d    DAMAGE %d" % [
 		int(summary.get("player_units_produced", 0)),
 		int(summary.get("enemy_units_produced", 0)),
 		int(round(float(summary.get("player_damage_dealt", 0.0)))),
 	])
 	if str(summary.get("scenario_objective_type", "")) == "defend_network":
-		lines.append("NETWORK DEFENCE %s / %s    SEVER TIMER %s / %s" % [
+		lines.append("NETWORK %s / %s    SEVER %s / %s" % [
 			_format_duration(float(summary.get("scenario_progress_seconds", 0.0))),
 			_format_duration(float(summary.get("scenario_target_seconds", 0.0))),
 			_format_duration(float(summary.get("scenario_disruption_seconds", 0.0))),
@@ -3428,6 +3551,8 @@ func _selection_detail(data: Dictionary) -> String:
 			collector_route_label = "UNASSIGNED — PRESS U"
 		elif data["collector_state"] == "depleted":
 			collector_route_label = "SOURCE DEPLETED — PRESS U"
+		elif data["collector_state"] == "storage_full":
+			collector_route_label = "STORAGE FULL — BUILD SILO OR SPEND"
 		collector_text = "   %s %d/%d" % [
 			collector_route_label,
 			int(data.get("collector_cargo", 0.0)),
@@ -3457,6 +3582,11 @@ func _selection_detail(data: Dictionary) -> String:
 				rally_text += " (SUSPENDED)"
 		else:
 			rally_text = "   RALLY SET"
+	var storage_text := ""
+	var local_storage_capacity: float = maxf(0.0, float(data.get("storage_capacity", 0.0)))
+	if local_storage_capacity > simulation.RESOURCE_EPSILON:
+		var network_storage: Dictionary = simulation.get_storage_summary(str(data.get("team", "player")))
+		storage_text = "   STORAGE %d/%d" % [int(network_storage.get("credits", 0.0)), int(network_storage.get("capacity", local_storage_capacity))]
 	var repair_text := ""
 	if bool(data.get("repair_active", false)):
 		repair_text = "   REPAIRING — AUTOMATIC"
@@ -3470,8 +3600,8 @@ func _selection_detail(data: Dictionary) -> String:
 	elif float(data.get("repair_radius", 0.0)) > 0.0:
 		repair_text = "   GREEN REPAIR CIRCLE %.1f BLOCKS" % float(data["repair_radius"])
 	if data.has("order"):
-		return "HP %d/%d   ORDER %s%s%s%s%s%s%s%s%s" % [int(data["health"]), int(data["max_health"]), str(data["order"]).to_upper(), force_text, supply_text, collector_text, research_text, queue_text, rally_text, role_text, repair_text]
-	return "HP %d/%d   %s%s%s%s%s%s%s%s%s" % [int(data["health"]), int(data["max_health"]), "ONLINE" if data["complete"] else "BUILDING", force_text, supply_text, collector_text, research_text, queue_text, rally_text, role_text, repair_text]
+		return "HP %d/%d   ORDER %s%s%s%s%s%s%s%s%s%s" % [int(data["health"]), int(data["max_health"]), str(data["order"]).to_upper(), force_text, supply_text, collector_text, research_text, queue_text, rally_text, role_text, storage_text, repair_text]
+	return "HP %d/%d   %s%s%s%s%s%s%s%s%s%s" % [int(data["health"]), int(data["max_health"]), "ONLINE" if data["complete"] else "BUILDING", force_text, supply_text, collector_text, research_text, queue_text, rally_text, role_text, storage_text, repair_text]
 
 
 func _selection_icon_key(data: Dictionary, enemy := false) -> String:
@@ -3646,11 +3776,17 @@ func _on_simulation_event(event_type: String, payload: Dictionary) -> void:
 		var completed_level_id: String = simulation.get_level_id()
 		var unlocked_id: String = campaign_progress.mark_complete(completed_level_id, payload)
 		var reward_text: String = campaign_progress.get_mission_reward_text(completed_level_id)
-		if not reward_text.is_empty() and result_detail_label:
-			result_detail_label.text += "\n\n" + reward_text
+		var receipt_lines: PackedStringArray = []
+		if not reward_text.is_empty():
+			receipt_lines.append("CAMPAIGN RECEIPT")
+			receipt_lines.append(reward_text)
 		if not unlocked_id.is_empty():
+			receipt_lines.append("NEXT OPERATION  %s" % str(campaign_progress.get_mission(unlocked_id).get("display_name", unlocked_id)))
 			if play_hints_enabled:
 				status_label.text = "LEVEL COMPLETE — %s unlocked. Press F2 to deploy." % campaign_progress.get_mission(unlocked_id).get("display_name", unlocked_id)
+		if result_receipt_label and not receipt_lines.is_empty():
+			result_receipt_label.text = "\n".join(receipt_lines)
+			result_receipt_label.visible = true
 	_append_event_log(feedback_message, int(payload.get("tick", simulation.current_tick)))
 
 
@@ -3883,8 +4019,12 @@ func _create_action_card(slot: int) -> Button:
 func _label(text_value: String, font_size: int, color: Color) -> Label:
 	var label := Label.new()
 	label.text = text_value
+	label.add_theme_font_override("font", ThemeDB.fallback_font)
 	label.add_theme_font_size_override("font_size", font_size)
 	label.add_theme_color_override("font_color", color)
+	label.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.72))
+	label.add_theme_constant_override("shadow_offset_x", 1)
+	label.add_theme_constant_override("shadow_offset_y", 1)
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	return label
 

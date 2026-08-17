@@ -1,7 +1,7 @@
 # Fracture Protocol — Planning Document
 
-**Status:** Campaign expansion active: level-gated progression, persistent rewards, faction identity, alternate objectives, and the representative visual slice are implemented and the core loop has passed extensive human playtesting; continuing with deeper content iteration
-**Version:** 1.2
+**Status:** Campaign expansion active: level-gated progression, persistent rewards, faction identity, alternate objectives, doctrine choice, and the representative visual slice are implemented and the core loop has passed extensive human playtesting; the next playtest pass covers Missions 7–8
+**Version:** 1.3
 **Target:** PC  
 **Engine direction:** Godot 4  
 **First playable:** Local skirmish against AI  
@@ -40,6 +40,7 @@ The current Godot 4 prototype has a playable local skirmish foundation:
 - The authored `data/level_data.json` schema now drives the first skirmish's bounds, roads, lane markers, obstacles, accents, resource fields, capture points, player/enemy spawns, AI coordinates, and per-level caps/timing rules.
 - Unit and building health fills are aligned to their backgrounds at full health; Collector cargo remains a separate progressive bar.
 - Resource fields now expose finite authored reserves, live current/initial amounts, depletion events, and a clear Collector exhausted state. Clicking a field selects it for inspection; stale routes are rejected and the AI falls back to another available field.
+- Resource Processors now provide 2,000 storage capacity, completed Storage Silos add another 2,000 each, and in-transit Collector cargo reserves space against the same cap. A full network pauses Collectors with an explicit build-or-spend receipt; spending or completing a Silo resumes collection, and the AI follows the same capacity rule.
 - Supply feedback now names the connected Hub, Relay, staging site, or forward-base structure that supports a unit. Units outside the network explain the movement and combat penalty instead of presenting an unexplained UNSUPPLIED label.
 - Campaign deployment is a start menu rather than a battlefield panel. The map no longer carries persistent controls or an Opponent Policy panel; authored mission tactics are automatic, and adaptive posture feedback arrives as player-facing intel.
 - Construction preview and simulation validation share footprint, obstacle, bounds, source, prerequisite, limit, and credit checks. Invalid placement previews turn red and retain build mode so the player can correct the position without reopening the construction card.
@@ -64,11 +65,12 @@ The current Godot 4 prototype has a playable local skirmish foundation:
 - Combat chassis now have authored counterplay: Wardens have substantially higher durability and resist ordinary fire, Bulwarks have lower durability and receive increased direct damage from Wardens and Bulwarks, and Rangers/Raiders retain equal light-vehicle parity with a small armour/damage lift.
 - The production roles are now explicit: the Assembly Bay is a unit-and-upgrade production structure, while Sensor Masts and Bastion Turrets are Command Hub/Forward Base construction cards. The Assembly Bay no longer exposes defensive structures.
 - Campaign content is now level-gated from a foundation Level 1 roster. First completion rewards persist in `user://campaign_progress.json`, later mission buttons show their unlock payload, and the result screen reports the newly available content.
-- The first six-mission campaign spine is authored: Foundation, Network Expansion, Special Operations, Fortified Advance, Layered Defence, and the new Counter-Offensive mission. The sixth mission requires a connected Central Relay hold rather than an HQ kill; its western relay chain is authored so the mission begins with a meaningful defence rather than an expensive relay-entry tax.
+- The eight-mission campaign spine is authored: Foundation, Network Expansion, Special Operations, Fortified Advance, Layered Defence, Counter-Offensive, Breakthrough, and Network Defence. Network Sever now grants one persistent doctrine package; Counterstroke and Iron Front apply concrete Logistics Corps, Armoured Spearhead, or Recon Network differences to starting assets and scripted assault timing.
+- Campaign progress schema 3 migrates older saves without replaying missions. The deployment screen exposes the one-time doctrine selection and the result receipt records the selected package and next unlock.
 - Coalition and Frontier faction profiles are now visible in campaign briefing/HUD state and apply small, explicit doctrine modifiers: Coalition favours sensors and fortified networks; Frontier favours Raider mobility and mobile pressure.
 - Relay Divide and Relay Crossroads now include authored industrial signal/transfer set pieces built from the existing Space Kit modules. A presentation regression verifies those landmarks and a 100-added-unit visual synchronization benchmark measures the asset-backed view layer.
 
-The immediate next step is human playtesting from a clean start-menu deployment. Record whether the level-gated reward cadence is understandable, whether Coalition/Frontier identity is visible without reading the docs, whether Network Sever gives enough time to extend and defend the supply chain, and whether the expanded industrial landmarks improve navigation without clutter. Tune costs, wave timing, and faction modifiers only from those observations before adding branching campaign content or deeper faction economy.
+The immediate next step is human playtesting from a clean start-menu deployment through Counterstroke and Iron Front. Record whether the doctrine packages create genuinely different openings, whether the breakthrough-to-defence handoff feels earned, and whether the six-wave relay hold creates pressure without becoming a grind. Tune doctrine assets, wave timing, and mission geometry only from those observations before adding branching campaign content or deeper faction economy.
 
 ## 1. Vision
 
@@ -178,7 +180,7 @@ The first economy should remain simple enough that players can understand the ca
 
 ### Collector loop
 
-A Collector is assigned to a named resource source and a specific refinery. It travels to the source, loads a finite cargo amount, and visibly returns to the refinery before the credits are delivered. Collectors have health, a light weapon, and a limited defensive response: taking damage switches the unit to a retreat route toward its Command Hub while it continues firing at enemies within range. New Collectors begin unassigned, are produced through the normal Assembly Bay queue, and can be manually routed with a two-step source-then-refinery order.
+A Collector is assigned to a named resource source and a specific refinery. It travels to the source, loads a finite cargo amount, and visibly returns to the refinery before the credits are delivered. Each completed Resource Processor stores 2,000 resources; each completed Storage Silo adds another 2,000 to the team network. Cargo in transit reserves storage, so Collectors stop loading when the network is full and resume after the player spends resources or completes another Silo. Collectors have health, a light weapon, and a limited defensive response: taking damage switches the unit to a retreat route toward its Command Hub while it continues firing at enemies within range. New Collectors begin unassigned, are produced through the normal Assembly Bay queue, and can be manually routed with a two-step source-then-refinery order.
 
 ### Technology and repairs
 
@@ -355,6 +357,7 @@ Initial event types:
 
 - ResourceCollected.
 - ResourceDelivered.
+- `CollectorStorageFull` and `CollectorStorageResumed`.
 - CollectorAssigned.
 - CollectorRetreating.
 - `UnitDamaged`.

@@ -197,6 +197,7 @@ static func populate(unit_definitions: Dictionary, building_definitions: Diction
 	refinery.cost = 250
 	refinery.build_time = 4.5
 	refinery.max_health = 900.0
+	refinery.storage_capacity = 2000.0
 	refinery.vision_range = 15.0
 	refinery.footprint = Vector2(3.5, 3.5)
 	refinery.produces_income = 0.0
@@ -242,6 +243,7 @@ static func populate(unit_definitions: Dictionary, building_definitions: Diction
 	silo.cost = 150
 	silo.build_time = 3.5
 	silo.max_health = 600.0
+	silo.storage_capacity = 2000.0
 	silo.vision_range = 10.0
 	silo.footprint = Vector2(2.4, 2.4)
 	silo.build_source_kind = "refinery"

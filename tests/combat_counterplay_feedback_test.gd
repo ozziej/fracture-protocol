@@ -67,6 +67,7 @@ func _initialize() -> void:
 		"ai_intent": "secure_then_assault",
 	})
 	main._hide_objective_briefing()
+	main._on_game_log_toggled(true)
 	main._on_simulation_event("LauncherThreatWarning", {
 		"tick": 5,
 		"message": "Bulwark launched a missile at Ranger — spread out, flank, or break its range.",

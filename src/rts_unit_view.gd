@@ -78,38 +78,12 @@ func sync(data: Dictionary, selected: bool, frame_delta: float = 0.0) -> void:
 		cargo_back.visible = kind == "collector"
 		cargo_front.visible = kind == "collector"
 		_set_progress_bar(cargo_front, cargo_ratio, 1.58, 1.42)
-	var supply_state: String = str(data.get("supply_state", "connected"))
-	var order: String = str(data.get("order", "idle"))
-	var label_text: String = data["display_name"]
-	if order != "idle":
-		label_text += "\n" + order.replace("_", "-").to_upper()
-	var queued_waypoint_count: int = data.get("command_waypoints", []).size()
-	if queued_waypoint_count > 0:
-		label_text += "\nQUEUE " + str(queued_waypoint_count)
-	if supply_state == "unsupplied":
-		label_text += "\n! UNSUPPLIED"
-	if under_fire:
-		label_text += "\n! UNDER FIRE"
-	var collector_state: String = str(data.get("collector_state", ""))
-	if not collector_state.is_empty():
-		var collector_route_label := collector_state.replace("_", "-").to_upper()
-		if collector_state == "to_source":
-			collector_route_label = "SOURCE " + str(data.get("collector_source_name", ""))
-		elif collector_state == "to_destination":
-			collector_route_label = "TO " + str(data.get("collector_destination_name", ""))
-		elif collector_state == "retreating":
-			collector_route_label = "RETREAT TO BASE"
-		elif collector_state == "loading":
-			collector_route_label = "RECOVERING ENERGY"
-		elif collector_state == "unloading":
-			collector_route_label = "DEPOSITING ENERGY"
-		elif collector_state == "awaiting_source":
-			collector_route_label = "WAITING FOR NEARBY FIELD"
-		label_text += "\n" + collector_route_label
-		if float(data.get("collector_capacity", 0.0)) > 0.0:
-			label_text += " %d/%d" % [int(data.get("collector_cargo", 0.0)), int(data.get("collector_capacity", 0.0))]
-	name_label.text = label_text
-	name_label.modulate = Color("#ffbf6a") if supply_state == "unsupplied" else _team_palette(team).lightened(0.45)
+	# Authored GLB silhouettes carry unit identity in the battlefield. Keep the
+	# name node available for compatibility with view tooling, but do not render
+	# persistent unit names; identity and detailed state live in the selected
+	# entity card instead.
+	name_label.visible = false
+	name_label.text = ""
 	_update_order_marker(data, selected)
 
 
@@ -359,12 +333,13 @@ func _build_visuals() -> void:
 
 	name_label = Label3D.new()
 	name_label.position = Vector3(0.0, definition_height + 0.76, 0.0)
-	name_label.font_size = 32
+	name_label.font_size = 42
 	name_label.modulate = palette.lightened(0.45)
 	name_label.outline_size = 8
 	name_label.outline_modulate = Color(0.01, 0.02, 0.04, 0.9)
 	name_label.billboard = BaseMaterial3D.BILLBOARD_DISABLED
 	name_label.no_depth_test = true
+	name_label.visible = false
 	status_billboard.add_child(name_label)
 	under_fire_marker = Label3D.new()
 	under_fire_marker.name = "UnderFireMarker"

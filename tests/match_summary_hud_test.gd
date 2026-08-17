@@ -61,6 +61,5 @@ func _test_hud_and_result_panel(failures: Array[String]) -> void:
 	if main.match_time_label == null or main.match_time_label.text.find("TIME") < 0:
 		failures.append("top HUD should show the live match timer")
 	main._show_match_result("MatchWon", {"message": "Network held for 90 seconds."})
-	if main.result_summary_label == null or main.result_summary_label.text.find("MATCH TIME") < 0 or main.result_summary_label.text.find("FORCE LOST") < 0:
+	if main.result_summary_label == null or main.result_summary_label.text.find("TIME") < 0 or main.result_summary_label.text.find("LOSSES") < 0:
 		failures.append("match result should show a compact statistical summary")
-

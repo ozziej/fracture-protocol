@@ -116,6 +116,7 @@ func update() -> void:
 	_update_phase()
 	_manage_repairs()
 	_manage_collectors()
+	_manage_storage_capacity()
 	_manage_research()
 	_manage_technology_construction()
 	_manage_relay()
@@ -388,6 +389,41 @@ func _manage_collectors() -> void:
 			simulation.issue_command("assign_collector", "enemy", {"collector_id": entity_id, "source_id": collector_source_id, "destination_id": refinery_id})
 	if collector_count == 0 and not collector_source_id.is_empty() and simulation.enemy_credits >= simulation.unit_definitions["collector"].cost and not simulation._production_queue_contains(refinery_id, "collector"):
 		simulation.issue_command("produce", "enemy", {"building_id": refinery_id, "unit_type": "collector"})
+
+
+func _manage_storage_capacity() -> void:
+	if not simulation.is_level_allowed("allowed_buildings", "storage_silo"):
+		return
+	var refinery_id: String = simulation._first_building_for_team("enemy", "refinery")
+	if refinery_id.is_empty() or not bool(simulation.buildings[refinery_id].get("complete", false)):
+		return
+	var storage: Dictionary = simulation.get_storage_summary("enemy")
+	if not bool(storage.get("full", false)):
+		return
+	for building_id in simulation.buildings:
+		var existing: Dictionary = simulation.buildings[building_id]
+		if existing["team"] == "enemy" and existing["kind"] == "storage_silo" and not bool(existing.get("complete", false)):
+			return
+	var silo_definition = simulation.building_definitions["storage_silo"]
+	if simulation.enemy_credits < silo_definition.cost:
+		return
+	var refinery_position: Vector3 = simulation.buildings[refinery_id]["position"]
+	var candidate_positions: Array = [
+		refinery_position + Vector3(5.5, 0.0, 0.0),
+		refinery_position + Vector3(-5.5, 0.0, 0.0),
+		refinery_position + Vector3(0.0, 0.0, 5.5),
+		refinery_position + Vector3(0.0, 0.0, -5.5),
+	]
+	for candidate in candidate_positions:
+		var position: Vector3 = candidate
+		var placement: Dictionary = simulation.get_build_placement_status("enemy", "storage_silo", position, refinery_id)
+		if bool(placement.get("valid", false)):
+			simulation.issue_command("build", "enemy", {
+				"building_type": "storage_silo",
+				"position": position,
+				"source_building_id": refinery_id,
+			})
+			return
 
 
 func _available_collector_source(preferred_id: String, origin: Vector3) -> String:

@@ -1994,7 +1994,7 @@
             "wave_count": 5,
             "wave_units": ["raider", "raider"],
             "wave_unit_sets": [["raider", "raider", "raider"], ["raider", "raider", "raider", "raider"], ["raider", "raider", "warden", "raider"], ["raider", "warden", "raider", "bulwark"], ["raider", "raider", "warden", "bulwark", "raider", "raider"]],
-            "wave_spawn_position": {"x": 96, "y": 0, "z": -58},
+            "wave_spawn_position": {"x": 122, "y": 0, "z": -54},
             "target_position": {"x": 0, "y": 0, "z": 0},
             "description": "Capture Central Relay and keep the connected network online. If the relay is contested, progress decays while the counter-offensive closes in.",
             "completion_message": "Central Relay held. The Frontier network has been severed.",
@@ -2058,6 +2058,271 @@
       "allowed_buildings": ["refinery", "assembly_bay", "tech_centre", "storage_silo", "relay", "sensor_mast", "bastion_turret", "fire_support_battery"],
       "allowed_player_buildings": ["refinery", "assembly_bay", "tech_centre", "storage_silo", "relay", "sensor_mast", "bastion_turret", "fire_support_battery"],
       "allowed_enemy_buildings": ["refinery", "assembly_bay", "tech_centre", "storage_silo", "relay"],
+      "allowed_player_units": ["ranger", "warden", "bulwark", "collector"],
+      "allowed_enemy_units": ["raider", "bulwark", "collector"]
+    },
+    "counterstroke": {
+      "base_map_id": "relay_crossroads_base",
+      "faction_ids": {"player": "coalition", "enemy": "frontier"},
+      "display_name": "Mission 7 — Counterstroke",
+      "briefing": "The Frontier's relay anchor is exposed. Break the forward guard, seize Central Relay long enough to open the breach, then destroy the enemy command hub before the counter-offensive can regroup.",
+      "objectives": {"first_staging_point_id": "central_relay"},
+      "rules": {
+        "max_queue": 5,
+        "fog_tile_size": 8.0,
+        "max_units_total": 32,
+        "max_buildings_total": 14,
+        "max_buildings_by_kind": {"command_hub": 1, "refinery": 2, "assembly_bay": 2, "tech_centre": 1, "storage_silo": 2, "relay": 8, "sensor_mast": 3, "bastion_turret": 4, "fire_support_battery": 2},
+        "upgrades_enabled": true,
+        "allowed_upgrades": ["refining_efficiency", "fabrication_systems", "hardened_chassis", "field_optics", "breach_package"],
+        "allowed_technologies": ["advanced_targeting", "hardened_chassis", "field_optics", "breach_package"]
+      },
+      "campaign_mission": {
+        "id": "counterstroke",
+        "display_name": "COUNTERSTROKE",
+        "briefing": "Break the forward guard, hold Central Relay to open the breach, then destroy the Frontier command hub.",
+        "ignore_hq_victory": true,
+        "scripted_ai": true,
+        "doctrine_variants": {
+          "logistics": {
+            "briefing_suffix": "FIELD RESERVE — the extra Storage Silo and Collector keep the breakthrough funded.",
+            "effect_summary": "+250 credits, Storage Silo, and Collector route",
+            "starting_credits_bonus": 250,
+            "starting_buildings": [{"id": "counter_logistics_silo", "kind": "storage_silo", "position": {"x": -82, "y": 0, "z": 68}, "mission_role": "doctrine_package"}],
+            "starting_units": [{"id": "counter_logistics_collector", "kind": "collector", "position": {"x": -76, "y": 0, "z": 68}, "source_id": "north_field", "destination_id": "counter_player_refinery", "home_id": "counter_player_hq", "mission_role": "doctrine_package"}],
+            "phase_overrides": {"hold_central_relay": {"duration_ticks": 420}}
+          },
+          "armoured": {
+            "briefing_suffix": "ARMOURED SPEARHEAD — an additional Warden is ready for the breach.",
+            "effect_summary": "+100 credits and an additional Warden",
+            "starting_credits_bonus": 100,
+            "starting_units": [{"id": "counter_armoured_warden", "kind": "warden", "position": {"x": -80, "y": 0, "z": 42}, "mission_role": "doctrine_package"}]
+          },
+          "recon": {
+            "briefing_suffix": "RECON NETWORK — the forward Sensor Mast gives the assault a longer warning window.",
+            "effect_summary": "Sensor Mast and slower scripted assault intervals",
+            "starting_buildings": [{"id": "counter_recon_sensor", "kind": "sensor_mast", "position": {"x": -78, "y": 0, "z": 40}, "mission_role": "doctrine_package"}],
+            "phase_overrides": {"hold_central_relay": {"wave_delay_ticks": 120, "wave_interval_ticks": 195}}
+          }
+        },
+        "phases": [
+          {
+            "id": "destroy_forward_guard",
+            "display_name": "BREAK FORWARD GUARD",
+            "type": "destroy_targets",
+            "target_ids": ["counter_enemy_sensor", "counter_enemy_assembly"],
+            "description": "Destroy the Frontier sensor and forward Assembly Bay guarding the approach to Central Relay.",
+            "completion_message": "Forward guard broken. Central Relay is the breach point."
+          },
+          {
+            "id": "hold_central_relay",
+            "display_name": "OPEN THE BREACH",
+            "type": "network_hold",
+            "target_ids": ["central_relay"],
+            "owner": "player",
+            "require_connected": true,
+            "duration_ticks": 540,
+            "offline_decay_ticks": 5,
+            "wave_delay_ticks": 75,
+            "wave_interval_ticks": 150,
+            "wave_count": 4,
+            "wave_units": ["raider", "raider"],
+            "wave_unit_sets": [["raider", "raider", "raider"], ["raider", "raider", "bulwark", "raider"], ["raider", "bulwark", "raider", "raider"], ["raider", "raider", "bulwark", "bulwark", "raider"]],
+            "wave_spawn_position": {"x": 122, "y": 0, "z": -54},
+            "target_position": {"x": 0, "y": 0, "z": 0},
+            "description": "Capture Central Relay and keep the connected network online while the Frontier launches its reserve force.",
+            "completion_message": "The breach is open. Push through to the Frontier command hub.",
+            "failure_message": "The breach collapsed before the relay network could stabilize."
+          },
+          {
+            "id": "destroy_command_hub",
+            "display_name": "DESTROY COMMAND HUB",
+            "type": "destroy_targets",
+            "target_ids": ["counter_enemy_hq"],
+            "description": "Finish the breakthrough by destroying the Frontier command hub.",
+            "completion_message": "Counterstroke complete. The Frontier anchor is down."
+          }
+        ],
+        "completion_flags": ["counterstroke_complete"]
+      },
+      "spawns": {
+        "player": {
+          "buildings": [
+            {"id": "counter_player_hq", "kind": "command_hub", "position": {"x": -96, "y": 0, "z": 58}},
+            {"id": "counter_player_refinery", "kind": "refinery", "position": {"x": -86, "y": 0, "z": 58}},
+            {"id": "counter_player_assembly", "kind": "assembly_bay", "position": {"x": -96, "y": 0, "z": 46}},
+            {"id": "counter_player_relay_1", "kind": "relay", "position": {"x": -80, "y": 0, "z": 50}, "mission_role": "connected_chain"},
+            {"id": "counter_player_relay_2", "kind": "relay", "position": {"x": -67, "y": 0, "z": 37}, "mission_role": "connected_chain"},
+            {"id": "counter_player_relay_3", "kind": "relay", "position": {"x": -54, "y": 0, "z": 24}, "mission_role": "connected_chain"},
+            {"id": "counter_player_relay_4", "kind": "relay", "position": {"x": -40, "y": 0, "z": 12}, "mission_role": "connected_chain"},
+            {"id": "counter_player_relay_5", "kind": "relay", "position": {"x": -24, "y": 0, "z": 4}, "mission_role": "connected_chain"}
+          ],
+          "units": [
+            {"id": "counter_player_ranger", "kind": "ranger", "position": {"x": -84, "y": 0, "z": 46}},
+            {"id": "counter_player_warden", "kind": "warden", "position": {"x": -88, "y": 0, "z": 42}},
+            {"id": "counter_player_bulwark", "kind": "bulwark", "position": {"x": -84, "y": 0, "z": 40}},
+            {"id": "counter_player_collector", "kind": "collector", "position": {"x": -76, "y": 0, "z": 62}, "source_id": "north_field", "destination_id": "counter_player_refinery", "home_id": "counter_player_hq"}
+          ]
+        },
+        "enemy": {
+          "buildings": [
+            {"id": "counter_enemy_hq", "kind": "command_hub", "position": {"x": 96, "y": 0, "z": -58}},
+            {"id": "counter_enemy_refinery", "kind": "refinery", "position": {"x": 86, "y": 0, "z": -58}},
+            {"id": "counter_enemy_assembly", "kind": "assembly_bay", "position": {"x": 96, "y": 0, "z": -46}},
+            {"id": "counter_enemy_sensor", "kind": "sensor_mast", "position": {"x": 74, "y": 0, "z": -42}, "mission_target_id": "counter_enemy_sensor"}
+          ],
+          "units": [
+            {"id": "counter_enemy_raider_1", "kind": "raider", "position": {"x": 84, "y": 0, "z": -46}},
+            {"id": "counter_enemy_raider_2", "kind": "raider", "position": {"x": 88, "y": 0, "z": -42}},
+            {"id": "counter_enemy_bulwark", "kind": "bulwark", "position": {"x": 92, "y": 0, "z": -38}},
+            {"id": "counter_enemy_collector", "kind": "collector", "position": {"x": 86, "y": 0, "z": -58}, "source_id": "south_field", "destination_id": "counter_enemy_refinery", "home_id": "counter_enemy_hq"}
+          ]
+        }
+      },
+      "ai": {
+        "difficulty": "standard",
+        "intent": "counterstroke",
+        "intent_display_name": "BREAK THE BREACH",
+        "intent_message": "The Frontier will trade its forward guard for time, then throw reserves into Central Relay.",
+        "map_tactic": "breach_pressure",
+        "map_tactic_display_name": "BREACH PRESSURE",
+        "map_tactic_message": "The enemy guard protects the approach while scripted reserves contest the relay.",
+        "opening_attack_delay_ticks": 600,
+        "proactive_attack_delay_ticks": 240,
+        "minimum_attack_group_size": 3
+      },
+      "allowed_buildings": ["refinery", "assembly_bay", "tech_centre", "storage_silo", "relay", "sensor_mast", "bastion_turret", "fire_support_battery"],
+      "allowed_player_buildings": ["refinery", "assembly_bay", "tech_centre", "storage_silo", "relay", "sensor_mast", "bastion_turret", "fire_support_battery"],
+      "allowed_enemy_buildings": ["refinery", "assembly_bay", "sensor_mast", "relay"],
+      "allowed_player_units": ["ranger", "warden", "bulwark", "collector"],
+      "allowed_enemy_units": ["raider", "bulwark", "collector"]
+    },
+    "iron_front": {
+      "base_map_id": "relay_crossroads_base",
+      "faction_ids": {"player": "coalition", "enemy": "frontier"},
+      "display_name": "Mission 8 — Iron Front",
+      "briefing": "The Frontier has rebuilt around the Central Relay. Hold the connected network through a full assault, then launch the counterattack and remove the last command hub in the Crossroads.",
+      "objectives": {"first_staging_point_id": "central_relay"},
+      "rules": {
+        "max_queue": 6,
+        "fog_tile_size": 8.0,
+        "max_units_total": 36,
+        "max_buildings_total": 16,
+        "max_buildings_by_kind": {"command_hub": 1, "refinery": 2, "assembly_bay": 2, "tech_centre": 1, "storage_silo": 2, "relay": 8, "sensor_mast": 3, "bastion_turret": 4, "fire_support_battery": 2},
+        "upgrades_enabled": true,
+        "allowed_upgrades": ["refining_efficiency", "fabrication_systems", "hardened_chassis", "field_optics", "breach_package"],
+        "allowed_technologies": ["advanced_targeting", "hardened_chassis", "field_optics", "breach_package"]
+      },
+      "campaign_mission": {
+        "id": "iron_front",
+        "display_name": "IRON FRONT",
+        "briefing": "Hold Central Relay through the full assault, then destroy the final Frontier command hub.",
+        "ignore_hq_victory": true,
+        "scripted_ai": true,
+        "doctrine_variants": {
+          "logistics": {
+            "briefing_suffix": "FIELD RESERVE — the second storage route supports a longer defence and a faster counterattack.",
+            "effect_summary": "+250 credits, Storage Silo, and Collector route",
+            "starting_credits_bonus": 250,
+            "starting_buildings": [{"id": "iron_logistics_silo", "kind": "storage_silo", "position": {"x": -82, "y": 0, "z": 68}, "mission_role": "doctrine_package"}],
+            "starting_units": [{"id": "iron_logistics_collector", "kind": "collector", "position": {"x": -76, "y": 0, "z": 68}, "source_id": "north_field", "destination_id": "iron_player_refinery", "home_id": "iron_player_hq", "mission_role": "doctrine_package"}],
+            "phase_overrides": {"hold_network": {"duration_ticks": 900}}
+          },
+          "armoured": {
+            "briefing_suffix": "ARMOURED SPEARHEAD — the extra Warden is held back for the counterattack phase.",
+            "effect_summary": "+100 credits and an additional Warden",
+            "starting_credits_bonus": 100,
+            "starting_units": [{"id": "iron_armoured_warden", "kind": "warden", "position": {"x": -80, "y": 0, "z": 42}, "mission_role": "doctrine_package"}],
+            "phase_overrides": {"hold_network": {"wave_unit_sets": [["raider", "raider", "raider"], ["raider", "bulwark", "raider", "raider"], ["raider", "raider", "bulwark", "raider", "raider"], ["bulwark", "raider", "bulwark", "raider"], ["raider", "bulwark", "raider", "raider", "bulwark"], ["raider", "raider", "bulwark", "bulwark", "raider"]]}}
+          },
+          "recon": {
+            "briefing_suffix": "RECON NETWORK — the Sensor Mast buys time before each assault wave reaches the chain.",
+            "effect_summary": "Sensor Mast and slower scripted assault intervals",
+            "starting_buildings": [{"id": "iron_recon_sensor", "kind": "sensor_mast", "position": {"x": -78, "y": 0, "z": 40}, "mission_role": "doctrine_package"}],
+            "phase_overrides": {"hold_network": {"wave_delay_ticks": 120, "wave_interval_ticks": 195}}
+          }
+        },
+        "phases": [
+          {
+            "id": "hold_network",
+            "display_name": "HOLD THE NETWORK",
+            "type": "network_hold",
+            "target_ids": ["central_relay"],
+            "owner": "player",
+            "require_connected": true,
+            "duration_ticks": 780,
+            "offline_decay_ticks": 6,
+            "wave_delay_ticks": 75,
+            "wave_interval_ticks": 165,
+            "wave_count": 6,
+            "wave_units": ["raider", "raider"],
+            "wave_unit_sets": [["raider", "raider", "raider"], ["raider", "raider", "bulwark", "raider"], ["raider", "bulwark", "raider", "raider"], ["raider", "raider", "bulwark", "bulwark", "raider"], ["bulwark", "raider", "raider", "bulwark", "raider"], ["raider", "bulwark", "raider", "raider", "bulwark", "raider"]],
+            "wave_spawn_position": {"x": 122, "y": 0, "z": -54},
+            "target_position": {"x": 0, "y": 0, "z": 0},
+            "description": "Keep Central Relay captured and connected while six assault waves try to sever the line.",
+            "completion_message": "Iron Front held. Launch the counterattack while the Frontier is disorganized.",
+            "failure_message": "The Central Relay network collapsed under the assault."
+          },
+          {
+            "id": "destroy_final_hub",
+            "display_name": "END THE COUNTER-OFFENSIVE",
+            "type": "destroy_targets",
+            "target_ids": ["iron_enemy_hq"],
+            "description": "Push through the exhausted Frontier line and destroy its final command hub.",
+            "completion_message": "Iron Front complete. The Central Relay network is secure."
+          }
+        ],
+        "completion_flags": ["iron_front_complete"]
+      },
+      "spawns": {
+        "player": {
+          "buildings": [
+            {"id": "iron_player_hq", "kind": "command_hub", "position": {"x": -96, "y": 0, "z": 58}},
+            {"id": "iron_player_refinery", "kind": "refinery", "position": {"x": -86, "y": 0, "z": 58}},
+            {"id": "iron_player_assembly", "kind": "assembly_bay", "position": {"x": -96, "y": 0, "z": 46}},
+            {"id": "iron_player_relay_1", "kind": "relay", "position": {"x": -80, "y": 0, "z": 50}, "mission_role": "connected_chain"},
+            {"id": "iron_player_relay_2", "kind": "relay", "position": {"x": -67, "y": 0, "z": 37}, "mission_role": "connected_chain"},
+            {"id": "iron_player_relay_3", "kind": "relay", "position": {"x": -54, "y": 0, "z": 24}, "mission_role": "connected_chain"},
+            {"id": "iron_player_relay_4", "kind": "relay", "position": {"x": -40, "y": 0, "z": 12}, "mission_role": "connected_chain"},
+            {"id": "iron_player_relay_5", "kind": "relay", "position": {"x": -24, "y": 0, "z": 4}, "mission_role": "connected_chain"}
+          ],
+          "units": [
+            {"id": "iron_player_ranger", "kind": "ranger", "position": {"x": -84, "y": 0, "z": 46}},
+            {"id": "iron_player_warden", "kind": "warden", "position": {"x": -88, "y": 0, "z": 42}},
+            {"id": "iron_player_bulwark", "kind": "bulwark", "position": {"x": -84, "y": 0, "z": 40}},
+            {"id": "iron_player_collector", "kind": "collector", "position": {"x": -76, "y": 0, "z": 62}, "source_id": "north_field", "destination_id": "iron_player_refinery", "home_id": "iron_player_hq"}
+          ]
+        },
+        "enemy": {
+          "buildings": [
+            {"id": "iron_enemy_hq", "kind": "command_hub", "position": {"x": 96, "y": 0, "z": -58}},
+            {"id": "iron_enemy_refinery", "kind": "refinery", "position": {"x": 86, "y": 0, "z": -58}},
+            {"id": "iron_enemy_assembly", "kind": "assembly_bay", "position": {"x": 96, "y": 0, "z": -46}},
+            {"id": "iron_enemy_sensor", "kind": "sensor_mast", "position": {"x": 74, "y": 0, "z": -42}}
+          ],
+          "units": [
+            {"id": "iron_enemy_raider_1", "kind": "raider", "position": {"x": 84, "y": 0, "z": -46}},
+            {"id": "iron_enemy_raider_2", "kind": "raider", "position": {"x": 88, "y": 0, "z": -42}},
+            {"id": "iron_enemy_bulwark", "kind": "bulwark", "position": {"x": 92, "y": 0, "z": -38}},
+            {"id": "iron_enemy_collector", "kind": "collector", "position": {"x": 86, "y": 0, "z": -58}, "source_id": "south_field", "destination_id": "iron_enemy_refinery", "home_id": "iron_enemy_hq"}
+          ]
+        }
+      },
+      "ai": {
+        "difficulty": "standard",
+        "intent": "iron_front",
+        "intent_display_name": "SEVER THE NETWORK",
+        "intent_message": "The Frontier will throw repeated armoured waves at Central Relay before defending its final hub.",
+        "map_tactic": "relay_siege",
+        "map_tactic_display_name": "RELAY SIEGE",
+        "map_tactic_message": "The enemy assault is committed to severing the connected relay chain.",
+        "opening_attack_delay_ticks": 480,
+        "proactive_attack_delay_ticks": 180,
+        "minimum_attack_group_size": 3
+      },
+      "allowed_buildings": ["refinery", "assembly_bay", "tech_centre", "storage_silo", "relay", "sensor_mast", "bastion_turret", "fire_support_battery"],
+      "allowed_player_buildings": ["refinery", "assembly_bay", "tech_centre", "storage_silo", "relay", "sensor_mast", "bastion_turret", "fire_support_battery"],
+      "allowed_enemy_buildings": ["refinery", "assembly_bay", "sensor_mast", "relay"],
       "allowed_player_units": ["ranger", "warden", "bulwark", "collector"],
       "allowed_enemy_units": ["raider", "bulwark", "collector"]
     }

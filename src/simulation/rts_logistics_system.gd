@@ -75,9 +75,13 @@ func update_economy() -> void:
 	simulation._economy_timer -= 1.0
 	var player_income: float = simulation._income_for_team("player")
 	var enemy_income: float = simulation._income_for_team("enemy")
-	simulation.player_credits += player_income
-	simulation.enemy_credits += enemy_income
-	simulation._emit_event("ResourceChanged", {"team": "player", "amount": player_income, "total": simulation.player_credits})
+	var player_before: float = simulation.player_credits
+	var enemy_before: float = simulation.enemy_credits
+	simulation._set_credits("player", player_before + player_income)
+	simulation._set_credits("enemy", enemy_before + enemy_income)
+	var player_delta: float = maxf(0.0, simulation.player_credits - player_before)
+	if player_delta > simulation.RESOURCE_EPSILON:
+		simulation._emit_event("ResourceChanged", {"team": "player", "amount": player_delta, "total": simulation.player_credits})
 
 
 func update_supply_states() -> void:

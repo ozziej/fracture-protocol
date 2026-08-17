@@ -52,6 +52,7 @@ func configure(level_definition: Dictionary) -> bool:
 		return false
 	definition = authored.duplicate(true)
 	phases = definition.get("phases", []).duplicate(true)
+	_apply_doctrine_variant()
 	if phases.is_empty():
 		return false
 	active = true
@@ -157,6 +158,7 @@ func get_result() -> Dictionary:
 		"alarm_ticks": alarm_ticks,
 		"completion_flags": definition.get("completion_flags", []).duplicate(),
 		"forward_base_established": _find_deployed_forward_base() != "",
+		"doctrine_id": simulation.get_campaign_doctrine_id(),
 	}
 
 
@@ -225,7 +227,30 @@ func get_state() -> Dictionary:
 		"forward_base_id": _find_deployed_forward_base(),
 		"winner": winner,
 		"result_reason": result_reason,
+		"doctrine_id": simulation.get_campaign_doctrine_id(),
+		"doctrine_display_name": str(simulation.get_campaign_doctrine_state().get("display_name", "")),
 	}
+
+
+func _apply_doctrine_variant() -> void:
+	var doctrine_id: String = simulation.get_campaign_doctrine_id()
+	if doctrine_id.is_empty():
+		return
+	var variants: Dictionary = definition.get("doctrine_variants", {})
+	var variant: Dictionary = variants.get(doctrine_id, {})
+	if variant.is_empty():
+		return
+	var suffix := str(variant.get("briefing_suffix", ""))
+	if not suffix.is_empty():
+		definition["briefing"] = "%s\n\nDOCTRINE PACKAGE  //  %s" % [str(definition.get("briefing", "")), suffix]
+	var phase_overrides: Dictionary = variant.get("phase_overrides", {})
+	for index in phases.size():
+		var phase: Dictionary = phases[index]
+		var phase_id := str(phase.get("id", "phase_%d" % index))
+		var override: Dictionary = phase_overrides.get(phase_id, {})
+		for key in override:
+			phase[key] = override[key]
+		phases[index] = phase
 
 
 func uses_hq_victory() -> bool:
@@ -565,7 +590,7 @@ func _spawn_network_wave(phase: Dictionary) -> void:
 		spawned.append(unit_id)
 	if not spawned.is_empty():
 		simulation.issue_command("attack_move", "enemy", {"entity_ids": spawned, "position": target_position})
-		simulation._emit_event("CampaignNetworkWaveStarted", {"team": "enemy", "wave": wave_index + 1, "unit_count": spawned.size(), "message": "COUNTER-OFFENSIVE WAVE %d — keep the Central Relay online." % (wave_index + 1)})
+		simulation._emit_event("CampaignNetworkWaveStarted", {"team": "enemy", "wave": wave_index + 1, "unit_count": spawned.size(), "spawn_type": "scripted_reserve", "spawn_position": spawn_position, "message": "FRONTIER RESERVE WAVE %d ENTERED FROM THE EASTERN APPROACH — keep the Central Relay online." % (wave_index + 1)})
 	wave_index += 1
 	next_wave_tick = simulation.current_tick + max(1, int(phase.get("wave_interval_ticks", 180)))
 
@@ -586,7 +611,7 @@ func _spawn_defence_wave(phase: Dictionary, base_id: String) -> void:
 		spawned.append(unit_id)
 	if not spawned.is_empty():
 		simulation.issue_command("attack_move", "enemy", {"entity_ids": spawned, "position": target_position})
-		simulation._emit_event("CampaignDefenceWaveStarted", {"team": "enemy", "wave": wave_index + 1, "unit_count": spawned.size(), "message": "ASSAULT WAVE %d — protect the Forward Base." % (wave_index + 1)})
+		simulation._emit_event("CampaignDefenceWaveStarted", {"team": "enemy", "wave": wave_index + 1, "unit_count": spawned.size(), "spawn_type": "scripted_reserve", "spawn_position": spawn_position, "message": "FRONTIER ASSAULT WAVE %d ENTERED FROM THE NORTHERN APPROACH — protect the Forward Base." % (wave_index + 1)})
 	wave_index += 1
 	next_wave_tick = simulation.current_tick + max(1, int(phase.get("wave_interval_ticks", 180)))
 

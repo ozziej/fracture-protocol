@@ -3,15 +3,20 @@ extends RefCounted
 
 const DATA_PATH := "res://data/campaign_data.json"
 const SAVE_PATH := "user://campaign_progress.json"
+const CURRENT_SCHEMA_VERSION := 3
 
 var campaign_data: Dictionary = {}
 var progress: Dictionary = {
-	"schema_version": 2,
+	"schema_version": CURRENT_SCHEMA_VERSION,
 	"completed": [],
 	"unlocked": ["relay_divide"],
 	"flags": {},
 	"results": {},
 	"unlocked_content": {"units": ["ranger", "collector"], "buildings": ["refinery", "assembly_bay", "storage_silo"], "technologies": []},
+	"doctrine_unlocked": false,
+	"doctrine_id": "",
+	"doctrine_history": [],
+	"doctrine_choices": {},
 }
 var save_path := SAVE_PATH
 
@@ -28,7 +33,7 @@ func is_unlocked(level_id: String) -> bool:
 
 
 func mark_complete(level_id: String, outcome: Dictionary = {}) -> String:
-	var completed: Array = progress.get("completed", [])
+	var completed: Array = progress.get("completed", []).duplicate()
 	var first_completion := not level_id in completed
 	if first_completion:
 		completed.append(level_id)
@@ -37,6 +42,7 @@ func mark_complete(level_id: String, outcome: Dictionary = {}) -> String:
 	var stored_outcome := outcome.duplicate(true)
 	if first_completion:
 		stored_outcome["rewards_granted"] = _grant_rewards(level_id)
+	stored_outcome["doctrine_id"] = get_doctrine_id()
 	results[level_id] = stored_outcome
 	progress["results"] = results
 	var flags: Dictionary = progress.get("flags", {})
@@ -57,6 +63,75 @@ func mark_complete(level_id: String, outcome: Dictionary = {}) -> String:
 			var next_id := str(mission.get("unlock_on_complete", ""))
 			return next_id if next_id in unlocked else ""
 	return ""
+
+
+func get_doctrines() -> Array:
+	return campaign_data.get("doctrines", []).duplicate(true)
+
+
+func get_doctrine(doctrine_id: String) -> Dictionary:
+	for doctrine_value in campaign_data.get("doctrines", []):
+		var doctrine: Dictionary = doctrine_value
+		if str(doctrine.get("id", "")) == doctrine_id:
+			return doctrine.duplicate(true)
+	return {}
+
+
+func get_doctrine_id() -> String:
+	return str(progress.get("doctrine_id", ""))
+
+
+func get_doctrine_state() -> Dictionary:
+	var doctrine_id := get_doctrine_id()
+	var doctrine := get_doctrine(doctrine_id)
+	return {
+		"id": doctrine_id,
+		"display_name": str(doctrine.get("display_name", "")),
+		"summary": str(doctrine.get("summary", "")),
+		"reward_text": str(doctrine.get("reward_text", "")),
+		"history": progress.get("doctrine_history", []).duplicate(true),
+		"choice_unlocked": bool(progress.get("doctrine_unlocked", false)),
+	}
+
+
+func is_doctrine_choice_unlocked() -> bool:
+	return bool(progress.get("doctrine_unlocked", false))
+
+
+func mission_requires_doctrine(level_id: String) -> bool:
+	return bool(get_mission(level_id).get("requires_doctrine", false))
+
+
+func choose_doctrine(doctrine_id: String, source_mission_id := "") -> Dictionary:
+	var doctrine := get_doctrine(doctrine_id)
+	if doctrine.is_empty():
+		return {"valid": false, "reason": "Unknown doctrine package."}
+	if not is_doctrine_choice_unlocked():
+		return {"valid": false, "reason": "Complete Network Sever to unlock a campaign doctrine."}
+	var current_id := get_doctrine_id()
+	if not current_id.is_empty() and current_id != doctrine_id:
+		return {"valid": false, "reason": "Doctrine package already selected for this campaign."}
+	if current_id == doctrine_id:
+		return {"valid": true, "already_selected": true, "doctrine_id": doctrine_id}
+	progress["doctrine_id"] = doctrine_id
+	var choices: Dictionary = progress.get("doctrine_choices", {})
+	var choice_key := source_mission_id if not source_mission_id.is_empty() else "campaign"
+	choices[choice_key] = doctrine_id
+	progress["doctrine_choices"] = choices
+	var history: Array = progress.get("doctrine_history", []).duplicate(true)
+	history.append({"mission_id": choice_key, "doctrine_id": doctrine_id})
+	progress["doctrine_history"] = history
+	var flags: Dictionary = progress.get("flags", {})
+	flags["doctrine_selected"] = true
+	progress["flags"] = flags
+	_save_progress()
+	return {
+		"valid": true,
+		"already_selected": false,
+		"doctrine_id": doctrine_id,
+		"display_name": str(doctrine.get("display_name", doctrine_id)),
+		"reward_text": str(doctrine.get("reward_text", "")),
+	}
 
 
 func get_missions() -> Array:
@@ -92,6 +167,10 @@ func get_progress_summary() -> Dictionary:
 		"completed": progress.get("completed", []).duplicate(),
 		"unlocked": progress.get("unlocked", []).duplicate(),
 		"unlocked_content": progress.get("unlocked_content", {}).duplicate(true),
+		"schema_version": int(progress.get("schema_version", CURRENT_SCHEMA_VERSION)),
+		"doctrine_unlocked": bool(progress.get("doctrine_unlocked", false)),
+		"doctrine_id": get_doctrine_id(),
+		"doctrine_history": progress.get("doctrine_history", []).duplicate(true),
 	}
 
 
@@ -127,6 +206,14 @@ func _load_progress() -> void:
 		progress["results"] = {}
 	if not progress.has("unlocked_content"):
 		progress["unlocked_content"] = campaign_data.get("initial_content", {"units": ["ranger", "collector"], "buildings": ["refinery", "assembly_bay", "storage_silo"], "technologies": []}).duplicate(true)
+	if not progress.has("doctrine_unlocked"):
+		progress["doctrine_unlocked"] = false
+	if not progress.has("doctrine_id"):
+		progress["doctrine_id"] = ""
+	if not progress.has("doctrine_history"):
+		progress["doctrine_history"] = []
+	if not progress.has("doctrine_choices"):
+		progress["doctrine_choices"] = {}
 	for category in ["units", "buildings", "technologies"]:
 		if not progress["unlocked_content"].has(category):
 			progress["unlocked_content"][category] = []
@@ -137,10 +224,12 @@ func _load_progress() -> void:
 			progress["unlocked"].append(mission_id)
 	if not "relay_divide" in progress["unlocked"]:
 		progress["unlocked"].append("relay_divide")
-	# Migrate a pre-reward save without changing its completed mission history.
+	# Migrate pre-reward and pre-doctrine saves without changing completed mission history.
 	for completed_id in progress.get("completed", []):
 		_grant_rewards(str(completed_id))
-	progress["schema_version"] = 2
+		_unlock_follow_on(str(completed_id))
+	progress["schema_version"] = CURRENT_SCHEMA_VERSION
+	_save_progress()
 
 
 func _save_progress() -> void:
@@ -151,7 +240,7 @@ func _save_progress() -> void:
 
 
 func _grant_rewards(level_id: String) -> Dictionary:
-	var granted := {"units": [], "buildings": [], "technologies": []}
+	var granted := {"units": [], "buildings": [], "technologies": [], "doctrine_choice": false}
 	var rewards: Dictionary = get_mission_rewards(level_id)
 	var unlocked_content: Dictionary = progress.get("unlocked_content", {})
 	for category in ["units", "buildings", "technologies"]:
@@ -164,4 +253,22 @@ func _grant_rewards(level_id: String) -> Dictionary:
 			granted[category].append(content_id)
 		unlocked_content[category] = owned
 	progress["unlocked_content"] = unlocked_content
+	if bool(rewards.get("doctrine_choice", false)):
+		progress["doctrine_unlocked"] = true
+		granted["doctrine_choice"] = true
 	return granted
+
+
+func _unlock_follow_on(level_id: String) -> String:
+	var unlocked: Array = progress.get("unlocked", []).duplicate()
+	for mission_value in campaign_data.get("missions", []):
+		var mission: Dictionary = mission_value
+		if str(mission.get("id", "")) != level_id:
+			continue
+		var next_id := str(mission.get("unlock_on_complete", ""))
+		if not next_id.is_empty() and not next_id in unlocked:
+			unlocked.append(next_id)
+		progress["unlocked"] = unlocked
+		return next_id
+	progress["unlocked"] = unlocked
+	return ""

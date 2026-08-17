@@ -16,8 +16,15 @@ func _initialize() -> void:
 		failures.append("Campaign deployment should provide a scrollable mission list")
 	if main_node.campaign_start_button == null or main_node.campaign_start_button.text != "START CAMPAIGN":
 		failures.append("Campaign deployment should expose a Start Campaign button")
+	if main_node.campaign_doctrine_option == null or main_node.campaign_doctrine_option.item_count != 4:
+		failures.append("Campaign deployment should expose the three doctrine packages plus its selection placeholder")
 	if str(main_node.campaign_mission_detail_label.text).find("UNITS AVAILABLE") < 0 or str(main_node.campaign_mission_detail_label.text).find("TIER") >= 0:
 		failures.append("Campaign selection should show a concise brief and units without tier duplication")
+	if str(main_node.campaign_mission_detail_label.text).find("DOCTRINE") < 0:
+		failures.append("Campaign selection should show the persistent doctrine reward state")
+	for level_id in ["counterstroke", "iron_front"]:
+		if not main_node.campaign_mission_buttons.has(level_id):
+			failures.append("Campaign deployment should expose the authored %s follow-on mission" % level_id)
 	for level_id in ["silent_recovery", "long_road", "holdfast"]:
 		main_node.simulation.start_match(level_id, "", {"mode": "campaign"})
 		main_node._clear_match_views()

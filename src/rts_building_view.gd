@@ -101,17 +101,20 @@ func sync(data: Dictionary, selected: bool) -> void:
 	name_label.position.y = occupied_height + 3.02
 	var health_ratio: float = clamp(float(data["health"]) / max(1.0, float(data["max_health"])), 0.0, 1.0)
 	_set_progress_bar(health_front, health_ratio, 2.9, 2.68)
+	# Buildings are identified by their authored silhouettes and only need a
+	# world label while selected, under construction, or under fire. This keeps
+	# the battlefield readable without removing important construction feedback.
+	var show_name_label := selected or not bool(data.get("complete", false)) or under_fire
+	name_label.visible = show_name_label
 	var label_text: String = data["display_name"] if data["complete"] else "CONSTRUCTING %d%%" % int(construction_progress * 100.0)
 	var research_id: String = str(data.get("research_id", ""))
-	if data["complete"] and not research_id.is_empty():
+	if show_name_label and data["complete"] and not research_id.is_empty():
 		var research_total: float = max(0.1, float(data.get("research_total", 0.0)))
 		var research_progress: float = clamp(1.0 - float(data.get("research_remaining", 0.0)) / research_total, 0.0, 1.0)
 		label_text += "\nRESEARCH %s %d%%" % [research_id.replace("_", "-").to_upper(), int(research_progress * 100.0)]
-	if under_fire:
-		label_text += "\n! UNDER FIRE"
-	if kind == "sensor_mast" and complete:
+	if show_name_label and kind == "sensor_mast" and complete and selected:
 		label_text += "\nVIEW RANGE %.0f" % vision_range
-	name_label.text = label_text
+	name_label.text = label_text if show_name_label else ""
 
 
 func flash_target() -> void:
@@ -369,12 +372,13 @@ func _build_visuals() -> void:
 
 	name_label = Label3D.new()
 	name_label.position = Vector3(0.0, body_size.y + 3.02, 0.0)
-	name_label.font_size = 36
+	name_label.font_size = 42
 	name_label.modulate = palette.lightened(0.45)
 	name_label.outline_size = 9
 	name_label.outline_modulate = Color(0.01, 0.02, 0.04, 0.9)
 	name_label.billboard = BaseMaterial3D.BILLBOARD_DISABLED
 	name_label.no_depth_test = true
+	name_label.visible = false
 	status_billboard.add_child(name_label)
 	under_fire_marker = Label3D.new()
 	under_fire_marker.name = "UnderFireMarker"

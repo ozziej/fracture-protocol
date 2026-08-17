@@ -12,7 +12,7 @@ func _initialize() -> void:
 	if main.audio_manager == null:
 		failures.append("Main should create the presentation audio manager")
 	else:
-		for sound_id in ["laser", "hit", "explosion", "heavy_impact", "mining", "repair", "ui_hover", "ui_click"]:
+		for sound_id in ["laser", "missile_launch", "hit", "explosion", "heavy_impact", "mining", "repair", "ui_hover", "ui_click"]:
 			if not main.audio_manager.has_sfx(sound_id):
 				failures.append("provided SFX should load: %s" % sound_id)
 		if AudioServer.get_bus_index("SFX") < 0 or AudioServer.get_bus_index("Music") < 0:
@@ -36,10 +36,18 @@ func _initialize() -> void:
 			failures.append("pause audio sliders should show their current percentages")
 
 	main._hide_pause_menu()
+	main.audio_manager.sfx_play_counts.clear()
+	main._on_simulation_event("BeamWeaponFired", {
+		"attacker_team": "player",
+		"launch_position": Vector3.ZERO,
+		"impact_position": Vector3(4.0, 0.0, 0.0),
+		"projectile_mode": "direct",
+	})
 	main._on_simulation_event("ProjectileLaunched", {
 		"attacker_team": "player",
 		"launch_position": Vector3.ZERO,
 		"impact_position": Vector3(4.0, 0.0, 0.0),
+		"projectile_mode": "arc_missile",
 	})
 	main._on_simulation_event("UnitDamaged", {
 		"team": "enemy",
@@ -55,9 +63,13 @@ func _initialize() -> void:
 	})
 	main._on_simulation_event("ResourceCollected", {"team": "player", "amount": 75.0})
 	main._on_simulation_event("RepairStarted", {"team": "player", "message": "Repair started."})
-	for sound_id in ["laser", "hit", "explosion", "mining", "repair"]:
+	for sound_id in ["laser", "missile_launch", "hit", "explosion", "mining", "repair"]:
 		if int(main.audio_manager.sfx_play_counts.get(sound_id, 0)) <= 0:
 			failures.append("simulation event should play the mapped %s SFX" % sound_id)
+	if int(main.audio_manager.sfx_play_counts.get("laser", 0)) != 1:
+		failures.append("beam fire should use the laser sound exactly once in the semantic mapping fixture")
+	if int(main.audio_manager.sfx_play_counts.get("missile_launch", 0)) != 1:
+		failures.append("missile launch should use its distinct launch sound exactly once")
 
 	main.queue_free()
 	await process_frame

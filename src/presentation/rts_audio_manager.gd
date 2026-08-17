@@ -6,6 +6,10 @@ extends Node
 
 const SFX_PATHS := {
 	"laser": "res://audio/sfx/laser.ogg",
+	# There is no dedicated missile-launch recording in the supplied pack. Use
+	# the heavier impact-plate sound as a restrained launch thunk and reserve the
+	# laser for direct beam fire.
+	"missile_launch": "res://audio/impactPlate_heavy_000.ogg",
 	"hit": "res://audio/sfx/hit_damage.ogg",
 	"explosion": "res://audio/sfx/explosion_large.ogg",
 	"heavy_impact": "res://audio/impactPlate_heavy_000.ogg",
@@ -111,8 +115,10 @@ func handle_simulation_event(simulation, event_type: String, payload: Dictionary
 	if not _event_visible_to_player(simulation, event_type, payload):
 		return
 	match event_type:
-		"ProjectileLaunched":
+		"BeamWeaponFired":
 			play_sfx("laser", -9.0, 1.0, 70)
+		"ProjectileLaunched":
+			play_sfx("missile_launch", -14.0, 0.82, 110)
 		"ProjectileImpact":
 			play_sfx("heavy_impact", -8.0, 1.0, 100)
 		"UnitDamaged":
