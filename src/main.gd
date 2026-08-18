@@ -1006,7 +1006,7 @@ func _update_campaign_mission_detail() -> void:
 	if not doctrine_id.is_empty():
 		detail_lines.append("DOCTRINE  ·  %s  ·  %s" % [str(doctrine.get("display_name", doctrine_id)), str(doctrine.get("effect_summary", "Package active."))])
 	elif campaign_progress and campaign_progress.is_doctrine_choice_unlocked():
-		detail_lines.append("DOCTRINE REWARD READY  ·  Select one package; it persists into Missions 7–8.")
+		detail_lines.append("DOCTRINE REWARD READY  ·  Select one package; it persists through later operations.")
 	else:
 		detail_lines.append("DOCTRINE REWARD  ·  Complete Network Sever to unlock one persistent package.")
 	var unlocked: bool = campaign_progress == null or campaign_progress.is_unlocked(selected_campaign_level_id)
@@ -1048,7 +1048,7 @@ func _on_campaign_doctrine_selected(index: int) -> void:
 		_update_campaign_mission_detail()
 		return
 	if status_label:
-		status_label.text = "%s selected — this package persists into Missions 7–8." % str(selection.get("display_name", doctrine_id))
+		status_label.text = "%s selected — this package persists through later operations." % str(selection.get("display_name", doctrine_id))
 	_update_campaign_mission_detail()
 
 

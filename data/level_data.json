@@ -1381,21 +1381,21 @@
       "objectives": {
         "first_staging_point_id": "west_crossing"
       },
-      "briefing": "Level One: establish a field base, secure West Crossing, then break the Frontier command network.",
+      "briefing": "Build the base, secure West Crossing, then break the Frontier network.",
       "objective_text": {
-        "build_processor": "Select the Command Hub and build a Resource Processor.",
-        "collector_missing": "Select the Resource Processor and queue a Collector.",
-        "collector_unassigned": "Collectors auto-search within 6 blocks for a nearby Energy Field. Assign a different route only when you need to change it.",
-        "collector_delivery": "Protect the Collector route until energy reaches the Resource Processor.",
-        "build_assembly": "Select the Command Hub and build an Assembly Bay.",
-        "staging_secure": "Secure and connect {point} to establish a forward staging site.",
-        "staging_rally": "Assign {point} as the Assembly Bay staging rally, then reinforce the connected network from it.",
-        "build_tech": "Build a Tech Centre from the Command Hub.",
-        "research_available": "Select the Tech Centre and research Advanced Targeting.",
-        "research_active": "Advanced Targeting is researching. Protect the Tech Centre until it comes online.",
-        "bulwark": "Select the Assembly Bay and queue a Bulwark.",
+        "build_processor": "Build a Resource Processor.",
+        "collector_missing": "Queue a Collector at the Processor.",
+        "collector_unassigned": "Collectors find a nearby Energy Field automatically.",
+        "collector_delivery": "Protect the Collector route.",
+        "build_assembly": "Build an Assembly Bay.",
+        "staging_secure": "Capture and connect {point}.",
+        "staging_rally": "Set {point} as the Assembly Bay rally point.",
+        "build_tech": "Build a Tech Centre.",
+        "research_available": "Research Advanced Targeting.",
+        "research_active": "Protect the Tech Centre while research runs.",
+        "bulwark": "Queue a Bulwark at the Assembly Bay.",
         "destroy_hq": "Destroy the enemy Command Hub.",
-        "match_complete": "Level complete. Your campaign progress has been saved."
+        "match_complete": "Mission complete. Progress saved."
       },
       "rules": {
         "max_queue": 5,
@@ -1558,21 +1558,21 @@
       "objectives": {
         "first_staging_point_id": "west_crossing"
       },
-      "briefing": "Level Two: use Wardens and Forward Relays to take the Crossroads.",
+      "briefing": "Use Wardens and Forward Relays to take the Crossroads.",
       "objective_text": {
-        "build_processor": "Select the Command Hub and build a Resource Processor.",
-        "collector_missing": "Select the Resource Processor and queue a Collector.",
-        "collector_unassigned": "Collectors auto-search within 6 blocks for a nearby Energy Field. Assign a different route only when you need to change it.",
-        "collector_delivery": "Protect the Collector route until energy reaches the Resource Processor.",
-        "build_assembly": "Select the Command Hub and build an Assembly Bay.",
-        "staging_secure": "Secure and connect {point} to establish a forward staging site.",
-        "staging_rally": "Assign {point} as the Assembly Bay staging rally, then reinforce the connected network from it.",
-        "build_tech": "Build a Tech Centre from the Command Hub.",
-        "research_available": "Select the Tech Centre and research Advanced Targeting.",
-        "research_active": "Advanced Targeting is researching. Protect the Tech Centre until it comes online.",
-        "bulwark": "Select the Assembly Bay and queue a Bulwark.",
+        "build_processor": "Build a Resource Processor.",
+        "collector_missing": "Queue a Collector at the Processor.",
+        "collector_unassigned": "Collectors find a nearby Energy Field automatically.",
+        "collector_delivery": "Protect the Collector route.",
+        "build_assembly": "Build an Assembly Bay.",
+        "staging_secure": "Capture and connect {point}.",
+        "staging_rally": "Set {point} as the Assembly Bay rally point.",
+        "build_tech": "Build a Tech Centre.",
+        "research_available": "Research Advanced Targeting.",
+        "research_active": "Protect the Tech Centre while research runs.",
+        "bulwark": "Queue a Bulwark at the Assembly Bay.",
         "destroy_hq": "Destroy the enemy Command Hub.",
-        "match_complete": "Level complete. Your campaign progress has been saved."
+        "match_complete": "Mission complete. Progress saved."
       },
       "rules": {
         "max_queue": 5,
@@ -1770,7 +1770,7 @@
       "base_map_id": "mountain_corridor_base",
       "faction_ids": {"player": "coalition", "enemy": "frontier"},
       "display_name": "Mission 3 — Silent Recovery",
-      "briefing": "A small recovery team must cross the mountain corridor, retrieve the sealed cases, disable two marked relays, and exfiltrate before the alarm peaks.",
+      "briefing": "Recover the cases, disable the relays, and extract before the alarm peaks.",
       "routes": [
         {"id": "north_pass", "display_name": "North Pass", "waypoints": [{"x": -90, "y": 0, "z": 0}, {"x": -60, "y": 0, "z": 0}, {"x": -60, "y": 0, "z": -56}, {"x": 60, "y": 0, "z": -56}, {"x": 60, "y": 0, "z": 0}, {"x": 90, "y": 0, "z": 0}]},
         {"id": "south_pass", "display_name": "South Pass", "waypoints": [{"x": -90, "y": 0, "z": 0}, {"x": -60, "y": 0, "z": 0}, {"x": -60, "y": 0, "z": 56}, {"x": 60, "y": 0, "z": 56}, {"x": 60, "y": 0, "z": 0}, {"x": 90, "y": 0, "z": 0}]},
@@ -1794,13 +1794,13 @@
       "campaign_mission": {
         "id": "silent_recovery",
         "display_name": "SILENT RECOVERY",
-        "briefing": "Limited force: 3 Wardens and 1 Bulwark. Recover both sealed cases, disable the marked relays, then extract one Warden back through the west route.",
+        "briefing": "Recover both cases, disable the relays, then extract.",
         "ignore_hq_victory": true,
         "scripted_ai": true,
         "detection": {"enabled": true, "alarm_limit_ticks": 180, "recovery_ticks": 6, "failure_message": "The recovery team stayed exposed too long."},
         "phases": [
-          {"id": "recover_cases", "display_name": "RECOVER CASES", "type": "collect_items", "item_ids": ["recovery_case_north", "recovery_case_south"], "description": "Recover both sealed cases. Use the mountain passes and the repair stations to keep the limited force moving.", "completion_message": "Both recovery cases are secure."},
-          {"id": "disable_relays", "display_name": "DISABLE RELAYS", "type": "destroy_targets", "target_ids": ["silent_relay_north", "silent_relay_south"], "description": "Destroy the two marked relay nodes before the patrol net closes.", "completion_message": "The marked relays are offline."},
+          {"id": "recover_cases", "display_name": "RECOVER CASES", "type": "collect_items", "item_ids": ["recovery_case_north", "recovery_case_south"], "description": "Recover both cases.", "completion_message": "Both recovery cases are secure."},
+          {"id": "disable_relays", "display_name": "DISABLE RELAYS", "type": "destroy_targets", "target_ids": ["silent_relay_north", "silent_relay_south"], "description": "Destroy both marked relays.", "completion_message": "The marked relays are offline."},
           {"id": "exfiltrate", "display_name": "EXFILTRATE", "type": "reach", "position": {"x": -92, "y": 0, "z": 0}, "radius": 7.0, "required_count": 1, "required_unit_kind": "warden", "route_id": "rescue_route", "description": "Return at least one Warden to the west extraction zone.", "completion_message": "The recovery team is clear. Silent Recovery complete."}
         ],
         "completion_flags": ["silent_recovery_complete"]
@@ -1845,7 +1845,7 @@
       "base_map_id": "mountain_corridor_base",
       "faction_ids": {"player": "coalition", "enemy": "frontier"},
       "display_name": "Mission 4 — The Long Road",
-      "briefing": "Escort a Mobile Command Unit through the mountain corridor and deploy a Forward Base at the marked eastern pad.",
+      "briefing": "Move the Mobile Command Unit to the eastern pad and deploy the Forward Base.",
       "routes": [
         {"id": "north_pass", "display_name": "North Pass", "waypoints": [{"x": -90, "y": 0, "z": 0}, {"x": -60, "y": 0, "z": 0}, {"x": -60, "y": 0, "z": -56}, {"x": 60, "y": 0, "z": -56}, {"x": 60, "y": 0, "z": 0}, {"x": 90, "y": 0, "z": 0}]},
         {"id": "south_pass", "display_name": "South Pass", "waypoints": [{"x": -90, "y": 0, "z": 0}, {"x": -60, "y": 0, "z": 0}, {"x": -60, "y": 0, "z": 56}, {"x": 60, "y": 0, "z": 56}, {"x": 60, "y": 0, "z": 0}, {"x": 90, "y": 0, "z": 0}]}
@@ -1864,12 +1864,12 @@
       "campaign_mission": {
         "id": "long_road",
         "display_name": "THE LONG ROAD",
-        "briefing": "Keep the Mobile Command Unit moving through a defined mountain pass. Once it reaches the eastern deployment zone, deploy the Forward Base and hold the site during construction.",
+        "briefing": "Move the carrier to the pad, deploy the base, and hold it during construction.",
         "ignore_hq_victory": true,
         "scripted_ai": true,
         "phases": [
-          {"id": "escort_convoy", "display_name": "ESCORT CONVOY", "type": "escort", "position": {"x": 90, "y": 0, "z": 0}, "radius": 8.0, "required_count": 1, "required_unit_kind": "command_carrier", "route_id": "north_pass", "description": "Move the Mobile Command Unit to the deployment pad.", "completion_message": "Deployment pad reached. Select the carrier and press DEPLOY BASE."},
-          {"id": "deploy_base", "display_name": "DEPLOY FORWARD BASE", "type": "deploy", "position": {"x": 90, "y": 0, "z": 0}, "radius": 8.0, "route_id": "north_pass", "description": "Deploy the Forward Base and protect it until the construction cycle completes.", "completion_message": "Forward Base established. Holdfast is ready."}
+          {"id": "escort_convoy", "display_name": "ESCORT CONVOY", "type": "escort", "position": {"x": 90, "y": 0, "z": 0}, "radius": 8.0, "required_count": 1, "required_unit_kind": "command_carrier", "route_id": "north_pass", "description": "Move the carrier to the deployment pad.", "completion_message": "Pad reached. Select the carrier and press DEPLOY BASE."},
+          {"id": "deploy_base", "display_name": "DEPLOY FORWARD BASE", "type": "deploy", "position": {"x": 90, "y": 0, "z": 0}, "radius": 8.0, "route_id": "north_pass", "description": "Deploy the Forward Base.", "completion_message": "Forward Base established. Holdfast is ready."}
         ],
         "completion_flags": ["forward_base_established"]
       },
@@ -1903,7 +1903,7 @@
       "base_map_id": "mountain_corridor_base",
       "faction_ids": {"player": "coalition", "enemy": "frontier"},
       "display_name": "Mission 5 — Holdfast",
-      "briefing": "The Forward Base is online with a nearby Energy Field, Resource Processor, and Assembly Bay. Build a defensive perimeter, then hold the mountain corridor against five escalating assault waves.",
+      "briefing": "Build the perimeter, then hold the Forward Base through five waves.",
       "routes": [
         {"id": "north_pass", "display_name": "North Pass", "waypoints": [{"x": 0, "y": 0, "z": -56}, {"x": 60, "y": 0, "z": -56}, {"x": 60, "y": 0, "z": 0}, {"x": 90, "y": 0, "z": 0}]}
       ],
@@ -1920,12 +1920,12 @@
       "campaign_mission": {
         "id": "holdfast",
         "display_name": "HOLDFAST",
-        "briefing": "Use the deployed base as the anchor for a layered defence. Keep the local Collector route running, spend its income on the perimeter and reinforcements, then survive five escalating assault waves.",
+        "briefing": "Build two defences, keep the Collector route running, then survive five waves.",
         "ignore_hq_victory": true,
         "scripted_ai": true,
         "phases": [
-          {"id": "build_perimeter", "display_name": "BUILD PERIMETER", "type": "build_structures", "building_kinds": ["sensor_mast", "bastion_turret", "fire_support_battery"], "required_count": 2, "description": "Build two defensive structures around the Forward Base, then use Processor income to reinforce the line.", "completion_message": "The perimeter is active. Keep the Collector route running and prepare for contact."},
-          {"id": "hold_base", "display_name": "HOLD THE BASE", "type": "defend", "duration_ticks": 900, "wave_delay_ticks": 30, "wave_interval_ticks": 135, "wave_count": 5, "wave_units": ["raider", "raider"], "wave_unit_sets": [["raider", "raider", "raider"], ["raider", "raider", "raider", "raider"], ["raider", "raider", "warden", "raider"], ["raider", "warden", "raider", "bulwark", "raider"], ["raider", "raider", "warden", "bulwark", "raider", "raider"]], "wave_spawn_position": {"x": 0, "y": 0, "z": -56}, "description": "Protect the Forward Base through five escalating assault waves. Keep the local Collector delivering energy for towers and reinforcements; the final pushes include armoured and missile threats.", "completion_message": "The Forward Base held through the full assault."}
+          {"id": "build_perimeter", "display_name": "BUILD PERIMETER", "type": "build_structures", "building_kinds": ["sensor_mast", "bastion_turret", "fire_support_battery"], "required_count": 2, "description": "Build two defensive structures.", "completion_message": "Perimeter active. Prepare for contact."},
+          {"id": "hold_base", "display_name": "HOLD THE BASE", "type": "defend", "duration_ticks": 900, "wave_delay_ticks": 30, "wave_interval_ticks": 135, "wave_count": 5, "wave_units": ["raider", "raider"], "wave_unit_sets": [["raider", "raider", "raider"], ["raider", "raider", "raider", "raider"], ["raider", "raider", "warden", "raider"], ["raider", "warden", "raider", "bulwark", "raider"], ["raider", "raider", "warden", "bulwark", "raider", "raider"]], "wave_spawn_position": {"x": 0, "y": 0, "z": -56}, "description": "Protect the Forward Base through five waves.", "completion_message": "The Forward Base held through the assault."}
         ],
         "completion_flags": ["holdfast_complete"]
       },
@@ -1961,7 +1961,7 @@
       "base_map_id": "relay_crossroads_base",
       "faction_ids": {"player": "coalition", "enemy": "frontier"},
       "display_name": "Mission 6 — Network Sever",
-      "briefing": "The Frontier has turned the Central Relay into a counter-offensive anchor. The western relay chain is ready; capture the hub, keep the link connected, and hold the network online while mobile raiders push back through the Crossroads.",
+      "briefing": "Capture Central Relay, keep it linked, and hold it against the counter-offensive.",
       "objectives": {"first_staging_point_id": "central_relay"},
       "rules": {
         "max_queue": 5,
@@ -1976,7 +1976,7 @@
       "campaign_mission": {
         "id": "network_sever",
         "display_name": "NETWORK SEVER",
-        "briefing": "Capture Central Relay and keep it connected for 90 seconds. Progress is retained while the link is online, but contested territory drains the clock and the Frontier counter-attacks in escalating waves.",
+        "briefing": "Capture Central Relay and hold the linked network against the counter-offensive.",
         "ignore_hq_victory": true,
         "scripted_ai": true,
         "phases": [
@@ -1996,7 +1996,7 @@
             "wave_unit_sets": [["raider", "raider", "raider"], ["raider", "raider", "raider", "raider"], ["raider", "raider", "warden", "raider"], ["raider", "warden", "raider", "bulwark"], ["raider", "raider", "warden", "bulwark", "raider", "raider"]],
             "wave_spawn_position": {"x": 122, "y": 0, "z": -54},
             "target_position": {"x": 0, "y": 0, "z": 0},
-            "description": "Capture Central Relay and keep the connected network online. If the relay is contested, progress decays while the counter-offensive closes in.",
+            "description": "Capture Central Relay and keep the network online.",
             "completion_message": "Central Relay held. The Frontier network has been severed.",
             "failure_message": "The connected network collapsed."
           }
@@ -2065,7 +2065,7 @@
       "base_map_id": "relay_crossroads_base",
       "faction_ids": {"player": "coalition", "enemy": "frontier"},
       "display_name": "Mission 7 — Counterstroke",
-      "briefing": "The Frontier's relay anchor is exposed. Break the forward guard, seize Central Relay long enough to open the breach, then destroy the enemy command hub before the counter-offensive can regroup.",
+      "briefing": "Break the guard, take Central Relay, then destroy the command hub.",
       "objectives": {"first_staging_point_id": "central_relay"},
       "rules": {
         "max_queue": 5,
@@ -2080,7 +2080,7 @@
       "campaign_mission": {
         "id": "counterstroke",
         "display_name": "COUNTERSTROKE",
-        "briefing": "Break the forward guard, hold Central Relay to open the breach, then destroy the Frontier command hub.",
+        "briefing": "Break the guard, hold Central Relay, then destroy the command hub.",
         "ignore_hq_victory": true,
         "scripted_ai": true,
         "doctrine_variants": {
@@ -2201,7 +2201,7 @@
       "base_map_id": "relay_crossroads_base",
       "faction_ids": {"player": "coalition", "enemy": "frontier"},
       "display_name": "Mission 8 — Iron Front",
-      "briefing": "The Frontier has rebuilt around the Central Relay. Hold the connected network through a full assault, then launch the counterattack and remove the last command hub in the Crossroads.",
+      "briefing": "Hold Central Relay through the assault, then destroy the final command hub.",
       "objectives": {"first_staging_point_id": "central_relay"},
       "rules": {
         "max_queue": 6,
@@ -2216,7 +2216,7 @@
       "campaign_mission": {
         "id": "iron_front",
         "display_name": "IRON FRONT",
-        "briefing": "Hold Central Relay through the full assault, then destroy the final Frontier command hub.",
+        "briefing": "Hold Central Relay through the assault, then destroy the final hub.",
         "ignore_hq_victory": true,
         "scripted_ai": true,
         "doctrine_variants": {
@@ -2325,6 +2325,4333 @@
       "allowed_enemy_buildings": ["refinery", "assembly_bay", "sensor_mast", "relay"],
       "allowed_player_units": ["ranger", "warden", "bulwark", "collector"],
       "allowed_enemy_units": ["raider", "bulwark", "collector"]
+    },
+    "ash_relay": {
+      "base_map_id": "relay_divide_base",
+      "faction_ids": {
+        "player": "coalition",
+        "enemy": "frontier"
+      },
+      "display_name": "Mission 9 — Ash Relay",
+      "briefing": "The Central Relay is damaged. Restore the link, then push the Frontier back.",
+      "objectives": {
+        "first_staging_point_id": "central_relay"
+      },
+      "rules": {
+        "max_queue": 6,
+        "fog_tile_size": 8,
+        "max_units_total": 42,
+        "max_buildings_total": 20,
+        "max_buildings_by_kind": {
+          "command_hub": 1,
+          "refinery": 3,
+          "assembly_bay": 2,
+          "tech_centre": 1,
+          "storage_silo": 3,
+          "relay": 9,
+          "sensor_mast": 4,
+          "bastion_turret": 5,
+          "fire_support_battery": 3,
+          "forward_base": 1,
+          "field_repair_station": 3
+        },
+        "upgrades_enabled": true,
+        "allowed_upgrades": [
+          "refining_efficiency",
+          "fabrication_systems",
+          "hardened_chassis",
+          "field_optics",
+          "breach_package"
+        ],
+        "allowed_technologies": [
+          "advanced_targeting",
+          "hardened_chassis",
+          "field_optics",
+          "breach_package"
+        ]
+      },
+      "campaign_mission": {
+        "id": "ash_relay",
+        "display_name": "ASH RELAY",
+        "briefing": "The Central Relay is damaged. Restore the link, then push the Frontier back.",
+        "ignore_hq_victory": true,
+        "scripted_ai": true,
+        "phases": [
+          {
+            "id": "clear_guard",
+            "display_name": "CLEAR THE GUARD",
+            "type": "destroy_targets",
+            "target_ids": [
+              "ash_enemy_relay",
+              "ash_enemy_sensor"
+            ],
+            "description": "Destroy the relay and sensor on the east route.",
+            "completion_message": "The east route is open."
+          },
+          {
+            "id": "restore_link",
+            "display_name": "RESTORE THE LINK",
+            "type": "network_hold",
+            "target_ids": [
+              "central_relay"
+            ],
+            "owner": "player",
+            "require_connected": true,
+            "duration_ticks": 480,
+            "offline_decay_ticks": 5,
+            "wave_delay_ticks": 60,
+            "wave_interval_ticks": 150,
+            "wave_count": 4,
+            "wave_units": [
+              "raider",
+              "raider"
+            ],
+            "wave_unit_sets": [
+              [
+                "raider",
+                "raider",
+                "raider"
+              ],
+              [
+                "raider",
+                "bulwark",
+                "raider"
+              ],
+              [
+                "raider",
+                "raider",
+                "bulwark",
+                "raider"
+              ],
+              [
+                "bulwark",
+                "raider",
+                "raider",
+                "bulwark"
+              ]
+            ],
+            "wave_spawn_position": {
+              "x": 110,
+              "y": 0,
+              "z": -66
+            },
+            "target_position": {
+              "x": 0,
+              "y": 0,
+              "z": -1
+            },
+            "description": "Capture Central Relay and keep it connected.",
+            "completion_message": "Central Relay is stable.",
+            "failure_message": "The relay link collapsed."
+          },
+          {
+            "id": "finish_retreat",
+            "display_name": "FINISH THE RETREAT",
+            "type": "destroy_targets",
+            "target_ids": [
+              "ash_enemy_hq"
+            ],
+            "description": "Destroy the Frontier command hub.",
+            "completion_message": "Ash Relay is secure."
+          }
+        ],
+        "completion_flags": [
+          "ash_relay_complete"
+        ]
+      },
+      "spawns": {
+        "player": {
+          "buildings": [
+            {
+              "id": "ash_player_hq",
+              "kind": "command_hub",
+              "position": {
+                "x": -82,
+                "y": 0,
+                "z": 32
+              }
+            },
+            {
+              "id": "ash_player_refinery",
+              "kind": "refinery",
+              "position": {
+                "x": -72,
+                "y": 0,
+                "z": 32
+              }
+            },
+            {
+              "id": "ash_player_assembly",
+              "kind": "assembly_bay",
+              "position": {
+                "x": -82,
+                "y": 0,
+                "z": 22
+              }
+            }
+          ],
+          "units": [
+            {
+              "id": "ash_player_ranger",
+              "kind": "ranger",
+              "position": {
+                "x": -72,
+                "y": 0,
+                "z": 24
+              }
+            },
+            {
+              "id": "ash_player_warden",
+              "kind": "warden",
+              "position": {
+                "x": -76,
+                "y": 0,
+                "z": 20
+              }
+            },
+            {
+              "id": "ash_player_bulwark",
+              "kind": "bulwark",
+              "position": {
+                "x": -70,
+                "y": 0,
+                "z": 18
+              }
+            },
+            {
+              "id": "ash_player_collector",
+              "kind": "collector",
+              "position": {
+                "x": -66,
+                "y": 0,
+                "z": 42
+              },
+              "source_id": "north_field",
+              "destination_id": "ash_player_refinery",
+              "home_id": "ash_player_hq"
+            }
+          ]
+        },
+        "enemy": {
+          "buildings": [
+            {
+              "id": "ash_enemy_hq",
+              "kind": "command_hub",
+              "position": {
+                "x": 82,
+                "y": 0,
+                "z": -32
+              },
+              "mission_target_id": "ash_enemy_hq"
+            },
+            {
+              "id": "ash_enemy_refinery",
+              "kind": "refinery",
+              "position": {
+                "x": 72,
+                "y": 0,
+                "z": -32
+              }
+            },
+            {
+              "id": "ash_enemy_assembly",
+              "kind": "assembly_bay",
+              "position": {
+                "x": 82,
+                "y": 0,
+                "z": -22
+              }
+            },
+            {
+              "id": "ash_enemy_relay",
+              "kind": "relay",
+              "position": {
+                "x": 52,
+                "y": 0,
+                "z": -20
+              },
+              "mission_target_id": "ash_enemy_relay"
+            },
+            {
+              "id": "ash_enemy_sensor",
+              "kind": "sensor_mast",
+              "position": {
+                "x": 60,
+                "y": 0,
+                "z": -28
+              },
+              "mission_target_id": "ash_enemy_sensor"
+            }
+          ],
+          "units": [
+            {
+              "id": "ash_enemy_raider_1",
+              "kind": "raider",
+              "position": {
+                "x": 72,
+                "y": 0,
+                "z": -24
+              }
+            },
+            {
+              "id": "ash_enemy_raider_2",
+              "kind": "raider",
+              "position": {
+                "x": 76,
+                "y": 0,
+                "z": -20
+              }
+            },
+            {
+              "id": "ash_enemy_bulwark",
+              "kind": "bulwark",
+              "position": {
+                "x": 70,
+                "y": 0,
+                "z": -18
+              }
+            },
+            {
+              "id": "ash_enemy_collector",
+              "kind": "collector",
+              "position": {
+                "x": 66,
+                "y": 0,
+                "z": -42
+              },
+              "source_id": "south_field",
+              "destination_id": "ash_enemy_refinery",
+              "home_id": "ash_enemy_hq"
+            }
+          ]
+        }
+      },
+      "ai": {
+        "difficulty": "standard",
+        "intent": "hold_network",
+        "intent_display_name": "HOLD THE LINK",
+        "intent_message": "Contest Central Relay, then defend the retreat.",
+        "map_tactic": "relay_recovery",
+        "map_tactic_display_name": "RELAY RECOVERY",
+        "map_tactic_message": "The Frontier will delay the push with a small guard.",
+        "opening_attack_delay_ticks": 720,
+        "proactive_attack_delay_ticks": 360,
+        "minimum_attack_group_size": 3
+      },
+      "allowed_buildings": [
+        "refinery",
+        "assembly_bay",
+        "tech_centre",
+        "storage_silo",
+        "relay",
+        "sensor_mast",
+        "bastion_turret",
+        "fire_support_battery",
+        "forward_base",
+        "field_repair_station"
+      ],
+      "allowed_player_buildings": [
+        "refinery",
+        "assembly_bay",
+        "tech_centre",
+        "storage_silo",
+        "relay",
+        "sensor_mast",
+        "bastion_turret",
+        "fire_support_battery",
+        "forward_base",
+        "field_repair_station"
+      ],
+      "allowed_enemy_buildings": [
+        "refinery",
+        "assembly_bay",
+        "tech_centre",
+        "storage_silo",
+        "relay",
+        "sensor_mast",
+        "bastion_turret",
+        "fire_support_battery"
+      ],
+      "allowed_player_units": [
+        "ranger",
+        "warden",
+        "bulwark",
+        "collector",
+        "command_carrier"
+      ],
+      "allowed_enemy_units": [
+        "raider",
+        "bulwark",
+        "warden",
+        "collector"
+      ]
+    },
+    "deep_current": {
+      "base_map_id": "relay_divide_base",
+      "faction_ids": {
+        "player": "coalition",
+        "enemy": "frontier"
+      },
+      "display_name": "Mission 10 — Deep Current",
+      "briefing": "Take East Crossing and cut the Frontier supply route.",
+      "objectives": {
+        "first_staging_point_id": "central_relay"
+      },
+      "rules": {
+        "max_queue": 6,
+        "fog_tile_size": 8,
+        "max_units_total": 42,
+        "max_buildings_total": 20,
+        "max_buildings_by_kind": {
+          "command_hub": 1,
+          "refinery": 3,
+          "assembly_bay": 2,
+          "tech_centre": 1,
+          "storage_silo": 3,
+          "relay": 9,
+          "sensor_mast": 4,
+          "bastion_turret": 5,
+          "fire_support_battery": 3,
+          "forward_base": 1,
+          "field_repair_station": 3
+        },
+        "upgrades_enabled": true,
+        "allowed_upgrades": [
+          "refining_efficiency",
+          "fabrication_systems",
+          "hardened_chassis",
+          "field_optics",
+          "breach_package"
+        ],
+        "allowed_technologies": [
+          "advanced_targeting",
+          "hardened_chassis",
+          "field_optics",
+          "breach_package"
+        ]
+      },
+      "campaign_mission": {
+        "id": "deep_current",
+        "display_name": "DEEP CURRENT",
+        "briefing": "Take East Crossing and cut the Frontier supply route.",
+        "ignore_hq_victory": true,
+        "scripted_ai": true,
+        "phases": [
+          {
+            "id": "take_crossing",
+            "display_name": "TAKE EAST CROSSING",
+            "type": "network_hold",
+            "target_ids": [
+              "east_crossing"
+            ],
+            "owner": "player",
+            "require_connected": true,
+            "duration_ticks": 420,
+            "offline_decay_ticks": 5,
+            "wave_delay_ticks": 60,
+            "wave_interval_ticks": 150,
+            "wave_count": 3,
+            "wave_units": [
+              "raider",
+              "raider"
+            ],
+            "wave_unit_sets": [
+              [
+                "raider",
+                "raider",
+                "raider"
+              ],
+              [
+                "raider",
+                "bulwark",
+                "raider"
+              ],
+              [
+                "raider",
+                "raider",
+                "bulwark",
+                "raider"
+              ]
+            ],
+            "wave_spawn_position": {
+              "x": 110,
+              "y": 0,
+              "z": -66
+            },
+            "target_position": {
+              "x": 48,
+              "y": 0,
+              "z": -20
+            },
+            "description": "Capture East Crossing and keep it connected.",
+            "completion_message": "East Crossing is ours.",
+            "failure_message": "East Crossing was lost."
+          },
+          {
+            "id": "cut_supply",
+            "display_name": "CUT SUPPLY",
+            "type": "destroy_targets",
+            "target_ids": [
+              "deep_enemy_refinery",
+              "deep_enemy_relay"
+            ],
+            "description": "Destroy the Frontier refinery and relay.",
+            "completion_message": "The supply route is cut."
+          },
+          {
+            "id": "break_hub",
+            "display_name": "BREAK THE HUB",
+            "type": "destroy_targets",
+            "target_ids": [
+              "deep_enemy_hq"
+            ],
+            "description": "Destroy the Frontier command hub.",
+            "completion_message": "Deep Current is secure."
+          }
+        ],
+        "completion_flags": [
+          "deep_current_complete"
+        ]
+      },
+      "spawns": {
+        "player": {
+          "buildings": [
+            {
+              "id": "deep_player_hq",
+              "kind": "command_hub",
+              "position": {
+                "x": -82,
+                "y": 0,
+                "z": 32
+              }
+            },
+            {
+              "id": "deep_player_refinery",
+              "kind": "refinery",
+              "position": {
+                "x": -72,
+                "y": 0,
+                "z": 32
+              }
+            },
+            {
+              "id": "deep_player_assembly",
+              "kind": "assembly_bay",
+              "position": {
+                "x": -82,
+                "y": 0,
+                "z": 22
+              }
+            }
+          ],
+          "units": [
+            {
+              "id": "deep_player_ranger",
+              "kind": "ranger",
+              "position": {
+                "x": -72,
+                "y": 0,
+                "z": 24
+              }
+            },
+            {
+              "id": "deep_player_warden",
+              "kind": "warden",
+              "position": {
+                "x": -76,
+                "y": 0,
+                "z": 20
+              }
+            },
+            {
+              "id": "deep_player_bulwark",
+              "kind": "bulwark",
+              "position": {
+                "x": -70,
+                "y": 0,
+                "z": 18
+              }
+            },
+            {
+              "id": "deep_player_collector",
+              "kind": "collector",
+              "position": {
+                "x": -66,
+                "y": 0,
+                "z": 42
+              },
+              "source_id": "north_field",
+              "destination_id": "deep_player_refinery",
+              "home_id": "deep_player_hq"
+            }
+          ]
+        },
+        "enemy": {
+          "buildings": [
+            {
+              "id": "deep_enemy_hq",
+              "kind": "command_hub",
+              "position": {
+                "x": 82,
+                "y": 0,
+                "z": -32
+              },
+              "mission_target_id": "deep_enemy_hq"
+            },
+            {
+              "id": "deep_enemy_refinery",
+              "kind": "refinery",
+              "position": {
+                "x": 72,
+                "y": 0,
+                "z": -32
+              },
+              "mission_target_id": "deep_enemy_refinery"
+            },
+            {
+              "id": "deep_enemy_assembly",
+              "kind": "assembly_bay",
+              "position": {
+                "x": 82,
+                "y": 0,
+                "z": -22
+              }
+            },
+            {
+              "id": "deep_enemy_relay",
+              "kind": "relay",
+              "position": {
+                "x": 50,
+                "y": 0,
+                "z": -16
+              },
+              "mission_target_id": "deep_enemy_relay"
+            }
+          ],
+          "units": [
+            {
+              "id": "deep_enemy_raider_1",
+              "kind": "raider",
+              "position": {
+                "x": 72,
+                "y": 0,
+                "z": -24
+              }
+            },
+            {
+              "id": "deep_enemy_raider_2",
+              "kind": "raider",
+              "position": {
+                "x": 76,
+                "y": 0,
+                "z": -20
+              }
+            },
+            {
+              "id": "deep_enemy_bulwark",
+              "kind": "bulwark",
+              "position": {
+                "x": 70,
+                "y": 0,
+                "z": -18
+              }
+            },
+            {
+              "id": "deep_enemy_collector",
+              "kind": "collector",
+              "position": {
+                "x": 66,
+                "y": 0,
+                "z": -42
+              },
+              "source_id": "south_field",
+              "destination_id": "deep_enemy_refinery",
+              "home_id": "deep_enemy_hq"
+            }
+          ]
+        }
+      },
+      "ai": {
+        "difficulty": "standard",
+        "intent": "raid_economy",
+        "intent_display_name": "PROTECT THE SUPPLY",
+        "intent_message": "The Frontier will raid the crossing and protect its refinery.",
+        "map_tactic": "supply_screen",
+        "map_tactic_display_name": "SUPPLY SCREEN",
+        "map_tactic_message": "Protect the east route while the enemy tries to hold its income.",
+        "opening_attack_delay_ticks": 600,
+        "proactive_attack_delay_ticks": 300,
+        "minimum_attack_group_size": 3
+      },
+      "allowed_buildings": [
+        "refinery",
+        "assembly_bay",
+        "tech_centre",
+        "storage_silo",
+        "relay",
+        "sensor_mast",
+        "bastion_turret",
+        "fire_support_battery",
+        "forward_base",
+        "field_repair_station"
+      ],
+      "allowed_player_buildings": [
+        "refinery",
+        "assembly_bay",
+        "tech_centre",
+        "storage_silo",
+        "relay",
+        "sensor_mast",
+        "bastion_turret",
+        "fire_support_battery",
+        "forward_base",
+        "field_repair_station"
+      ],
+      "allowed_enemy_buildings": [
+        "refinery",
+        "assembly_bay",
+        "tech_centre",
+        "storage_silo",
+        "relay",
+        "sensor_mast",
+        "bastion_turret",
+        "fire_support_battery"
+      ],
+      "allowed_player_units": [
+        "ranger",
+        "warden",
+        "bulwark",
+        "collector",
+        "command_carrier"
+      ],
+      "allowed_enemy_units": [
+        "raider",
+        "bulwark",
+        "warden",
+        "collector"
+      ]
+    },
+    "ghost_signal": {
+      "base_map_id": "mountain_corridor_base",
+      "faction_ids": {
+        "player": "coalition",
+        "enemy": "frontier"
+      },
+      "display_name": "Mission 11 — Ghost Signal",
+      "briefing": "Recover the signal core, break the sensor net, and extract through the pass.",
+      "objectives": {},
+      "rules": {
+        "max_queue": 1,
+        "fog_tile_size": 8,
+        "max_units_total": 8,
+        "max_buildings_total": 8,
+        "max_buildings_by_kind": {
+          "command_hub": 1,
+          "refinery": 3,
+          "assembly_bay": 2,
+          "tech_centre": 1,
+          "storage_silo": 3,
+          "relay": 9,
+          "sensor_mast": 4,
+          "bastion_turret": 5,
+          "fire_support_battery": 3,
+          "forward_base": 1,
+          "field_repair_station": 3
+        },
+        "upgrades_enabled": false,
+        "allowed_upgrades": [],
+        "allowed_technologies": []
+      },
+      "campaign_mission": {
+        "id": "ghost_signal",
+        "display_name": "GHOST SIGNAL",
+        "briefing": "Recover the signal core, break the sensor net, and extract through the pass.",
+        "ignore_hq_victory": true,
+        "scripted_ai": true,
+        "phases": [
+          {
+            "id": "recover_core",
+            "display_name": "RECOVER CORE",
+            "type": "collect_items",
+            "item_ids": [
+              "ghost_signal_core"
+            ],
+            "description": "Recover the signal core.",
+            "completion_message": "The signal core is secure."
+          },
+          {
+            "id": "break_sensors",
+            "display_name": "BREAK SENSORS",
+            "type": "destroy_targets",
+            "target_ids": [
+              "ghost_sensor_north",
+              "ghost_sensor_south"
+            ],
+            "description": "Destroy both Frontier sensor masts.",
+            "completion_message": "The sensor net is down."
+          },
+          {
+            "id": "extract",
+            "display_name": "EXTRACT",
+            "type": "reach",
+            "position": {
+              "x": -92,
+              "y": 0,
+              "z": 0
+            },
+            "radius": 7,
+            "required_count": 1,
+            "required_unit_kind": "warden",
+            "route_id": "rescue_route",
+            "description": "Return one Warden to the west extraction zone.",
+            "completion_message": "Ghost Signal complete."
+          }
+        ],
+        "completion_flags": [
+          "ghost_signal_complete"
+        ]
+      },
+      "mission_items": [
+        {
+          "id": "ghost_signal_core",
+          "display_name": "Signal Core",
+          "position": {
+            "x": 8,
+            "y": 0,
+            "z": -56
+          },
+          "pickup_radius": 3
+        }
+      ],
+      "routes": [
+        {
+          "id": "rescue_route",
+          "display_name": "RESCUE ROUTE",
+          "waypoints": [
+            {
+              "x": 90,
+              "y": 0,
+              "z": 0
+            },
+            {
+              "x": 60,
+              "y": 0,
+              "z": 0
+            },
+            {
+              "x": 60,
+              "y": 0,
+              "z": -56
+            },
+            {
+              "x": -60,
+              "y": 0,
+              "z": -56
+            },
+            {
+              "x": -60,
+              "y": 0,
+              "z": 0
+            },
+            {
+              "x": -92,
+              "y": 0,
+              "z": 0
+            }
+          ]
+        }
+      ],
+      "spawns": {
+        "player": {
+          "buildings": [
+            {
+              "id": "ghost_repair_north",
+              "kind": "field_repair_station",
+              "position": {
+                "x": -64,
+                "y": 0,
+                "z": -56
+              }
+            },
+            {
+              "id": "ghost_repair_south",
+              "kind": "field_repair_station",
+              "position": {
+                "x": -64,
+                "y": 0,
+                "z": 56
+              }
+            }
+          ],
+          "units": [
+            {
+              "id": "ghost_warden_1",
+              "kind": "warden",
+              "position": {
+                "x": -90,
+                "y": 0,
+                "z": -5
+              }
+            },
+            {
+              "id": "ghost_warden_2",
+              "kind": "warden",
+              "position": {
+                "x": -90,
+                "y": 0,
+                "z": 5
+              }
+            },
+            {
+              "id": "ghost_ranger",
+              "kind": "ranger",
+              "position": {
+                "x": -84,
+                "y": 0,
+                "z": 0
+              }
+            }
+          ]
+        },
+        "enemy": {
+          "buildings": [
+            {
+              "id": "ghost_sensor_north",
+              "kind": "sensor_mast",
+              "position": {
+                "x": 28,
+                "y": 0,
+                "z": -56
+              },
+              "mission_target_id": "ghost_sensor_north",
+              "mission_role": "mission_target"
+            },
+            {
+              "id": "ghost_sensor_south",
+              "kind": "sensor_mast",
+              "position": {
+                "x": 28,
+                "y": 0,
+                "z": 56
+              },
+              "mission_target_id": "ghost_sensor_south",
+              "mission_role": "mission_target"
+            },
+            {
+              "id": "ghost_relay",
+              "kind": "relay",
+              "position": {
+                "x": 54,
+                "y": 0,
+                "z": 0
+              }
+            }
+          ],
+          "units": [
+            {
+              "id": "ghost_raider_north",
+              "kind": "raider",
+              "position": {
+                "x": -20,
+                "y": 0,
+                "z": -56
+              }
+            },
+            {
+              "id": "ghost_raider_south",
+              "kind": "raider",
+              "position": {
+                "x": -20,
+                "y": 0,
+                "z": 56
+              }
+            },
+            {
+              "id": "ghost_bulwark",
+              "kind": "bulwark",
+              "position": {
+                "x": 48,
+                "y": 0,
+                "z": 0
+              }
+            }
+          ]
+        }
+      },
+      "ai": {
+        "difficulty": "standard",
+        "intent": "sever_network",
+        "intent_display_name": "HIDE THE SIGNAL",
+        "intent_message": "Patrols and sensors will expose the recovery route.",
+        "map_tactic": "sensor_net",
+        "map_tactic_display_name": "SENSOR NET",
+        "map_tactic_message": "Use the pass and repair stations to avoid a long fight.",
+        "opening_attack_delay_ticks": 900,
+        "proactive_attack_delay_ticks": 0,
+        "minimum_attack_group_size": 2
+      },
+      "allowed_buildings": [
+        "field_repair_station",
+        "relay"
+      ],
+      "allowed_player_buildings": [
+        "field_repair_station"
+      ],
+      "allowed_enemy_buildings": [
+        "relay",
+        "sensor_mast"
+      ],
+      "allowed_player_units": [
+        "ranger",
+        "warden",
+        "bulwark"
+      ],
+      "allowed_enemy_units": [
+        "raider",
+        "bulwark"
+      ]
+    },
+    "redline_crossing": {
+      "base_map_id": "relay_divide_base",
+      "faction_ids": {
+        "player": "coalition",
+        "enemy": "frontier"
+      },
+      "display_name": "Mission 12 — Redline Crossing",
+      "briefing": "Move the Mobile Command Unit to Redline, deploy, and hold the new base.",
+      "objectives": {
+        "first_staging_point_id": "central_relay"
+      },
+      "rules": {
+        "max_queue": 6,
+        "fog_tile_size": 8,
+        "max_units_total": 36,
+        "max_buildings_total": 18,
+        "max_buildings_by_kind": {
+          "command_hub": 1,
+          "refinery": 3,
+          "assembly_bay": 2,
+          "tech_centre": 1,
+          "storage_silo": 3,
+          "relay": 9,
+          "sensor_mast": 4,
+          "bastion_turret": 5,
+          "fire_support_battery": 3,
+          "forward_base": 1,
+          "field_repair_station": 3
+        },
+        "upgrades_enabled": true,
+        "allowed_upgrades": [
+          "refining_efficiency",
+          "fabrication_systems",
+          "hardened_chassis",
+          "field_optics",
+          "breach_package"
+        ],
+        "allowed_technologies": [
+          "advanced_targeting",
+          "hardened_chassis",
+          "field_optics",
+          "breach_package"
+        ]
+      },
+      "campaign_mission": {
+        "id": "redline_crossing",
+        "display_name": "REDLINE CROSSING",
+        "briefing": "Move the Mobile Command Unit to Redline, deploy, and hold the new base.",
+        "ignore_hq_victory": true,
+        "scripted_ai": true,
+        "phases": [
+          {
+            "id": "move_carrier",
+            "display_name": "MOVE THE CARRIER",
+            "type": "escort",
+            "position": {
+              "x": 78,
+              "y": 0,
+              "z": -30
+            },
+            "radius": 7,
+            "required_count": 1,
+            "required_unit_kind": "command_carrier",
+            "route_id": "redline_route",
+            "description": "Move the Mobile Command Unit to the Redline pad.",
+            "completion_message": "The carrier reached Redline."
+          },
+          {
+            "id": "deploy_base",
+            "display_name": "DEPLOY BASE",
+            "type": "deploy",
+            "position": {
+              "x": 78,
+              "y": 0,
+              "z": -30
+            },
+            "radius": 7,
+            "description": "Deploy the Forward Base at Redline.",
+            "completion_message": "The Forward Base is online."
+          },
+          {
+            "id": "hold_redline",
+            "display_name": "HOLD REDLINE",
+            "type": "defend",
+            "duration_ticks": 600,
+            "wave_count": 4,
+            "wave_units": [
+              "raider",
+              "raider"
+            ],
+            "wave_unit_sets": [
+              [
+                "raider",
+                "raider",
+                "raider"
+              ],
+              [
+                "raider",
+                "bulwark",
+                "raider",
+                "raider"
+              ],
+              [
+                "raider",
+                "raider",
+                "bulwark",
+                "bulwark",
+                "raider"
+              ],
+              [
+                "bulwark",
+                "raider",
+                "raider",
+                "bulwark",
+                "raider"
+              ]
+            ],
+            "wave_spawn_position": {
+              "x": 110,
+              "y": 0,
+              "z": -66
+            },
+            "description": "Protect the Forward Base through four waves.",
+            "completion_message": "Redline held.",
+            "failure_message": "The Redline Forward Base was lost."
+          }
+        ],
+        "completion_flags": [
+          "redline_crossing_complete"
+        ]
+      },
+      "routes": [
+        {
+          "id": "redline_route",
+          "display_name": "REDLINE ROUTE",
+          "waypoints": [
+            {
+              "x": -68,
+              "y": 0,
+              "z": 38
+            },
+            {
+              "x": -48,
+              "y": 0,
+              "z": 20
+            },
+            {
+              "x": 0,
+              "y": 0,
+              "z": -1
+            },
+            {
+              "x": 48,
+              "y": 0,
+              "z": -20
+            },
+            {
+              "x": 78,
+              "y": 0,
+              "z": -30
+            }
+          ]
+        }
+      ],
+      "spawns": {
+        "player": {
+          "buildings": [
+            {
+              "id": "redline_player_hq",
+              "kind": "command_hub",
+              "position": {
+                "x": -82,
+                "y": 0,
+                "z": 32
+              }
+            },
+            {
+              "id": "redline_player_refinery",
+              "kind": "refinery",
+              "position": {
+                "x": -72,
+                "y": 0,
+                "z": 32
+              }
+            },
+            {
+              "id": "redline_player_assembly",
+              "kind": "assembly_bay",
+              "position": {
+                "x": -82,
+                "y": 0,
+                "z": 22
+              }
+            }
+          ],
+          "units": [
+            {
+              "id": "redline_player_ranger",
+              "kind": "ranger",
+              "position": {
+                "x": -72,
+                "y": 0,
+                "z": 24
+              }
+            },
+            {
+              "id": "redline_player_warden",
+              "kind": "warden",
+              "position": {
+                "x": -76,
+                "y": 0,
+                "z": 20
+              }
+            },
+            {
+              "id": "redline_player_bulwark",
+              "kind": "bulwark",
+              "position": {
+                "x": -70,
+                "y": 0,
+                "z": 18
+              }
+            },
+            {
+              "id": "redline_player_collector",
+              "kind": "collector",
+              "position": {
+                "x": -66,
+                "y": 0,
+                "z": 42
+              },
+              "source_id": "north_field",
+              "destination_id": "redline_player_refinery",
+              "home_id": "redline_player_hq"
+            },
+            {
+              "id": "redline_player_carrier",
+              "kind": "command_carrier",
+              "position": {
+                "x": -68,
+                "y": 0,
+                "z": 38
+              }
+            }
+          ]
+        },
+        "enemy": {
+          "buildings": [
+            {
+              "id": "redline_enemy_hq",
+              "kind": "command_hub",
+              "position": {
+                "x": 82,
+                "y": 0,
+                "z": -32
+              }
+            },
+            {
+              "id": "redline_enemy_refinery",
+              "kind": "refinery",
+              "position": {
+                "x": 72,
+                "y": 0,
+                "z": -32
+              }
+            },
+            {
+              "id": "redline_enemy_assembly",
+              "kind": "assembly_bay",
+              "position": {
+                "x": 82,
+                "y": 0,
+                "z": -22
+              }
+            },
+            {
+              "id": "redline_enemy_sensor",
+              "kind": "sensor_mast",
+              "position": {
+                "x": 56,
+                "y": 0,
+                "z": -20
+              }
+            }
+          ],
+          "units": [
+            {
+              "id": "redline_enemy_raider_1",
+              "kind": "raider",
+              "position": {
+                "x": 72,
+                "y": 0,
+                "z": -24
+              }
+            },
+            {
+              "id": "redline_enemy_raider_2",
+              "kind": "raider",
+              "position": {
+                "x": 76,
+                "y": 0,
+                "z": -20
+              }
+            },
+            {
+              "id": "redline_enemy_bulwark",
+              "kind": "bulwark",
+              "position": {
+                "x": 70,
+                "y": 0,
+                "z": -18
+              }
+            },
+            {
+              "id": "redline_enemy_collector",
+              "kind": "collector",
+              "position": {
+                "x": 66,
+                "y": 0,
+                "z": -42
+              },
+              "source_id": "south_field",
+              "destination_id": "redline_enemy_refinery",
+              "home_id": "redline_enemy_hq"
+            }
+          ]
+        }
+      },
+      "ai": {
+        "difficulty": "standard",
+        "intent": "hold_network",
+        "intent_display_name": "BREAK REDLINE",
+        "intent_message": "The Frontier will hit the carrier route, then the new base.",
+        "map_tactic": "carrier_intercept",
+        "map_tactic_display_name": "CARRIER INTERCEPT",
+        "map_tactic_message": "The Frontier will pressure the route before the base is ready.",
+        "opening_attack_delay_ticks": 480,
+        "proactive_attack_delay_ticks": 240,
+        "minimum_attack_group_size": 3
+      },
+      "allowed_buildings": [
+        "refinery",
+        "assembly_bay",
+        "tech_centre",
+        "storage_silo",
+        "relay",
+        "sensor_mast",
+        "bastion_turret",
+        "fire_support_battery",
+        "forward_base",
+        "field_repair_station"
+      ],
+      "allowed_player_buildings": [
+        "refinery",
+        "assembly_bay",
+        "tech_centre",
+        "storage_silo",
+        "relay",
+        "sensor_mast",
+        "bastion_turret",
+        "fire_support_battery",
+        "forward_base",
+        "field_repair_station"
+      ],
+      "allowed_enemy_buildings": [
+        "refinery",
+        "assembly_bay",
+        "tech_centre",
+        "storage_silo",
+        "relay",
+        "sensor_mast",
+        "bastion_turret",
+        "fire_support_battery"
+      ],
+      "allowed_player_units": [
+        "ranger",
+        "warden",
+        "bulwark",
+        "collector",
+        "command_carrier"
+      ],
+      "allowed_enemy_units": [
+        "raider",
+        "bulwark",
+        "warden",
+        "collector"
+      ]
+    },
+    "counterbattery": {
+      "base_map_id": "relay_crossroads_base",
+      "faction_ids": {
+        "player": "coalition",
+        "enemy": "frontier"
+      },
+      "display_name": "Mission 13 — Counterbattery",
+      "briefing": "Destroy the Frontier guns, then keep Central Relay online.",
+      "objectives": {
+        "first_staging_point_id": "central_relay"
+      },
+      "rules": {
+        "max_queue": 6,
+        "fog_tile_size": 8,
+        "max_units_total": 44,
+        "max_buildings_total": 21,
+        "max_buildings_by_kind": {
+          "command_hub": 1,
+          "refinery": 3,
+          "assembly_bay": 2,
+          "tech_centre": 1,
+          "storage_silo": 3,
+          "relay": 9,
+          "sensor_mast": 4,
+          "bastion_turret": 5,
+          "fire_support_battery": 3,
+          "forward_base": 1,
+          "field_repair_station": 3
+        },
+        "upgrades_enabled": true,
+        "allowed_upgrades": [
+          "refining_efficiency",
+          "fabrication_systems",
+          "hardened_chassis",
+          "field_optics",
+          "breach_package"
+        ],
+        "allowed_technologies": [
+          "advanced_targeting",
+          "hardened_chassis",
+          "field_optics",
+          "breach_package"
+        ]
+      },
+      "campaign_mission": {
+        "id": "counterbattery",
+        "display_name": "COUNTERBATTERY",
+        "briefing": "Destroy the Frontier guns, then keep Central Relay online.",
+        "ignore_hq_victory": true,
+        "scripted_ai": true,
+        "phases": [
+          {
+            "id": "silence_guns",
+            "display_name": "SILENCE THE GUNS",
+            "type": "destroy_targets",
+            "target_ids": [
+              "counterbattery_enemy_battery_1",
+              "counterbattery_enemy_battery_2"
+            ],
+            "description": "Destroy both Frontier fire-support batteries.",
+            "completion_message": "The guns are silent."
+          },
+          {
+            "id": "hold_central",
+            "display_name": "HOLD CENTRAL RELAY",
+            "type": "network_hold",
+            "target_ids": [
+              "central_relay"
+            ],
+            "owner": "player",
+            "require_connected": true,
+            "duration_ticks": 540,
+            "offline_decay_ticks": 5,
+            "wave_delay_ticks": 60,
+            "wave_interval_ticks": 150,
+            "wave_count": 4,
+            "wave_units": [
+              "raider",
+              "raider"
+            ],
+            "wave_unit_sets": [
+              [
+                "raider",
+                "raider",
+                "raider"
+              ],
+              [
+                "raider",
+                "bulwark",
+                "raider",
+                "raider"
+              ],
+              [
+                "raider",
+                "raider",
+                "bulwark",
+                "bulwark",
+                "raider"
+              ],
+              [
+                "bulwark",
+                "raider",
+                "raider",
+                "bulwark",
+                "raider"
+              ]
+            ],
+            "wave_spawn_position": {
+              "x": 132,
+              "y": 0,
+              "z": -70
+            },
+            "target_position": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "description": "Capture Central Relay and keep it connected.",
+            "completion_message": "Central Relay is stable.",
+            "failure_message": "The central link was cut."
+          },
+          {
+            "id": "break_hub",
+            "display_name": "BREAK THE HUB",
+            "type": "destroy_targets",
+            "target_ids": [
+              "counterbattery_enemy_hq"
+            ],
+            "description": "Destroy the Frontier command hub.",
+            "completion_message": "Counterbattery complete."
+          }
+        ],
+        "completion_flags": [
+          "counterbattery_complete"
+        ]
+      },
+      "spawns": {
+        "player": {
+          "buildings": [
+            {
+              "id": "counterbattery_player_hq",
+              "kind": "command_hub",
+              "position": {
+                "x": -108,
+                "y": 0,
+                "z": 60
+              }
+            },
+            {
+              "id": "counterbattery_player_refinery",
+              "kind": "refinery",
+              "position": {
+                "x": -98,
+                "y": 0,
+                "z": 60
+              }
+            },
+            {
+              "id": "counterbattery_player_assembly",
+              "kind": "assembly_bay",
+              "position": {
+                "x": -108,
+                "y": 0,
+                "z": 48
+              }
+            }
+          ],
+          "units": [
+            {
+              "id": "counterbattery_player_ranger",
+              "kind": "ranger",
+              "position": {
+                "x": -96,
+                "y": 0,
+                "z": 48
+              }
+            },
+            {
+              "id": "counterbattery_player_warden",
+              "kind": "warden",
+              "position": {
+                "x": -100,
+                "y": 0,
+                "z": 44
+              }
+            },
+            {
+              "id": "counterbattery_player_bulwark",
+              "kind": "bulwark",
+              "position": {
+                "x": -94,
+                "y": 0,
+                "z": 42
+              }
+            },
+            {
+              "id": "counterbattery_player_collector",
+              "kind": "collector",
+              "position": {
+                "x": -90,
+                "y": 0,
+                "z": 68
+              },
+              "source_id": "north_field",
+              "destination_id": "counterbattery_player_refinery",
+              "home_id": "counterbattery_player_hq"
+            }
+          ]
+        },
+        "enemy": {
+          "buildings": [
+            {
+              "id": "counterbattery_enemy_hq",
+              "kind": "command_hub",
+              "position": {
+                "x": 108,
+                "y": 0,
+                "z": -60
+              },
+              "mission_target_id": "counterbattery_enemy_hq"
+            },
+            {
+              "id": "counterbattery_enemy_refinery",
+              "kind": "refinery",
+              "position": {
+                "x": 98,
+                "y": 0,
+                "z": -60
+              }
+            },
+            {
+              "id": "counterbattery_enemy_assembly",
+              "kind": "assembly_bay",
+              "position": {
+                "x": 108,
+                "y": 0,
+                "z": -48
+              }
+            },
+            {
+              "id": "counterbattery_enemy_battery_1",
+              "kind": "fire_support_battery",
+              "position": {
+                "x": 66,
+                "y": 0,
+                "z": -38
+              },
+              "mission_target_id": "counterbattery_enemy_battery_1"
+            },
+            {
+              "id": "counterbattery_enemy_battery_2",
+              "kind": "fire_support_battery",
+              "position": {
+                "x": 48,
+                "y": 0,
+                "z": -20
+              },
+              "mission_target_id": "counterbattery_enemy_battery_2"
+            },
+            {
+              "id": "counterbattery_enemy_sensor",
+              "kind": "sensor_mast",
+              "position": {
+                "x": 72,
+                "y": 0,
+                "z": -46
+              }
+            }
+          ],
+          "units": [
+            {
+              "id": "counterbattery_enemy_raider_1",
+              "kind": "raider",
+              "position": {
+                "x": 96,
+                "y": 0,
+                "z": -48
+              }
+            },
+            {
+              "id": "counterbattery_enemy_raider_2",
+              "kind": "raider",
+              "position": {
+                "x": 100,
+                "y": 0,
+                "z": -44
+              }
+            },
+            {
+              "id": "counterbattery_enemy_bulwark",
+              "kind": "bulwark",
+              "position": {
+                "x": 94,
+                "y": 0,
+                "z": -42
+              }
+            },
+            {
+              "id": "counterbattery_enemy_collector",
+              "kind": "collector",
+              "position": {
+                "x": 90,
+                "y": 0,
+                "z": -68
+              },
+              "source_id": "south_field",
+              "destination_id": "counterbattery_enemy_refinery",
+              "home_id": "counterbattery_enemy_hq"
+            }
+          ]
+        }
+      },
+      "ai": {
+        "difficulty": "standard",
+        "intent": "sever_network",
+        "intent_display_name": "SEVER CENTRAL",
+        "intent_message": "The Frontier will use artillery and raids to cut Central Relay.",
+        "map_tactic": "counterbattery",
+        "map_tactic_display_name": "COUNTERBATTERY",
+        "map_tactic_message": "The enemy guns cover the relay approach.",
+        "opening_attack_delay_ticks": 540,
+        "proactive_attack_delay_ticks": 270,
+        "minimum_attack_group_size": 3
+      },
+      "allowed_buildings": [
+        "refinery",
+        "assembly_bay",
+        "tech_centre",
+        "storage_silo",
+        "relay",
+        "sensor_mast",
+        "bastion_turret",
+        "fire_support_battery",
+        "forward_base",
+        "field_repair_station"
+      ],
+      "allowed_player_buildings": [
+        "refinery",
+        "assembly_bay",
+        "tech_centre",
+        "storage_silo",
+        "relay",
+        "sensor_mast",
+        "bastion_turret",
+        "fire_support_battery",
+        "forward_base",
+        "field_repair_station"
+      ],
+      "allowed_enemy_buildings": [
+        "refinery",
+        "assembly_bay",
+        "tech_centre",
+        "storage_silo",
+        "relay",
+        "sensor_mast",
+        "bastion_turret",
+        "fire_support_battery"
+      ],
+      "allowed_player_units": [
+        "ranger",
+        "warden",
+        "bulwark",
+        "collector",
+        "command_carrier"
+      ],
+      "allowed_enemy_units": [
+        "raider",
+        "bulwark",
+        "warden",
+        "collector"
+      ]
+    },
+    "split_front": {
+      "base_map_id": "relay_crossroads_base",
+      "faction_ids": {
+        "player": "coalition",
+        "enemy": "frontier"
+      },
+      "display_name": "Mission 14 — Split the Front",
+      "briefing": "Take both crossings, keep them linked, and break the Frontier command hub.",
+      "objectives": {
+        "first_staging_point_id": "central_relay"
+      },
+      "rules": {
+        "max_queue": 6,
+        "fog_tile_size": 8,
+        "max_units_total": 48,
+        "max_buildings_total": 24,
+        "max_buildings_by_kind": {
+          "command_hub": 1,
+          "refinery": 3,
+          "assembly_bay": 2,
+          "tech_centre": 1,
+          "storage_silo": 3,
+          "relay": 9,
+          "sensor_mast": 4,
+          "bastion_turret": 5,
+          "fire_support_battery": 3,
+          "forward_base": 1,
+          "field_repair_station": 3
+        },
+        "upgrades_enabled": true,
+        "allowed_upgrades": [
+          "refining_efficiency",
+          "fabrication_systems",
+          "hardened_chassis",
+          "field_optics",
+          "breach_package"
+        ],
+        "allowed_technologies": [
+          "advanced_targeting",
+          "hardened_chassis",
+          "field_optics",
+          "breach_package"
+        ]
+      },
+      "campaign_mission": {
+        "id": "split_front",
+        "display_name": "SPLIT THE FRONT",
+        "briefing": "Take both crossings, keep them linked, and break the Frontier command hub.",
+        "ignore_hq_victory": true,
+        "scripted_ai": true,
+        "phases": [
+          {
+            "id": "take_both",
+            "display_name": "TAKE BOTH CROSSINGS",
+            "type": "network_hold",
+            "target_ids": [
+              "west_crossing",
+              "east_crossing"
+            ],
+            "owner": "player",
+            "require_connected": true,
+            "duration_ticks": 660,
+            "offline_decay_ticks": 5,
+            "wave_delay_ticks": 60,
+            "wave_interval_ticks": 150,
+            "wave_count": 5,
+            "wave_units": [
+              "raider",
+              "raider"
+            ],
+            "wave_unit_sets": [
+              [
+                "raider",
+                "raider",
+                "raider"
+              ],
+              [
+                "raider",
+                "bulwark",
+                "raider",
+                "raider"
+              ],
+              [
+                "raider",
+                "raider",
+                "bulwark",
+                "bulwark",
+                "raider"
+              ],
+              [
+                "bulwark",
+                "raider",
+                "raider",
+                "bulwark",
+                "raider"
+              ],
+              [
+                "raider",
+                "bulwark",
+                "raider",
+                "raider",
+                "bulwark"
+              ]
+            ],
+            "wave_spawn_position": {
+              "x": 132,
+              "y": 0,
+              "z": -70
+            },
+            "target_position": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "description": "Capture both crossings and keep the network connected.",
+            "completion_message": "Both crossings are secure.",
+            "failure_message": "The crossing network collapsed."
+          },
+          {
+            "id": "break_hub",
+            "display_name": "BREAK THE HUB",
+            "type": "destroy_targets",
+            "target_ids": [
+              "split_enemy_hq"
+            ],
+            "description": "Destroy the Frontier command hub.",
+            "completion_message": "Split the Front complete."
+          }
+        ],
+        "completion_flags": [
+          "split_front_complete"
+        ]
+      },
+      "spawns": {
+        "player": {
+          "buildings": [
+            {
+              "id": "split_player_hq",
+              "kind": "command_hub",
+              "position": {
+                "x": -108,
+                "y": 0,
+                "z": 60
+              }
+            },
+            {
+              "id": "split_player_refinery",
+              "kind": "refinery",
+              "position": {
+                "x": -98,
+                "y": 0,
+                "z": 60
+              }
+            },
+            {
+              "id": "split_player_assembly",
+              "kind": "assembly_bay",
+              "position": {
+                "x": -108,
+                "y": 0,
+                "z": 48
+              }
+            },
+            {
+              "id": "split_player_relay_1",
+              "kind": "relay",
+              "position": {
+                "x": -82,
+                "y": 0,
+                "z": 48
+              }
+            },
+            {
+              "id": "split_player_relay_2",
+              "kind": "relay",
+              "position": {
+                "x": -54,
+                "y": 0,
+                "z": 30
+              }
+            },
+            {
+              "id": "split_player_relay_3",
+              "kind": "relay",
+              "position": {
+                "x": -24,
+                "y": 0,
+                "z": 12
+              }
+            }
+          ],
+          "units": [
+            {
+              "id": "split_player_ranger",
+              "kind": "ranger",
+              "position": {
+                "x": -96,
+                "y": 0,
+                "z": 48
+              }
+            },
+            {
+              "id": "split_player_warden",
+              "kind": "warden",
+              "position": {
+                "x": -100,
+                "y": 0,
+                "z": 44
+              }
+            },
+            {
+              "id": "split_player_bulwark",
+              "kind": "bulwark",
+              "position": {
+                "x": -94,
+                "y": 0,
+                "z": 42
+              }
+            },
+            {
+              "id": "split_player_collector",
+              "kind": "collector",
+              "position": {
+                "x": -90,
+                "y": 0,
+                "z": 68
+              },
+              "source_id": "north_field",
+              "destination_id": "split_player_refinery",
+              "home_id": "split_player_hq"
+            }
+          ]
+        },
+        "enemy": {
+          "buildings": [
+            {
+              "id": "split_enemy_hq",
+              "kind": "command_hub",
+              "position": {
+                "x": 108,
+                "y": 0,
+                "z": -60
+              },
+              "mission_target_id": "split_enemy_hq"
+            },
+            {
+              "id": "split_enemy_refinery",
+              "kind": "refinery",
+              "position": {
+                "x": 98,
+                "y": 0,
+                "z": -60
+              }
+            },
+            {
+              "id": "split_enemy_assembly",
+              "kind": "assembly_bay",
+              "position": {
+                "x": 108,
+                "y": 0,
+                "z": -48
+              }
+            },
+            {
+              "id": "split_enemy_bastion_1",
+              "kind": "bastion_turret",
+              "position": {
+                "x": 62,
+                "y": 0,
+                "z": -38
+              }
+            },
+            {
+              "id": "split_enemy_bastion_2",
+              "kind": "bastion_turret",
+              "position": {
+                "x": 82,
+                "y": 0,
+                "z": -48
+              }
+            }
+          ],
+          "units": [
+            {
+              "id": "split_enemy_raider_1",
+              "kind": "raider",
+              "position": {
+                "x": 96,
+                "y": 0,
+                "z": -48
+              }
+            },
+            {
+              "id": "split_enemy_raider_2",
+              "kind": "raider",
+              "position": {
+                "x": 100,
+                "y": 0,
+                "z": -44
+              }
+            },
+            {
+              "id": "split_enemy_bulwark",
+              "kind": "bulwark",
+              "position": {
+                "x": 94,
+                "y": 0,
+                "z": -42
+              }
+            },
+            {
+              "id": "split_enemy_collector",
+              "kind": "collector",
+              "position": {
+                "x": 90,
+                "y": 0,
+                "z": -68
+              },
+              "source_id": "south_field",
+              "destination_id": "split_enemy_refinery",
+              "home_id": "split_enemy_hq"
+            }
+          ]
+        }
+      },
+      "ai": {
+        "difficulty": "standard",
+        "intent": "sever_network",
+        "intent_display_name": "HOLD THE CROSSINGS",
+        "intent_message": "The Frontier will contest both crossings before defending its hub.",
+        "map_tactic": "crossing_lock",
+        "map_tactic_display_name": "CROSSING LOCK",
+        "map_tactic_message": "The Frontier will split its force between the two approaches.",
+        "opening_attack_delay_ticks": 540,
+        "proactive_attack_delay_ticks": 240,
+        "minimum_attack_group_size": 4
+      },
+      "allowed_buildings": [
+        "refinery",
+        "assembly_bay",
+        "tech_centre",
+        "storage_silo",
+        "relay",
+        "sensor_mast",
+        "bastion_turret",
+        "fire_support_battery",
+        "forward_base",
+        "field_repair_station"
+      ],
+      "allowed_player_buildings": [
+        "refinery",
+        "assembly_bay",
+        "tech_centre",
+        "storage_silo",
+        "relay",
+        "sensor_mast",
+        "bastion_turret",
+        "fire_support_battery",
+        "forward_base",
+        "field_repair_station"
+      ],
+      "allowed_enemy_buildings": [
+        "refinery",
+        "assembly_bay",
+        "tech_centre",
+        "storage_silo",
+        "relay",
+        "sensor_mast",
+        "bastion_turret",
+        "fire_support_battery"
+      ],
+      "allowed_player_units": [
+        "ranger",
+        "warden",
+        "bulwark",
+        "collector",
+        "command_carrier"
+      ],
+      "allowed_enemy_units": [
+        "raider",
+        "bulwark",
+        "warden",
+        "collector"
+      ]
+    },
+    "last_convoy": {
+      "base_map_id": "relay_crossroads_base",
+      "faction_ids": {
+        "player": "coalition",
+        "enemy": "frontier"
+      },
+      "display_name": "Mission 15 — The Last Convoy",
+      "briefing": "Escort the last command convoy to the eastern edge and hold the base.",
+      "objectives": {
+        "first_staging_point_id": "central_relay"
+      },
+      "rules": {
+        "max_queue": 6,
+        "fog_tile_size": 8,
+        "max_units_total": 42,
+        "max_buildings_total": 20,
+        "max_buildings_by_kind": {
+          "command_hub": 1,
+          "refinery": 3,
+          "assembly_bay": 2,
+          "tech_centre": 1,
+          "storage_silo": 3,
+          "relay": 9,
+          "sensor_mast": 4,
+          "bastion_turret": 5,
+          "fire_support_battery": 3,
+          "forward_base": 1,
+          "field_repair_station": 3
+        },
+        "upgrades_enabled": true,
+        "allowed_upgrades": [
+          "refining_efficiency",
+          "fabrication_systems",
+          "hardened_chassis",
+          "field_optics",
+          "breach_package"
+        ],
+        "allowed_technologies": [
+          "advanced_targeting",
+          "hardened_chassis",
+          "field_optics",
+          "breach_package"
+        ]
+      },
+      "campaign_mission": {
+        "id": "last_convoy",
+        "display_name": "THE LAST CONVOY",
+        "briefing": "Escort the last command convoy to the eastern edge and hold the base.",
+        "ignore_hq_victory": true,
+        "scripted_ai": true,
+        "phases": [
+          {
+            "id": "clear_route",
+            "display_name": "CLEAR THE ROUTE",
+            "type": "destroy_targets",
+            "target_ids": [
+              "lastconvoy_enemy_sensor"
+            ],
+            "description": "Destroy the sensor covering the convoy route.",
+            "completion_message": "The route is clear."
+          },
+          {
+            "id": "move_convoy",
+            "display_name": "MOVE THE CONVOY",
+            "type": "escort",
+            "position": {
+              "x": 72,
+              "y": 0,
+              "z": -45
+            },
+            "radius": 7,
+            "required_count": 1,
+            "required_unit_kind": "command_carrier",
+            "route_id": "last_convoy_route",
+            "description": "Move the Mobile Command Unit to the eastern pad.",
+            "completion_message": "The convoy reached the pad."
+          },
+          {
+            "id": "deploy_forward_base",
+            "display_name": "DEPLOY BASE",
+            "type": "deploy",
+            "position": {
+              "x": 72,
+              "y": 0,
+              "z": -45
+            },
+            "radius": 7,
+            "description": "Deploy the Forward Base at the eastern pad.",
+            "completion_message": "The Forward Base is online."
+          },
+          {
+            "id": "hold_convoy_base",
+            "display_name": "HOLD THE BASE",
+            "type": "defend",
+            "duration_ticks": 720,
+            "wave_count": 5,
+            "wave_units": [
+              "raider",
+              "raider"
+            ],
+            "wave_unit_sets": [
+              [
+                "raider",
+                "raider",
+                "raider"
+              ],
+              [
+                "raider",
+                "bulwark",
+                "raider",
+                "raider"
+              ],
+              [
+                "raider",
+                "raider",
+                "bulwark",
+                "bulwark",
+                "raider"
+              ],
+              [
+                "bulwark",
+                "raider",
+                "raider",
+                "bulwark",
+                "raider"
+              ],
+              [
+                "raider",
+                "bulwark",
+                "raider",
+                "raider",
+                "bulwark"
+              ]
+            ],
+            "wave_spawn_position": {
+              "x": 132,
+              "y": 0,
+              "z": -70
+            },
+            "description": "Protect the Forward Base through five waves.",
+            "completion_message": "The last convoy held.",
+            "failure_message": "The convoy base was lost."
+          }
+        ],
+        "completion_flags": [
+          "last_convoy_complete"
+        ]
+      },
+      "routes": [
+        {
+          "id": "last_convoy_route",
+          "display_name": "LAST CONVOY ROUTE",
+          "waypoints": [
+            {
+              "x": -88,
+              "y": 0,
+              "z": 54
+            },
+            {
+              "x": -64,
+              "y": 0,
+              "z": 42
+            },
+            {
+              "x": -24,
+              "y": 0,
+              "z": 12
+            },
+            {
+              "x": 24,
+              "y": 0,
+              "z": -12
+            },
+            {
+              "x": 72,
+              "y": 0,
+              "z": -45
+            }
+          ]
+        }
+      ],
+      "spawns": {
+        "player": {
+          "buildings": [
+            {
+              "id": "lastconvoy_player_hq",
+              "kind": "command_hub",
+              "position": {
+                "x": -108,
+                "y": 0,
+                "z": 60
+              }
+            },
+            {
+              "id": "lastconvoy_player_refinery",
+              "kind": "refinery",
+              "position": {
+                "x": -98,
+                "y": 0,
+                "z": 60
+              }
+            },
+            {
+              "id": "lastconvoy_player_assembly",
+              "kind": "assembly_bay",
+              "position": {
+                "x": -108,
+                "y": 0,
+                "z": 48
+              }
+            }
+          ],
+          "units": [
+            {
+              "id": "lastconvoy_player_ranger",
+              "kind": "ranger",
+              "position": {
+                "x": -96,
+                "y": 0,
+                "z": 48
+              }
+            },
+            {
+              "id": "lastconvoy_player_warden",
+              "kind": "warden",
+              "position": {
+                "x": -100,
+                "y": 0,
+                "z": 44
+              }
+            },
+            {
+              "id": "lastconvoy_player_bulwark",
+              "kind": "bulwark",
+              "position": {
+                "x": -94,
+                "y": 0,
+                "z": 42
+              }
+            },
+            {
+              "id": "lastconvoy_player_collector",
+              "kind": "collector",
+              "position": {
+                "x": -90,
+                "y": 0,
+                "z": 68
+              },
+              "source_id": "north_field",
+              "destination_id": "lastconvoy_player_refinery",
+              "home_id": "lastconvoy_player_hq"
+            },
+            {
+              "id": "lastconvoy_player_carrier",
+              "kind": "command_carrier",
+              "position": {
+                "x": -88,
+                "y": 0,
+                "z": 54
+              }
+            }
+          ]
+        },
+        "enemy": {
+          "buildings": [
+            {
+              "id": "lastconvoy_enemy_hq",
+              "kind": "command_hub",
+              "position": {
+                "x": 108,
+                "y": 0,
+                "z": -60
+              }
+            },
+            {
+              "id": "lastconvoy_enemy_refinery",
+              "kind": "refinery",
+              "position": {
+                "x": 98,
+                "y": 0,
+                "z": -60
+              }
+            },
+            {
+              "id": "lastconvoy_enemy_assembly",
+              "kind": "assembly_bay",
+              "position": {
+                "x": 108,
+                "y": 0,
+                "z": -48
+              }
+            },
+            {
+              "id": "lastconvoy_enemy_sensor",
+              "kind": "sensor_mast",
+              "position": {
+                "x": 72,
+                "y": 0,
+                "z": -46
+              }
+            },
+            {
+              "id": "lastconvoy_enemy_battery",
+              "kind": "fire_support_battery",
+              "position": {
+                "x": 82,
+                "y": 0,
+                "z": -52
+              }
+            }
+          ],
+          "units": [
+            {
+              "id": "lastconvoy_enemy_raider_1",
+              "kind": "raider",
+              "position": {
+                "x": 96,
+                "y": 0,
+                "z": -48
+              }
+            },
+            {
+              "id": "lastconvoy_enemy_raider_2",
+              "kind": "raider",
+              "position": {
+                "x": 100,
+                "y": 0,
+                "z": -44
+              }
+            },
+            {
+              "id": "lastconvoy_enemy_bulwark",
+              "kind": "bulwark",
+              "position": {
+                "x": 94,
+                "y": 0,
+                "z": -42
+              }
+            },
+            {
+              "id": "lastconvoy_enemy_collector",
+              "kind": "collector",
+              "position": {
+                "x": 90,
+                "y": 0,
+                "z": -68
+              },
+              "source_id": "south_field",
+              "destination_id": "lastconvoy_enemy_refinery",
+              "home_id": "lastconvoy_enemy_hq"
+            }
+          ]
+        }
+      },
+      "ai": {
+        "difficulty": "standard",
+        "intent": "pressure_hq",
+        "intent_display_name": "STOP THE CONVOY",
+        "intent_message": "The Frontier will strike the sensor and the convoy base.",
+        "map_tactic": "convoy_hunt",
+        "map_tactic_display_name": "CONVOY HUNT",
+        "map_tactic_message": "Keep the route open and the carrier moving.",
+        "opening_attack_delay_ticks": 420,
+        "proactive_attack_delay_ticks": 180,
+        "minimum_attack_group_size": 3
+      },
+      "allowed_buildings": [
+        "refinery",
+        "assembly_bay",
+        "tech_centre",
+        "storage_silo",
+        "relay",
+        "sensor_mast",
+        "bastion_turret",
+        "fire_support_battery",
+        "forward_base",
+        "field_repair_station"
+      ],
+      "allowed_player_buildings": [
+        "refinery",
+        "assembly_bay",
+        "tech_centre",
+        "storage_silo",
+        "relay",
+        "sensor_mast",
+        "bastion_turret",
+        "fire_support_battery",
+        "forward_base",
+        "field_repair_station"
+      ],
+      "allowed_enemy_buildings": [
+        "refinery",
+        "assembly_bay",
+        "tech_centre",
+        "storage_silo",
+        "relay",
+        "sensor_mast",
+        "bastion_turret",
+        "fire_support_battery"
+      ],
+      "allowed_player_units": [
+        "ranger",
+        "warden",
+        "bulwark",
+        "collector",
+        "command_carrier"
+      ],
+      "allowed_enemy_units": [
+        "raider",
+        "bulwark",
+        "warden",
+        "collector"
+      ]
+    },
+    "blackout": {
+      "base_map_id": "relay_crossroads_base",
+      "faction_ids": {
+        "player": "coalition",
+        "enemy": "frontier"
+      },
+      "display_name": "Mission 16 — Blackout",
+      "briefing": "Cut the Frontier relay chain before it can rebuild its command network.",
+      "objectives": {
+        "first_staging_point_id": "central_relay"
+      },
+      "rules": {
+        "max_queue": 6,
+        "fog_tile_size": 8,
+        "max_units_total": 48,
+        "max_buildings_total": 24,
+        "max_buildings_by_kind": {
+          "command_hub": 1,
+          "refinery": 3,
+          "assembly_bay": 2,
+          "tech_centre": 1,
+          "storage_silo": 3,
+          "relay": 9,
+          "sensor_mast": 4,
+          "bastion_turret": 5,
+          "fire_support_battery": 3,
+          "forward_base": 1,
+          "field_repair_station": 3
+        },
+        "upgrades_enabled": true,
+        "allowed_upgrades": [
+          "refining_efficiency",
+          "fabrication_systems",
+          "hardened_chassis",
+          "field_optics",
+          "breach_package"
+        ],
+        "allowed_technologies": [
+          "advanced_targeting",
+          "hardened_chassis",
+          "field_optics",
+          "breach_package"
+        ]
+      },
+      "campaign_mission": {
+        "id": "blackout",
+        "display_name": "BLACKOUT",
+        "briefing": "Cut the Frontier relay chain before it can rebuild its command network.",
+        "ignore_hq_victory": true,
+        "scripted_ai": true,
+        "phases": [
+          {
+            "id": "cut_relays",
+            "display_name": "CUT THE RELAYS",
+            "type": "destroy_targets",
+            "target_ids": [
+              "blackout_enemy_relay_north",
+              "blackout_enemy_relay_south",
+              "blackout_enemy_sensor"
+            ],
+            "description": "Destroy the two relays and the sensor mast.",
+            "completion_message": "The Frontier network is dark."
+          },
+          {
+            "id": "hold_dark",
+            "display_name": "HOLD CENTRAL RELAY",
+            "type": "network_hold",
+            "target_ids": [
+              "central_relay"
+            ],
+            "owner": "player",
+            "require_connected": true,
+            "duration_ticks": 600,
+            "offline_decay_ticks": 5,
+            "wave_delay_ticks": 60,
+            "wave_interval_ticks": 150,
+            "wave_count": 5,
+            "wave_units": [
+              "raider",
+              "raider"
+            ],
+            "wave_unit_sets": [
+              [
+                "raider",
+                "raider",
+                "raider"
+              ],
+              [
+                "raider",
+                "bulwark",
+                "raider",
+                "raider"
+              ],
+              [
+                "raider",
+                "raider",
+                "bulwark",
+                "bulwark",
+                "raider"
+              ],
+              [
+                "bulwark",
+                "raider",
+                "raider",
+                "bulwark",
+                "raider"
+              ],
+              [
+                "raider",
+                "bulwark",
+                "raider",
+                "raider",
+                "bulwark"
+              ]
+            ],
+            "wave_spawn_position": {
+              "x": 132,
+              "y": 0,
+              "z": -70
+            },
+            "target_position": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "description": "Keep Central Relay connected while the Frontier loses its links.",
+            "completion_message": "The blackout holds.",
+            "failure_message": "Central Relay was cut."
+          },
+          {
+            "id": "break_hub",
+            "display_name": "BREAK THE HUB",
+            "type": "destroy_targets",
+            "target_ids": [
+              "blackout_enemy_hq"
+            ],
+            "description": "Destroy the Frontier command hub.",
+            "completion_message": "Blackout complete."
+          }
+        ],
+        "completion_flags": [
+          "blackout_complete"
+        ]
+      },
+      "spawns": {
+        "player": {
+          "buildings": [
+            {
+              "id": "blackout_player_hq",
+              "kind": "command_hub",
+              "position": {
+                "x": -108,
+                "y": 0,
+                "z": 60
+              }
+            },
+            {
+              "id": "blackout_player_refinery",
+              "kind": "refinery",
+              "position": {
+                "x": -98,
+                "y": 0,
+                "z": 60
+              }
+            },
+            {
+              "id": "blackout_player_assembly",
+              "kind": "assembly_bay",
+              "position": {
+                "x": -108,
+                "y": 0,
+                "z": 48
+              }
+            }
+          ],
+          "units": [
+            {
+              "id": "blackout_player_ranger",
+              "kind": "ranger",
+              "position": {
+                "x": -96,
+                "y": 0,
+                "z": 48
+              }
+            },
+            {
+              "id": "blackout_player_warden",
+              "kind": "warden",
+              "position": {
+                "x": -100,
+                "y": 0,
+                "z": 44
+              }
+            },
+            {
+              "id": "blackout_player_bulwark",
+              "kind": "bulwark",
+              "position": {
+                "x": -94,
+                "y": 0,
+                "z": 42
+              }
+            },
+            {
+              "id": "blackout_player_collector",
+              "kind": "collector",
+              "position": {
+                "x": -90,
+                "y": 0,
+                "z": 68
+              },
+              "source_id": "north_field",
+              "destination_id": "blackout_player_refinery",
+              "home_id": "blackout_player_hq"
+            }
+          ]
+        },
+        "enemy": {
+          "buildings": [
+            {
+              "id": "blackout_enemy_hq",
+              "kind": "command_hub",
+              "position": {
+                "x": 108,
+                "y": 0,
+                "z": -60
+              },
+              "mission_target_id": "blackout_enemy_hq"
+            },
+            {
+              "id": "blackout_enemy_refinery",
+              "kind": "refinery",
+              "position": {
+                "x": 98,
+                "y": 0,
+                "z": -60
+              }
+            },
+            {
+              "id": "blackout_enemy_assembly",
+              "kind": "assembly_bay",
+              "position": {
+                "x": 108,
+                "y": 0,
+                "z": -48
+              }
+            },
+            {
+              "id": "blackout_enemy_relay_north",
+              "kind": "relay",
+              "position": {
+                "x": 72,
+                "y": 0,
+                "z": -30
+              },
+              "mission_target_id": "blackout_enemy_relay_north"
+            },
+            {
+              "id": "blackout_enemy_relay_south",
+              "kind": "relay",
+              "position": {
+                "x": 72,
+                "y": 0,
+                "z": -62
+              },
+              "mission_target_id": "blackout_enemy_relay_south"
+            },
+            {
+              "id": "blackout_enemy_sensor",
+              "kind": "sensor_mast",
+              "position": {
+                "x": 58,
+                "y": 0,
+                "z": -42
+              },
+              "mission_target_id": "blackout_enemy_sensor"
+            }
+          ],
+          "units": [
+            {
+              "id": "blackout_enemy_raider_1",
+              "kind": "raider",
+              "position": {
+                "x": 96,
+                "y": 0,
+                "z": -48
+              }
+            },
+            {
+              "id": "blackout_enemy_raider_2",
+              "kind": "raider",
+              "position": {
+                "x": 100,
+                "y": 0,
+                "z": -44
+              }
+            },
+            {
+              "id": "blackout_enemy_bulwark",
+              "kind": "bulwark",
+              "position": {
+                "x": 94,
+                "y": 0,
+                "z": -42
+              }
+            },
+            {
+              "id": "blackout_enemy_collector",
+              "kind": "collector",
+              "position": {
+                "x": 90,
+                "y": 0,
+                "z": -68
+              },
+              "source_id": "south_field",
+              "destination_id": "blackout_enemy_refinery",
+              "home_id": "blackout_enemy_hq"
+            }
+          ]
+        }
+      },
+      "ai": {
+        "difficulty": "standard",
+        "intent": "sever_network",
+        "intent_display_name": "RESTORE THE GRID",
+        "intent_message": "The Frontier will protect its relays and throw reserves at Central Relay.",
+        "map_tactic": "relay_screen",
+        "map_tactic_display_name": "RELAY SCREEN",
+        "map_tactic_message": "The enemy will trade outer relays for time.",
+        "opening_attack_delay_ticks": 480,
+        "proactive_attack_delay_ticks": 210,
+        "minimum_attack_group_size": 4
+      },
+      "allowed_buildings": [
+        "refinery",
+        "assembly_bay",
+        "tech_centre",
+        "storage_silo",
+        "relay",
+        "sensor_mast",
+        "bastion_turret",
+        "fire_support_battery",
+        "forward_base",
+        "field_repair_station"
+      ],
+      "allowed_player_buildings": [
+        "refinery",
+        "assembly_bay",
+        "tech_centre",
+        "storage_silo",
+        "relay",
+        "sensor_mast",
+        "bastion_turret",
+        "fire_support_battery",
+        "forward_base",
+        "field_repair_station"
+      ],
+      "allowed_enemy_buildings": [
+        "refinery",
+        "assembly_bay",
+        "tech_centre",
+        "storage_silo",
+        "relay",
+        "sensor_mast",
+        "bastion_turret",
+        "fire_support_battery"
+      ],
+      "allowed_player_units": [
+        "ranger",
+        "warden",
+        "bulwark",
+        "collector",
+        "command_carrier"
+      ],
+      "allowed_enemy_units": [
+        "raider",
+        "bulwark",
+        "warden",
+        "collector"
+      ]
+    },
+    "iron_gate": {
+      "base_map_id": "relay_crossroads_base",
+      "faction_ids": {
+        "player": "coalition",
+        "enemy": "frontier"
+      },
+      "display_name": "Mission 17 — Iron Gate",
+      "briefing": "Break the eastern gate, then destroy the Frontier command hub.",
+      "objectives": {
+        "first_staging_point_id": "central_relay"
+      },
+      "rules": {
+        "max_queue": 6,
+        "fog_tile_size": 8,
+        "max_units_total": 52,
+        "max_buildings_total": 26,
+        "max_buildings_by_kind": {
+          "command_hub": 1,
+          "refinery": 3,
+          "assembly_bay": 2,
+          "tech_centre": 1,
+          "storage_silo": 3,
+          "relay": 9,
+          "sensor_mast": 4,
+          "bastion_turret": 5,
+          "fire_support_battery": 3,
+          "forward_base": 1,
+          "field_repair_station": 3
+        },
+        "upgrades_enabled": true,
+        "allowed_upgrades": [
+          "refining_efficiency",
+          "fabrication_systems",
+          "hardened_chassis",
+          "field_optics",
+          "breach_package"
+        ],
+        "allowed_technologies": [
+          "advanced_targeting",
+          "hardened_chassis",
+          "field_optics",
+          "breach_package"
+        ]
+      },
+      "campaign_mission": {
+        "id": "iron_gate",
+        "display_name": "IRON GATE",
+        "briefing": "Break the eastern gate, then destroy the Frontier command hub.",
+        "ignore_hq_victory": true,
+        "scripted_ai": true,
+        "phases": [
+          {
+            "id": "break_gate",
+            "display_name": "BREAK THE GATE",
+            "type": "destroy_targets",
+            "target_ids": [
+              "gate_enemy_bastion_1",
+              "gate_enemy_bastion_2",
+              "gate_enemy_assembly"
+            ],
+            "description": "Destroy the two Bastions and the Assembly Bay.",
+            "completion_message": "The eastern gate is open."
+          },
+          {
+            "id": "secure_east",
+            "display_name": "SECURE EAST CROSSING",
+            "type": "network_hold",
+            "target_ids": [
+              "east_crossing"
+            ],
+            "owner": "player",
+            "require_connected": true,
+            "duration_ticks": 480,
+            "offline_decay_ticks": 5,
+            "wave_delay_ticks": 60,
+            "wave_interval_ticks": 150,
+            "wave_count": 4,
+            "wave_units": [
+              "raider",
+              "raider"
+            ],
+            "wave_unit_sets": [
+              [
+                "raider",
+                "raider",
+                "raider"
+              ],
+              [
+                "raider",
+                "bulwark",
+                "raider",
+                "raider"
+              ],
+              [
+                "raider",
+                "raider",
+                "bulwark",
+                "bulwark",
+                "raider"
+              ],
+              [
+                "bulwark",
+                "raider",
+                "raider",
+                "bulwark",
+                "raider"
+              ]
+            ],
+            "wave_spawn_position": {
+              "x": 132,
+              "y": 0,
+              "z": -70
+            },
+            "target_position": {
+              "x": 78,
+              "y": 0,
+              "z": -45
+            },
+            "description": "Capture East Crossing and keep the route connected.",
+            "completion_message": "East Crossing is secure.",
+            "failure_message": "The eastern link failed."
+          },
+          {
+            "id": "break_hub",
+            "display_name": "BREAK THE HUB",
+            "type": "destroy_targets",
+            "target_ids": [
+              "gate_enemy_hq"
+            ],
+            "description": "Destroy the Frontier command hub.",
+            "completion_message": "Iron Gate is open."
+          }
+        ],
+        "completion_flags": [
+          "iron_gate_complete"
+        ]
+      },
+      "spawns": {
+        "player": {
+          "buildings": [
+            {
+              "id": "gate_player_hq",
+              "kind": "command_hub",
+              "position": {
+                "x": -108,
+                "y": 0,
+                "z": 60
+              }
+            },
+            {
+              "id": "gate_player_refinery",
+              "kind": "refinery",
+              "position": {
+                "x": -98,
+                "y": 0,
+                "z": 60
+              }
+            },
+            {
+              "id": "gate_player_assembly",
+              "kind": "assembly_bay",
+              "position": {
+                "x": -108,
+                "y": 0,
+                "z": 48
+              }
+            }
+          ],
+          "units": [
+            {
+              "id": "gate_player_ranger",
+              "kind": "ranger",
+              "position": {
+                "x": -96,
+                "y": 0,
+                "z": 48
+              }
+            },
+            {
+              "id": "gate_player_warden",
+              "kind": "warden",
+              "position": {
+                "x": -100,
+                "y": 0,
+                "z": 44
+              }
+            },
+            {
+              "id": "gate_player_bulwark",
+              "kind": "bulwark",
+              "position": {
+                "x": -94,
+                "y": 0,
+                "z": 42
+              }
+            },
+            {
+              "id": "gate_player_collector",
+              "kind": "collector",
+              "position": {
+                "x": -90,
+                "y": 0,
+                "z": 68
+              },
+              "source_id": "north_field",
+              "destination_id": "gate_player_refinery",
+              "home_id": "gate_player_hq"
+            }
+          ]
+        },
+        "enemy": {
+          "buildings": [
+            {
+              "id": "gate_enemy_hq",
+              "kind": "command_hub",
+              "position": {
+                "x": 108,
+                "y": 0,
+                "z": -60
+              },
+              "mission_target_id": "gate_enemy_hq"
+            },
+            {
+              "id": "gate_enemy_refinery",
+              "kind": "refinery",
+              "position": {
+                "x": 98,
+                "y": 0,
+                "z": -60
+              }
+            },
+            {
+              "id": "gate_enemy_bastion_1",
+              "kind": "bastion_turret",
+              "position": {
+                "x": 72,
+                "y": 0,
+                "z": -38
+              },
+              "mission_target_id": "gate_enemy_bastion_1"
+            },
+            {
+              "id": "gate_enemy_bastion_2",
+              "kind": "bastion_turret",
+              "position": {
+                "x": 88,
+                "y": 0,
+                "z": -50
+              },
+              "mission_target_id": "gate_enemy_bastion_2"
+            },
+            {
+              "id": "gate_enemy_assembly",
+              "kind": "assembly_bay",
+              "position": {
+                "x": 108,
+                "y": 0,
+                "z": -48
+              },
+              "mission_target_id": "gate_enemy_assembly"
+            }
+          ],
+          "units": [
+            {
+              "id": "gate_enemy_raider_1",
+              "kind": "raider",
+              "position": {
+                "x": 96,
+                "y": 0,
+                "z": -48
+              }
+            },
+            {
+              "id": "gate_enemy_raider_2",
+              "kind": "raider",
+              "position": {
+                "x": 100,
+                "y": 0,
+                "z": -44
+              }
+            },
+            {
+              "id": "gate_enemy_bulwark",
+              "kind": "bulwark",
+              "position": {
+                "x": 94,
+                "y": 0,
+                "z": -42
+              }
+            },
+            {
+              "id": "gate_enemy_collector",
+              "kind": "collector",
+              "position": {
+                "x": 90,
+                "y": 0,
+                "z": -68
+              },
+              "source_id": "south_field",
+              "destination_id": "gate_enemy_refinery",
+              "home_id": "gate_enemy_hq"
+            }
+          ]
+        }
+      },
+      "ai": {
+        "difficulty": "standard",
+        "intent": "pressure_hq",
+        "intent_display_name": "HOLD THE GATE",
+        "intent_message": "The Frontier will anchor the east route with armour and static fire.",
+        "map_tactic": "iron_gate",
+        "map_tactic_display_name": "IRON GATE",
+        "map_tactic_message": "Break the static line before taking the crossing.",
+        "opening_attack_delay_ticks": 420,
+        "proactive_attack_delay_ticks": 180,
+        "minimum_attack_group_size": 4
+      },
+      "allowed_buildings": [
+        "refinery",
+        "assembly_bay",
+        "tech_centre",
+        "storage_silo",
+        "relay",
+        "sensor_mast",
+        "bastion_turret",
+        "fire_support_battery",
+        "forward_base",
+        "field_repair_station"
+      ],
+      "allowed_player_buildings": [
+        "refinery",
+        "assembly_bay",
+        "tech_centre",
+        "storage_silo",
+        "relay",
+        "sensor_mast",
+        "bastion_turret",
+        "fire_support_battery",
+        "forward_base",
+        "field_repair_station"
+      ],
+      "allowed_enemy_buildings": [
+        "refinery",
+        "assembly_bay",
+        "tech_centre",
+        "storage_silo",
+        "relay",
+        "sensor_mast",
+        "bastion_turret",
+        "fire_support_battery"
+      ],
+      "allowed_player_units": [
+        "ranger",
+        "warden",
+        "bulwark",
+        "collector",
+        "command_carrier"
+      ],
+      "allowed_enemy_units": [
+        "raider",
+        "bulwark",
+        "warden",
+        "collector"
+      ]
+    },
+    "deep_strike": {
+      "base_map_id": "mountain_corridor_base",
+      "faction_ids": {
+        "player": "coalition",
+        "enemy": "frontier"
+      },
+      "display_name": "Mission 18 — Deep Strike",
+      "briefing": "Recover the command core, disable the rear base, and extract through the pass.",
+      "objectives": {},
+      "rules": {
+        "max_queue": 1,
+        "fog_tile_size": 8,
+        "max_units_total": 8,
+        "max_buildings_total": 8,
+        "max_buildings_by_kind": {
+          "command_hub": 1,
+          "refinery": 3,
+          "assembly_bay": 2,
+          "tech_centre": 1,
+          "storage_silo": 3,
+          "relay": 9,
+          "sensor_mast": 4,
+          "bastion_turret": 5,
+          "fire_support_battery": 3,
+          "forward_base": 1,
+          "field_repair_station": 3
+        },
+        "upgrades_enabled": false,
+        "allowed_upgrades": [],
+        "allowed_technologies": []
+      },
+      "campaign_mission": {
+        "id": "deep_strike",
+        "display_name": "DEEP STRIKE",
+        "briefing": "Recover the command core, disable the rear base, and extract through the pass.",
+        "ignore_hq_victory": true,
+        "scripted_ai": true,
+        "phases": [
+          {
+            "id": "recover_core",
+            "display_name": "RECOVER CORE",
+            "type": "collect_items",
+            "item_ids": [
+              "deep_command_core"
+            ],
+            "description": "Recover the command core.",
+            "completion_message": "The command core is secure."
+          },
+          {
+            "id": "disable_rear",
+            "display_name": "DISABLE THE REAR",
+            "type": "destroy_targets",
+            "target_ids": [
+              "deepstrike_sensor",
+              "deepstrike_assembly"
+            ],
+            "description": "Destroy the sensor and Assembly Bay.",
+            "completion_message": "The rear base is disabled."
+          },
+          {
+            "id": "extract",
+            "display_name": "EXTRACT",
+            "type": "reach",
+            "position": {
+              "x": -92,
+              "y": 0,
+              "z": 0
+            },
+            "radius": 7,
+            "required_count": 1,
+            "required_unit_kind": "ranger",
+            "route_id": "deep_strike_route",
+            "description": "Return one Ranger to the west extraction zone.",
+            "completion_message": "Deep Strike complete."
+          }
+        ],
+        "completion_flags": [
+          "deep_strike_complete"
+        ]
+      },
+      "mission_items": [
+        {
+          "id": "deep_command_core",
+          "display_name": "Command Core",
+          "position": {
+            "x": 12,
+            "y": 0,
+            "z": 40
+          },
+          "pickup_radius": 3
+        }
+      ],
+      "routes": [
+        {
+          "id": "deep_strike_route",
+          "display_name": "DEEP STRIKE ROUTE",
+          "waypoints": [
+            {
+              "x": 90,
+              "y": 0,
+              "z": 0
+            },
+            {
+              "x": 60,
+              "y": 0,
+              "z": 0
+            },
+            {
+              "x": 60,
+              "y": 0,
+              "z": 40
+            },
+            {
+              "x": -60,
+              "y": 0,
+              "z": 40
+            },
+            {
+              "x": -60,
+              "y": 0,
+              "z": 0
+            },
+            {
+              "x": -92,
+              "y": 0,
+              "z": 0
+            }
+          ]
+        }
+      ],
+      "spawns": {
+        "player": {
+          "buildings": [
+            {
+              "id": "deepstrike_repair",
+              "kind": "field_repair_station",
+              "position": {
+                "x": -64,
+                "y": 0,
+                "z": 0
+              }
+            }
+          ],
+          "units": [
+            {
+              "id": "deepstrike_warden",
+              "kind": "warden",
+              "position": {
+                "x": -88,
+                "y": 0,
+                "z": 0
+              }
+            },
+            {
+              "id": "deepstrike_ranger_1",
+              "kind": "ranger",
+              "position": {
+                "x": -90,
+                "y": 0,
+                "z": -5
+              }
+            },
+            {
+              "id": "deepstrike_ranger_2",
+              "kind": "ranger",
+              "position": {
+                "x": -90,
+                "y": 0,
+                "z": 5
+              }
+            }
+          ]
+        },
+        "enemy": {
+          "buildings": [
+            {
+              "id": "deepstrike_sensor",
+              "kind": "sensor_mast",
+              "position": {
+                "x": 28,
+                "y": 0,
+                "z": -40
+              },
+              "mission_target_id": "deepstrike_sensor"
+            },
+            {
+              "id": "deepstrike_assembly",
+              "kind": "assembly_bay",
+              "position": {
+                "x": 56,
+                "y": 0,
+                "z": 0
+              },
+              "mission_target_id": "deepstrike_assembly"
+            },
+            {
+              "id": "deepstrike_hq",
+              "kind": "command_hub",
+              "position": {
+                "x": 82,
+                "y": 0,
+                "z": 0
+              }
+            }
+          ],
+          "units": [
+            {
+              "id": "deepstrike_raider_north",
+              "kind": "raider",
+              "position": {
+                "x": 12,
+                "y": 0,
+                "z": -40
+              }
+            },
+            {
+              "id": "deepstrike_raider_south",
+              "kind": "raider",
+              "position": {
+                "x": 12,
+                "y": 0,
+                "z": 40
+              }
+            },
+            {
+              "id": "deepstrike_bulwark",
+              "kind": "bulwark",
+              "position": {
+                "x": 64,
+                "y": 0,
+                "z": 0
+              }
+            }
+          ]
+        }
+      },
+      "ai": {
+        "difficulty": "standard",
+        "intent": "sever_network",
+        "intent_display_name": "PROTECT THE CORE",
+        "intent_message": "Rear guards will protect the command core and the pass.",
+        "map_tactic": "rear_guard",
+        "map_tactic_display_name": "REAR GUARD",
+        "map_tactic_message": "Avoid a long fight and keep one Ranger ready for extraction.",
+        "opening_attack_delay_ticks": 720,
+        "proactive_attack_delay_ticks": 0,
+        "minimum_attack_group_size": 2
+      },
+      "allowed_buildings": [
+        "field_repair_station",
+        "relay"
+      ],
+      "allowed_player_buildings": [
+        "field_repair_station"
+      ],
+      "allowed_enemy_buildings": [
+        "relay",
+        "sensor_mast",
+        "assembly_bay",
+        "command_hub"
+      ],
+      "allowed_player_units": [
+        "ranger",
+        "warden",
+        "bulwark"
+      ],
+      "allowed_enemy_units": [
+        "raider",
+        "bulwark"
+      ]
+    },
+    "final_push": {
+      "base_map_id": "relay_crossroads_base",
+      "faction_ids": {
+        "player": "coalition",
+        "enemy": "frontier"
+      },
+      "display_name": "Mission 19 — Final Push",
+      "briefing": "Hold Central Relay, then destroy the Frontier's last command hub.",
+      "objectives": {
+        "first_staging_point_id": "central_relay"
+      },
+      "rules": {
+        "max_queue": 6,
+        "fog_tile_size": 8,
+        "max_units_total": 54,
+        "max_buildings_total": 27,
+        "max_buildings_by_kind": {
+          "command_hub": 1,
+          "refinery": 3,
+          "assembly_bay": 2,
+          "tech_centre": 1,
+          "storage_silo": 3,
+          "relay": 9,
+          "sensor_mast": 4,
+          "bastion_turret": 5,
+          "fire_support_battery": 3,
+          "forward_base": 1,
+          "field_repair_station": 3
+        },
+        "upgrades_enabled": true,
+        "allowed_upgrades": [
+          "refining_efficiency",
+          "fabrication_systems",
+          "hardened_chassis",
+          "field_optics",
+          "breach_package"
+        ],
+        "allowed_technologies": [
+          "advanced_targeting",
+          "hardened_chassis",
+          "field_optics",
+          "breach_package"
+        ]
+      },
+      "campaign_mission": {
+        "id": "final_push",
+        "display_name": "FINAL PUSH",
+        "briefing": "Hold Central Relay, then destroy the Frontier's last command hub.",
+        "ignore_hq_victory": true,
+        "scripted_ai": true,
+        "phases": [
+          {
+            "id": "hold_central",
+            "display_name": "HOLD CENTRAL RELAY",
+            "type": "network_hold",
+            "target_ids": [
+              "central_relay"
+            ],
+            "owner": "player",
+            "require_connected": true,
+            "duration_ticks": 780,
+            "offline_decay_ticks": 5,
+            "wave_delay_ticks": 60,
+            "wave_interval_ticks": 150,
+            "wave_count": 6,
+            "wave_units": [
+              "raider",
+              "raider"
+            ],
+            "wave_unit_sets": [
+              [
+                "raider",
+                "raider",
+                "raider"
+              ],
+              [
+                "raider",
+                "bulwark",
+                "raider",
+                "raider"
+              ],
+              [
+                "raider",
+                "raider",
+                "bulwark",
+                "bulwark",
+                "raider"
+              ],
+              [
+                "bulwark",
+                "raider",
+                "raider",
+                "bulwark",
+                "raider"
+              ],
+              [
+                "raider",
+                "bulwark",
+                "raider",
+                "raider",
+                "bulwark"
+              ],
+              [
+                "bulwark",
+                "raider",
+                "bulwark",
+                "raider",
+                "raider",
+                "bulwark"
+              ]
+            ],
+            "wave_spawn_position": {
+              "x": 132,
+              "y": 0,
+              "z": -70
+            },
+            "target_position": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "description": "Keep Central Relay captured and connected through six waves.",
+            "completion_message": "Central Relay held.",
+            "failure_message": "The central link failed."
+          },
+          {
+            "id": "break_hub",
+            "display_name": "BREAK THE HUB",
+            "type": "destroy_targets",
+            "target_ids": [
+              "final_enemy_hq"
+            ],
+            "description": "Destroy the Frontier command hub.",
+            "completion_message": "Final Push complete."
+          }
+        ],
+        "completion_flags": [
+          "final_push_complete"
+        ]
+      },
+      "spawns": {
+        "player": {
+          "buildings": [
+            {
+              "id": "final_player_hq",
+              "kind": "command_hub",
+              "position": {
+                "x": -108,
+                "y": 0,
+                "z": 60
+              }
+            },
+            {
+              "id": "final_player_refinery",
+              "kind": "refinery",
+              "position": {
+                "x": -98,
+                "y": 0,
+                "z": 60
+              }
+            },
+            {
+              "id": "final_player_assembly",
+              "kind": "assembly_bay",
+              "position": {
+                "x": -108,
+                "y": 0,
+                "z": 48
+              }
+            }
+          ],
+          "units": [
+            {
+              "id": "final_player_ranger",
+              "kind": "ranger",
+              "position": {
+                "x": -96,
+                "y": 0,
+                "z": 48
+              }
+            },
+            {
+              "id": "final_player_warden",
+              "kind": "warden",
+              "position": {
+                "x": -100,
+                "y": 0,
+                "z": 44
+              }
+            },
+            {
+              "id": "final_player_bulwark",
+              "kind": "bulwark",
+              "position": {
+                "x": -94,
+                "y": 0,
+                "z": 42
+              }
+            },
+            {
+              "id": "final_player_collector",
+              "kind": "collector",
+              "position": {
+                "x": -90,
+                "y": 0,
+                "z": 68
+              },
+              "source_id": "north_field",
+              "destination_id": "final_player_refinery",
+              "home_id": "final_player_hq"
+            }
+          ]
+        },
+        "enemy": {
+          "buildings": [
+            {
+              "id": "final_enemy_hq",
+              "kind": "command_hub",
+              "position": {
+                "x": 108,
+                "y": 0,
+                "z": -60
+              },
+              "mission_target_id": "final_enemy_hq"
+            },
+            {
+              "id": "final_enemy_refinery",
+              "kind": "refinery",
+              "position": {
+                "x": 98,
+                "y": 0,
+                "z": -60
+              }
+            },
+            {
+              "id": "final_enemy_assembly",
+              "kind": "assembly_bay",
+              "position": {
+                "x": 108,
+                "y": 0,
+                "z": -48
+              }
+            },
+            {
+              "id": "final_enemy_sensor",
+              "kind": "sensor_mast",
+              "position": {
+                "x": 72,
+                "y": 0,
+                "z": -46
+              }
+            }
+          ],
+          "units": [
+            {
+              "id": "final_enemy_raider_1",
+              "kind": "raider",
+              "position": {
+                "x": 96,
+                "y": 0,
+                "z": -48
+              }
+            },
+            {
+              "id": "final_enemy_raider_2",
+              "kind": "raider",
+              "position": {
+                "x": 100,
+                "y": 0,
+                "z": -44
+              }
+            },
+            {
+              "id": "final_enemy_bulwark",
+              "kind": "bulwark",
+              "position": {
+                "x": 94,
+                "y": 0,
+                "z": -42
+              }
+            },
+            {
+              "id": "final_enemy_collector",
+              "kind": "collector",
+              "position": {
+                "x": 90,
+                "y": 0,
+                "z": -68
+              },
+              "source_id": "south_field",
+              "destination_id": "final_enemy_refinery",
+              "home_id": "final_enemy_hq"
+            }
+          ]
+        }
+      },
+      "ai": {
+        "difficulty": "standard",
+        "intent": "sever_network",
+        "intent_display_name": "SEVER THE LAST LINK",
+        "intent_message": "The Frontier will spend its last reserves at Central Relay.",
+        "map_tactic": "last_stand",
+        "map_tactic_display_name": "LAST STAND",
+        "map_tactic_message": "Hold the relay, then move before the enemy can rebuild.",
+        "opening_attack_delay_ticks": 360,
+        "proactive_attack_delay_ticks": 150,
+        "minimum_attack_group_size": 4
+      },
+      "allowed_buildings": [
+        "refinery",
+        "assembly_bay",
+        "tech_centre",
+        "storage_silo",
+        "relay",
+        "sensor_mast",
+        "bastion_turret",
+        "fire_support_battery",
+        "forward_base",
+        "field_repair_station"
+      ],
+      "allowed_player_buildings": [
+        "refinery",
+        "assembly_bay",
+        "tech_centre",
+        "storage_silo",
+        "relay",
+        "sensor_mast",
+        "bastion_turret",
+        "fire_support_battery",
+        "forward_base",
+        "field_repair_station"
+      ],
+      "allowed_enemy_buildings": [
+        "refinery",
+        "assembly_bay",
+        "tech_centre",
+        "storage_silo",
+        "relay",
+        "sensor_mast",
+        "bastion_turret",
+        "fire_support_battery"
+      ],
+      "allowed_player_units": [
+        "ranger",
+        "warden",
+        "bulwark",
+        "collector",
+        "command_carrier"
+      ],
+      "allowed_enemy_units": [
+        "raider",
+        "bulwark",
+        "warden",
+        "collector"
+      ]
+    },
+    "secure_grid": {
+      "base_map_id": "relay_crossroads_base",
+      "faction_ids": {
+        "player": "coalition",
+        "enemy": "frontier"
+      },
+      "display_name": "Mission 20 — Secure the Grid",
+      "briefing": "Secure every crossing and end the Frontier command network.",
+      "objectives": {
+        "first_staging_point_id": "central_relay"
+      },
+      "rules": {
+        "max_queue": 6,
+        "fog_tile_size": 8,
+        "max_units_total": 60,
+        "max_buildings_total": 30,
+        "max_buildings_by_kind": {
+          "command_hub": 1,
+          "refinery": 3,
+          "assembly_bay": 2,
+          "tech_centre": 1,
+          "storage_silo": 3,
+          "relay": 9,
+          "sensor_mast": 4,
+          "bastion_turret": 5,
+          "fire_support_battery": 3,
+          "forward_base": 1,
+          "field_repair_station": 3
+        },
+        "upgrades_enabled": true,
+        "allowed_upgrades": [
+          "refining_efficiency",
+          "fabrication_systems",
+          "hardened_chassis",
+          "field_optics",
+          "breach_package"
+        ],
+        "allowed_technologies": [
+          "advanced_targeting",
+          "hardened_chassis",
+          "field_optics",
+          "breach_package"
+        ]
+      },
+      "campaign_mission": {
+        "id": "secure_grid",
+        "display_name": "SECURE THE GRID",
+        "briefing": "Secure every crossing and end the Frontier command network.",
+        "ignore_hq_victory": true,
+        "scripted_ai": true,
+        "phases": [
+          {
+            "id": "secure_grid",
+            "display_name": "SECURE THE GRID",
+            "type": "network_hold",
+            "target_ids": [
+              "west_crossing",
+              "central_relay",
+              "east_crossing"
+            ],
+            "owner": "player",
+            "require_connected": true,
+            "duration_ticks": 900,
+            "offline_decay_ticks": 5,
+            "wave_delay_ticks": 60,
+            "wave_interval_ticks": 150,
+            "wave_count": 8,
+            "wave_units": [
+              "raider",
+              "raider"
+            ],
+            "wave_unit_sets": [
+              [
+                "raider",
+                "raider",
+                "raider"
+              ],
+              [
+                "raider",
+                "bulwark",
+                "raider",
+                "raider"
+              ],
+              [
+                "raider",
+                "raider",
+                "bulwark",
+                "bulwark",
+                "raider"
+              ],
+              [
+                "bulwark",
+                "raider",
+                "raider",
+                "bulwark",
+                "raider"
+              ],
+              [
+                "raider",
+                "bulwark",
+                "raider",
+                "raider",
+                "bulwark"
+              ],
+              [
+                "bulwark",
+                "raider",
+                "bulwark",
+                "raider",
+                "raider",
+                "bulwark"
+              ],
+              [
+                "raider",
+                "bulwark",
+                "raider",
+                "bulwark",
+                "raider",
+                "raider"
+              ],
+              [
+                "bulwark",
+                "bulwark",
+                "raider",
+                "raider",
+                "bulwark",
+                "raider"
+              ]
+            ],
+            "wave_spawn_position": {
+              "x": 132,
+              "y": 0,
+              "z": -70
+            },
+            "target_position": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "description": "Capture all three relays and keep the network connected.",
+            "completion_message": "The full relay grid is secure.",
+            "failure_message": "The relay grid collapsed."
+          },
+          {
+            "id": "end_command",
+            "display_name": "END COMMAND",
+            "type": "destroy_targets",
+            "target_ids": [
+              "secure_enemy_hq"
+            ],
+            "description": "Destroy the final Frontier command hub.",
+            "completion_message": "The grid is secure. Campaign complete."
+          }
+        ],
+        "completion_flags": [
+          "secure_grid_complete"
+        ]
+      },
+      "spawns": {
+        "player": {
+          "buildings": [
+            {
+              "id": "secure_player_hq",
+              "kind": "command_hub",
+              "position": {
+                "x": -108,
+                "y": 0,
+                "z": 60
+              }
+            },
+            {
+              "id": "secure_player_refinery",
+              "kind": "refinery",
+              "position": {
+                "x": -98,
+                "y": 0,
+                "z": 60
+              }
+            },
+            {
+              "id": "secure_player_assembly",
+              "kind": "assembly_bay",
+              "position": {
+                "x": -108,
+                "y": 0,
+                "z": 48
+              }
+            },
+            {
+              "id": "secure_player_relay_1",
+              "kind": "relay",
+              "position": {
+                "x": -82,
+                "y": 0,
+                "z": 48
+              }
+            },
+            {
+              "id": "secure_player_relay_2",
+              "kind": "relay",
+              "position": {
+                "x": -54,
+                "y": 0,
+                "z": 30
+              }
+            },
+            {
+              "id": "secure_player_relay_3",
+              "kind": "relay",
+              "position": {
+                "x": -24,
+                "y": 0,
+                "z": 12
+              }
+            }
+          ],
+          "units": [
+            {
+              "id": "secure_player_ranger",
+              "kind": "ranger",
+              "position": {
+                "x": -96,
+                "y": 0,
+                "z": 48
+              }
+            },
+            {
+              "id": "secure_player_warden",
+              "kind": "warden",
+              "position": {
+                "x": -100,
+                "y": 0,
+                "z": 44
+              }
+            },
+            {
+              "id": "secure_player_bulwark",
+              "kind": "bulwark",
+              "position": {
+                "x": -94,
+                "y": 0,
+                "z": 42
+              }
+            },
+            {
+              "id": "secure_player_collector",
+              "kind": "collector",
+              "position": {
+                "x": -90,
+                "y": 0,
+                "z": 68
+              },
+              "source_id": "north_field",
+              "destination_id": "secure_player_refinery",
+              "home_id": "secure_player_hq"
+            }
+          ]
+        },
+        "enemy": {
+          "buildings": [
+            {
+              "id": "secure_enemy_hq",
+              "kind": "command_hub",
+              "position": {
+                "x": 108,
+                "y": 0,
+                "z": -60
+              },
+              "mission_target_id": "secure_enemy_hq"
+            },
+            {
+              "id": "secure_enemy_refinery",
+              "kind": "refinery",
+              "position": {
+                "x": 98,
+                "y": 0,
+                "z": -60
+              }
+            },
+            {
+              "id": "secure_enemy_assembly",
+              "kind": "assembly_bay",
+              "position": {
+                "x": 108,
+                "y": 0,
+                "z": -48
+              }
+            },
+            {
+              "id": "secure_enemy_sensor",
+              "kind": "sensor_mast",
+              "position": {
+                "x": 72,
+                "y": 0,
+                "z": -46
+              }
+            },
+            {
+              "id": "secure_enemy_battery",
+              "kind": "fire_support_battery",
+              "position": {
+                "x": 82,
+                "y": 0,
+                "z": -52
+              }
+            }
+          ],
+          "units": [
+            {
+              "id": "secure_enemy_raider_1",
+              "kind": "raider",
+              "position": {
+                "x": 96,
+                "y": 0,
+                "z": -48
+              }
+            },
+            {
+              "id": "secure_enemy_raider_2",
+              "kind": "raider",
+              "position": {
+                "x": 100,
+                "y": 0,
+                "z": -44
+              }
+            },
+            {
+              "id": "secure_enemy_bulwark",
+              "kind": "bulwark",
+              "position": {
+                "x": 94,
+                "y": 0,
+                "z": -42
+              }
+            },
+            {
+              "id": "secure_enemy_collector",
+              "kind": "collector",
+              "position": {
+                "x": 90,
+                "y": 0,
+                "z": -68
+              },
+              "source_id": "south_field",
+              "destination_id": "secure_enemy_refinery",
+              "home_id": "secure_enemy_hq"
+            }
+          ]
+        }
+      },
+      "ai": {
+        "difficulty": "standard",
+        "intent": "sever_network",
+        "intent_display_name": "BREAK THE GRID",
+        "intent_message": "The Frontier will attack every link before defending its final hub.",
+        "map_tactic": "grid_siege",
+        "map_tactic_display_name": "GRID SIEGE",
+        "map_tactic_message": "Keep the three relays linked and answer attacks on both flanks.",
+        "opening_attack_delay_ticks": 300,
+        "proactive_attack_delay_ticks": 120,
+        "minimum_attack_group_size": 5
+      },
+      "allowed_buildings": [
+        "refinery",
+        "assembly_bay",
+        "tech_centre",
+        "storage_silo",
+        "relay",
+        "sensor_mast",
+        "bastion_turret",
+        "fire_support_battery",
+        "forward_base",
+        "field_repair_station"
+      ],
+      "allowed_player_buildings": [
+        "refinery",
+        "assembly_bay",
+        "tech_centre",
+        "storage_silo",
+        "relay",
+        "sensor_mast",
+        "bastion_turret",
+        "fire_support_battery",
+        "forward_base",
+        "field_repair_station"
+      ],
+      "allowed_enemy_buildings": [
+        "refinery",
+        "assembly_bay",
+        "tech_centre",
+        "storage_silo",
+        "relay",
+        "sensor_mast",
+        "bastion_turret",
+        "fire_support_battery"
+      ],
+      "allowed_player_units": [
+        "ranger",
+        "warden",
+        "bulwark",
+        "collector",
+        "command_carrier"
+      ],
+      "allowed_enemy_units": [
+        "raider",
+        "bulwark",
+        "warden",
+        "collector"
+      ]
     }
   }
 }

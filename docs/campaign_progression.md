@@ -2,25 +2,24 @@
 
 ## Current campaign spine
 
-The campaign is now an eight-mission spine. Missions 1–6 establish the
-Coalition network; completing Network Sever grants one persistent doctrine
-package, and Missions 7–8 make that choice affect the opening economy, force,
-and assault timing.
+The campaign is a 20-mission linear arc. Missions 1–8 build and defend the
+Coalition network. Network Sever grants one doctrine package. Missions 9–20
+turn that network into a sustained push against the Frontier command grid.
 
-| Tier | Mission | Focus | First-completion reward |
-| --- | --- | --- | --- |
-| 1 | Relay Divide — Foundation | Economy, basic construction, Ranger/Collector opening | Warden and Forward Relay |
-| 2 | Relay Crossroads — Network Expansion | Territory, connected staging, research | Bulwark, Tech Centre, Advanced Targeting |
-| 3 | Silent Recovery — Special Operations | Limited force, detection, recovery, exfiltration | Forward Base, Field Repair Station, Field Optics, Hardened Chassis |
-| 4 | The Long Road — Fortified Advance | Convoy routing and forward deployment | Sensor Mast, Bastion Turret, Breach Package |
-| 5 | Holdfast — Layered Defence | Economy-backed perimeter defence and escalating waves | Fire Support Battery |
-| 6 | Network Sever — Counter-Offensive | Connected Central Relay capture and sustained hold | One persistent doctrine package and Counterstroke |
-| 7 | Counterstroke — Breakthrough | Break the forward guard, hold the relay, destroy the command hub | Doctrine carries into Iron Front |
-| 8 | Iron Front — Network Defence | Hold the relay through six waves, then finish the counter-offensive | Campaign mastery |
+| Missions | Story beat | Gameplay focus |
+| --- | --- | --- |
+| 1–2 | Establish the network | Economy, territory, relays, research |
+| 3–5 | Move and hold the line | Recovery, convoy deployment, perimeter defence |
+| 6–8 | Open the counter-offensive | Central Relay, doctrine choice, breakthrough |
+| 9–11 | Restore and blind the grid | Relay recovery, supply pressure, signal raids |
+| 12–15 | Build the forward line | Carrier deployment, artillery, linked crossings, convoy defence |
+| 16–18 | Break the eastern command | Relay blackout, armoured gate, deep strike |
+| 19–20 | Finish the war | Final relay hold, command-grid capture, Frontier HQ destruction |
 
 Mission metadata lives in `data/campaign_data.json`. Runtime maps, allowed
 content, objectives, spawns, wave sets, and faction assignments live in
-`data/level_data.json`.
+`data/level_data.json`. Briefings and phase instructions use short sentences;
+the deployment screen shows the current mission's brief and available units.
 
 ## Persistent save contract
 
@@ -63,7 +62,9 @@ of percentage bonuses:
 - **Recon Network:** an additional Sensor Mast and longer intervals between
   scripted assault waves.
 
-The package is authored per mission in `campaign_mission.doctrine_variants`.
+The package is authored into the Counterstroke and Iron Front opening variants.
+The selected package remains in the campaign record for later mission receipts;
+later missions currently use their own authored forces and objectives.
 The simulation applies the starting assets before campaign phases activate and
 the campaign mission system applies the selected phase overrides. This keeps
 the choice visible in the brief and authoritative in the fixed-step runtime.
@@ -136,6 +137,12 @@ and `NETWORK CONTESTED` rather than relying on a presentation-only timer.
 
 Focused regression coverage includes:
 
+- `tests/campaign_20_mission_catalog_test.gd`: exact 20-mission order, unlock
+  chain, concise mission copy, authored phase types, and target resolution for
+  every later operation.
+- `tests/campaign_20_mission_runtime_test.gd`: forced phase transitions across
+  all 18 authored campaign operations, including recovery, network hold,
+  convoy, deployment, defence, and final command-hub objectives.
 - `tests/campaign_progression_expansion_test.gd`: save/reload rewards, tier
   gates, faction modifiers, connected relay-chain capture, offline decay, and
   Network Sever completion.

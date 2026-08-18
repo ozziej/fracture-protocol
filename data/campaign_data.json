@@ -33,21 +33,21 @@
       "display_name": "LOGISTICS CORPS",
       "summary": "Keep the line supplied and turn a safe opening into sustained momentum.",
       "reward_text": "FIELD RESERVE  //  +250 opening credits  ·  Storage Silo  ·  Collector",
-      "effect_summary": "Start Missions 7–8 with an additional Storage Silo, a Collector route, and 250 credits."
+      "effect_summary": "Start the post-Network Sever campaign with an additional Storage Silo, a Collector route, and 250 credits."
     },
     {
       "id": "armoured",
       "display_name": "ARMOURED SPEARHEAD",
       "summary": "Put another hard target at the point of decision and force the Frontier to answer it.",
       "reward_text": "SPEARHEAD PACKAGE  //  Warden line vehicle  ·  +100 opening credits",
-      "effect_summary": "Start Missions 7–8 with an additional Warden and 100 credits."
+      "effect_summary": "Start the post-Network Sever campaign with an additional Warden and 100 credits."
     },
     {
       "id": "recon",
       "display_name": "RECON NETWORK",
       "summary": "See the counter-offensive forming before it reaches the relay chain.",
       "reward_text": "SIGNAL PACKAGE  //  Sensor Mast  ·  +45 seconds between assault waves",
-      "effect_summary": "Start Missions 7–8 with a Sensor Mast; scripted assault waves arrive later."
+      "effect_summary": "Start the post-Network Sever campaign with a Sensor Mast; scripted assault waves arrive later."
     }
   ],
   "missions": [
@@ -120,7 +120,7 @@
       "unlock_on_complete": "iron_front",
       "requires_doctrine": true,
       "rewards": {"units": [], "buildings": [], "technologies": []},
-      "reward_text": "DOCTRINE PROVEN  //  Your selected package carries forward into Iron Front"
+      "reward_text": "DOCTRINE PROVEN  //  Your selected package carries into later operations"
     },
     {
       "id": "iron_front",
@@ -128,8 +128,128 @@
       "tier": 8,
       "tier_label": "NETWORK DEFENCE",
       "initially_unlocked": false,
+      "unlock_on_complete": "ash_relay",
       "rewards": {"units": [], "buildings": [], "technologies": []},
-      "reward_text": "CAMPAIGN MASTERY  //  The Coalition doctrine holds the Central Relay under full counter-offensive pressure"
+      "reward_text": "OPERATION CLEAR  //  The counter-offensive is ready to continue"
+    },
+    {
+      "id": "ash_relay",
+      "display_name": "Level 9 — Ash Relay",
+      "tier": 9,
+      "tier_label": "RELAY RECOVERY",
+      "initially_unlocked": false,
+      "unlock_on_complete": "deep_current",
+      "rewards": {"units": [], "buildings": [], "technologies": []},
+      "reward_text": "OPERATION CLEAR  //  The damaged relay link is stable"
+    },
+    {
+      "id": "deep_current",
+      "display_name": "Level 10 — Deep Current",
+      "tier": 10,
+      "tier_label": "RESOURCE WAR",
+      "initially_unlocked": false,
+      "unlock_on_complete": "ghost_signal",
+      "rewards": {"units": [], "buildings": [], "technologies": []},
+      "reward_text": "OPERATION CLEAR  //  Frontier supply is cut"
+    },
+    {
+      "id": "ghost_signal",
+      "display_name": "Level 11 — Ghost Signal",
+      "tier": 11,
+      "tier_label": "SIGNAL WAR",
+      "initially_unlocked": false,
+      "unlock_on_complete": "redline_crossing",
+      "rewards": {"units": [], "buildings": [], "technologies": []},
+      "reward_text": "OPERATION CLEAR  //  Frontier sensor coverage is down"
+    },
+    {
+      "id": "redline_crossing",
+      "display_name": "Level 12 — Redline Crossing",
+      "tier": 12,
+      "tier_label": "FORWARD LINE",
+      "initially_unlocked": false,
+      "unlock_on_complete": "counterbattery",
+      "rewards": {"units": [], "buildings": [], "technologies": []},
+      "reward_text": "OPERATION CLEAR  //  The forward line is established"
+    },
+    {
+      "id": "counterbattery",
+      "display_name": "Level 13 — Counterbattery",
+      "tier": 13,
+      "tier_label": "COUNTERBATTERY",
+      "initially_unlocked": false,
+      "unlock_on_complete": "split_front",
+      "rewards": {"units": [], "buildings": [], "technologies": []},
+      "reward_text": "OPERATION CLEAR  //  Frontier fire support is silent"
+    },
+    {
+      "id": "split_front",
+      "display_name": "Level 14 — Split the Front",
+      "tier": 14,
+      "tier_label": "SPLIT FRONT",
+      "initially_unlocked": false,
+      "unlock_on_complete": "last_convoy",
+      "rewards": {"units": [], "buildings": [], "technologies": []},
+      "reward_text": "OPERATION CLEAR  //  Both crossings are linked"
+    },
+    {
+      "id": "last_convoy",
+      "display_name": "Level 15 — The Last Convoy",
+      "tier": 15,
+      "tier_label": "LAST CONVOY",
+      "initially_unlocked": false,
+      "unlock_on_complete": "blackout",
+      "rewards": {"units": [], "buildings": [], "technologies": []},
+      "reward_text": "OPERATION CLEAR  //  The eastern base is holding"
+    },
+    {
+      "id": "blackout",
+      "display_name": "Level 16 — Blackout",
+      "tier": 16,
+      "tier_label": "BLACKOUT",
+      "initially_unlocked": false,
+      "unlock_on_complete": "iron_gate",
+      "rewards": {"units": [], "buildings": [], "technologies": []},
+      "reward_text": "OPERATION CLEAR  //  Frontier command links are dark"
+    },
+    {
+      "id": "iron_gate",
+      "display_name": "Level 17 — Iron Gate",
+      "tier": 17,
+      "tier_label": "IRON GATE",
+      "initially_unlocked": false,
+      "unlock_on_complete": "deep_strike",
+      "rewards": {"units": [], "buildings": [], "technologies": []},
+      "reward_text": "OPERATION CLEAR  //  The eastern gate is open"
+    },
+    {
+      "id": "deep_strike",
+      "display_name": "Level 18 — Deep Strike",
+      "tier": 18,
+      "tier_label": "DEEP STRIKE",
+      "initially_unlocked": false,
+      "unlock_on_complete": "final_push",
+      "rewards": {"units": [], "buildings": [], "technologies": []},
+      "reward_text": "OPERATION CLEAR  //  The final command core is exposed"
+    },
+    {
+      "id": "final_push",
+      "display_name": "Level 19 — Final Push",
+      "tier": 19,
+      "tier_label": "FINAL PUSH",
+      "initially_unlocked": false,
+      "unlock_on_complete": "secure_grid",
+      "rewards": {"units": [], "buildings": [], "technologies": []},
+      "reward_text": "OPERATION CLEAR  //  The Frontier is on its last line"
+    },
+    {
+      "id": "secure_grid",
+      "display_name": "Level 20 — Secure the Grid",
+      "tier": 20,
+      "tier_label": "SECURE THE GRID",
+      "initially_unlocked": false,
+      "rewards": {"units": [], "buildings": [], "technologies": []},
+      "reward_text": "CAMPAIGN COMPLETE  //  The Coalition network is secure"
     }
   ]
 }

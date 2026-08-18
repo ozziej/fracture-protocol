@@ -1,6 +1,6 @@
 # Fracture Protocol — Planning Document
 
-**Status:** Campaign expansion active: level-gated progression, persistent rewards, faction identity, alternate objectives, doctrine choice, and the representative visual slice are implemented and the core loop has passed extensive human playtesting; the next playtest pass covers Missions 7–8
+**Status:** Campaign expansion active: a 20-mission authored arc, level-gated progression, persistent rewards, faction identity, alternate objectives, doctrine choice, and the representative visual slice are implemented; the next playtest pass covers Missions 9–20
 **Version:** 1.3
 **Target:** PC  
 **Engine direction:** Godot 4  
@@ -65,12 +65,12 @@ The current Godot 4 prototype has a playable local skirmish foundation:
 - Combat chassis now have authored counterplay: Wardens have substantially higher durability and resist ordinary fire, Bulwarks have lower durability and receive increased direct damage from Wardens and Bulwarks, and Rangers/Raiders retain equal light-vehicle parity with a small armour/damage lift.
 - The production roles are now explicit: the Assembly Bay is a unit-and-upgrade production structure, while Sensor Masts and Bastion Turrets are Command Hub/Forward Base construction cards. The Assembly Bay no longer exposes defensive structures.
 - Campaign content is now level-gated from a foundation Level 1 roster. First completion rewards persist in `user://campaign_progress.json`, later mission buttons show their unlock payload, and the result screen reports the newly available content.
-- The eight-mission campaign spine is authored: Foundation, Network Expansion, Special Operations, Fortified Advance, Layered Defence, Counter-Offensive, Breakthrough, and Network Defence. Network Sever now grants one persistent doctrine package; Counterstroke and Iron Front apply concrete Logistics Corps, Armoured Spearhead, or Recon Network differences to starting assets and scripted assault timing.
+- The 20-mission campaign spine is authored: Missions 1–8 establish the Coalition network and Missions 9–20 restore, blind, split, and secure the Frontier grid. Network Sever grants one persistent doctrine package; later missions use distinct authored objectives, forces, routes, and assault timing, with every authored phase transition runtime-covered.
 - Campaign progress schema 3 migrates older saves without replaying missions. The deployment screen exposes the one-time doctrine selection and the result receipt records the selected package and next unlock.
 - Coalition and Frontier faction profiles are now visible in campaign briefing/HUD state and apply small, explicit doctrine modifiers: Coalition favours sensors and fortified networks; Frontier favours Raider mobility and mobile pressure.
 - Relay Divide and Relay Crossroads now include authored industrial signal/transfer set pieces built from the existing Space Kit modules. A presentation regression verifies those landmarks and a 100-added-unit visual synchronization benchmark measures the asset-backed view layer.
 
-The immediate next step is human playtesting from a clean start-menu deployment through Counterstroke and Iron Front. Record whether the doctrine packages create genuinely different openings, whether the breakthrough-to-defence handoff feels earned, and whether the six-wave relay hold creates pressure without becoming a grind. Tune doctrine assets, wave timing, and mission geometry only from those observations before adding branching campaign content or deeper faction economy.
+The immediate next step is human playtesting from a clean start-menu deployment through Missions 9–20. Record whether the recovery, convoy, blackout, and final-grid objectives form a clear difficulty ramp, whether the doctrine choice remains legible after Mission 8, and whether the reused battlefield shells still feel distinct. Tune mission geometry, wave timing, and later doctrine presentation from those observations before adding branching campaign content or deeper faction economy.
 
 ## 1. Vision
 
@@ -441,7 +441,7 @@ The first art milestone should polish one small map area, one base, and a repres
 - Infantry, vehicle, artillery, and scout/utility roles.
 - Basic AI opponent.
 - Destruction of the enemy command headquarters as the main victory condition.
-- A six-mission authored campaign spine with level-gated persistent content rewards.
+- A 20-mission authored campaign spine with level-gated persistent content rewards.
 - A connected-network hold objective as an alternate campaign victory condition.
 - Playable graybox presentation followed by one polished representative slice.
 
@@ -480,9 +480,9 @@ boundary. Network Hold provides the first fixed-tick alternate victory
 condition, with live objective markers, progress feedback, result handling, and
 clean rematch flow.
 
-### Milestone 4.75 — Campaign progression and alternate objectives — first pass complete
+### Milestone 4.75 — Campaign progression and alternate objectives — expanded
 
-The six-mission campaign spine now uses authored tier gates, persistent first-completion rewards, faction briefing identity, and player-facing unlock receipts. Network Sever adds a connected Central Relay hold with escalating counter-offensive waves.
+The 20-mission campaign spine now uses authored tier gates, persistent first-completion rewards, faction briefing identity, short mission copy, and player-facing unlock receipts. Network Sever and the later missions use connected-network holds, recovery, convoy, artillery, blackout, and deep-strike objectives.
 
 ### Milestone 5 — Representative visual slice — first pass complete
 

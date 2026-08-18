@@ -162,7 +162,7 @@ func _playtest_long_road_runtime(simulation: Node, failures: Array[String]) -> v
 func _playtest_long_road_direct_arrival(simulation: Node, failures: Array[String]) -> void:
 	var carrier_id := _find_authored(simulation.units, "long_road_command_carrier")
 	var campaign: Dictionary = simulation.get_campaign_state()
-	if str(campaign.get("objective_text", "")) != "Move the Mobile Command Unit to the deployment pad.":
+	if str(campaign.get("objective_text", "")) != "Move the carrier to the deployment pad.":
 		failures.append("The Long Road escort objective should stay concise in the HUD")
 	simulation.units[carrier_id]["position"] = Vector3(90.0, 0.0, 0.0)
 	simulation.step_fixed()

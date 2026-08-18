@@ -14,6 +14,10 @@ func _initialize() -> void:
 	var mission_scroll: Node = main_node.find_child("CampaignMissionScroll", true, false)
 	if mission_scroll == null:
 		failures.append("Campaign deployment should provide a scrollable mission list")
+	if main_node.campaign_mission_buttons.size() != 20:
+		failures.append("Campaign deployment should expose all 20 authored missions")
+	if main_node.campaign_mission_list == null or main_node.campaign_mission_list.get_child_count() != 20:
+		failures.append("Campaign deployment should render one button per authored mission")
 	if main_node.campaign_start_button == null or main_node.campaign_start_button.text != "START CAMPAIGN":
 		failures.append("Campaign deployment should expose a Start Campaign button")
 	if main_node.campaign_doctrine_option == null or main_node.campaign_doctrine_option.item_count != 4:
